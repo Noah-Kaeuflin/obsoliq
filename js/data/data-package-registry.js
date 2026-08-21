@@ -68,7 +68,7 @@
       },
       description: "Historical consumption signals for later slow-moving and dead-stock intelligence.",
       requiredRelationshipKeys: ["material_id"],
-      recommendedRelationshipKeys: ["material_id", "plant", "period"]
+      recommendedRelationshipKeys: ["material_id", "plant"]
     },
     demand_forecast: {
       packageType: "demand_forecast",

@@ -56,6 +56,7 @@
     sourceModel,
     mappingEngine,
     inputTrustService = null,
+    consumptionHistoryInterpretationService = null,
     registry,
     packageDefinitions,
     builders,
@@ -114,6 +115,19 @@
       throw new Error("Registered Data Package Builder does not expose a supported build method.");
     }
 
+    function interpretationFor(packageType, source, mapping, sourceDescriptor = {}, semanticPolicy = null) {
+      if (packageType !== "consumption_history" || !consumptionHistoryInterpretationService) return null;
+      return consumptionHistoryInterpretationService.prepareConsumptionHistoryInterpretation({
+        packageType,
+        headers: source.headers,
+        rows: source.rows,
+        sourceColumnMetadata: source.sourceColumnMetadata,
+        mapping,
+        sourceDescriptor,
+        semanticPolicy
+      });
+    }
+
     function normalizedParsedSource(parsedSource = {}) {
       const headers = Array.isArray(parsedSource.headers) ? parsedSource.headers : [];
       const rows = Array.isArray(parsedSource.rows) ? parsedSource.rows : [];
@@ -152,6 +166,7 @@
           sourceDescriptor
         })
         : null;
+      const interpretationResult = interpretationFor(packageType, source, automaticMapping, sourceDescriptor);
       return freezeResult({
         ok: true,
         status: "prepared",
@@ -162,11 +177,12 @@
         automaticMapping,
         approvedMapping: mappingEngine.cloneColumnMapping(automaticMapping),
         mappingState,
-        inputTrustResult
+        inputTrustResult,
+        interpretationResult
       });
     }
 
-    function validateMapping({ packageType, parsedSource, mapping } = {}) {
+    function validateMapping({ packageType, parsedSource, mapping, semanticPolicy = null, sourceDescriptor = {} } = {}) {
       const policy = mappingPolicyFor(packageType);
       const source = normalizedParsedSource(parsedSource);
       const mappingValidation = mappingEngine.validateColumnMapping(mapping || [], {
@@ -184,6 +200,7 @@
           fieldDefinitions: fieldDefinitionsFor(packageType) || undefined
         })
         : null;
+      const interpretationResult = interpretationFor(packageType, source, mappingValidation.mapping, sourceDescriptor, semanticPolicy);
       const { builder } = builderFor(packageType);
       const packageValidation = validatePackageWithBuilder(builder, {
           sourceRows: source.rows,
@@ -191,17 +208,23 @@
           sourceColumnMetadata: source.sourceColumnMetadata,
           columnMapping: mappingValidation.mapping,
           inputTrustResult,
+          semanticInterpretation: interpretationResult,
+          semanticPolicy: interpretationResult?.effectivePolicy || semanticPolicy,
           evaluatedAt: clock()
         }) || { status: mappingValidation.valid ? "ready" : "invalid", blockingErrors: mappingValidation.errors, warnings: mappingValidation.warnings };
       return freezeResult({
-        ok: mappingValidation.valid && packageValidation.status !== "invalid" && inputTrustResult?.trustState !== "blocked",
+        ok: mappingValidation.valid
+          && packageValidation.status !== "invalid"
+          && inputTrustResult?.trustState !== "blocked"
+          && interpretationResult?.trustState !== "blocked",
         mappingValidation,
         packageValidation,
-        inputTrustResult
+        inputTrustResult,
+        interpretationResult
       });
     }
 
-    function buildPackage({ packageType, parsedSource, approvedMapping, sourceDescriptor = {}, forceBuildErrorForTest = false } = {}) {
+    function buildPackage({ packageType, parsedSource, approvedMapping, sourceDescriptor = {}, semanticPolicy = null, forceBuildErrorForTest = false } = {}) {
       if (forceBuildErrorForTest) {
         return freezeResult({ ok: false, errorCode: "BUILD_FAILED", errorMessage: "Forced Package build failure." });
       }
@@ -234,12 +257,28 @@
           }
         });
       }
+      const interpretationResult = interpretationFor(packageType, source, approvedMapping, sourceDescriptor, semanticPolicy);
+      if (interpretationResult?.trustState === "blocked") {
+        return freezeResult({
+          ok: false,
+          errorCode: "HISTORY_INTERPRETATION_BLOCKED",
+          interpretationResult,
+          packageValidation: {
+            status: "invalid",
+            statusKey: "history_interpretation_blocked",
+            blockingErrors: interpretationResult.blockingDiagnostics || [],
+            warnings: interpretationResult.reviewDiagnostics || []
+          }
+        });
+      }
       const buildResult = buildPackageWithBuilder(builder, {
         sourceRows: source.rows,
         headers: source.headers,
         sourceColumnMetadata: source.sourceColumnMetadata,
         columnMapping: approvedMapping,
         inputTrustResult,
+        semanticInterpretation: interpretationResult,
+        semanticPolicy: interpretationResult?.effectivePolicy || semanticPolicy,
         sourceDescriptor,
         datasetId,
         buildTimestamp: timestamp
@@ -285,6 +324,7 @@
           builtAt: timestamp,
           buildMetadata: buildResult.buildMetadata,
           inputTrustMetadata: inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null,
+          interpretationMetadata: interpretationResult?.inputTrustMetadata || buildResult.buildMetadata?.interpretationMetadata || null,
           normalizedRowCount: buildResult.normalizedRows.length,
           analyticalRowCount: 0,
           excludedSourceRows: [],
@@ -303,6 +343,8 @@
           keyGranularity: packageValidation.keyGranularity,
           rowCount: packageValidation.rowCount,
           validRowCount: packageValidation.validRowCount,
+          historyReadinessStatus: packageValidation.historyReadinessStatus,
+          semanticDiagnosticCount: packageValidation.semanticDiagnosticCount || 0,
           diagnostics: cloneData(packageValidation.diagnostics || [
             ...(packageValidation.blockingErrors || []),
             ...(packageValidation.warnings || [])
@@ -314,6 +356,7 @@
         },
         relationshipKeys: buildResult.relationshipKeys,
         inputTrustMetadata: inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null,
+        interpretationMetadata: interpretationResult?.inputTrustMetadata || null,
         createdAt: timestamp,
         updatedAt: timestamp
       };

@@ -6,6 +6,20 @@ ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. 
 
 The product helps users move from SAP or Excel inventory data to classification, recovery potential, root cause, recommended action, owner, status tracking and exportable management reporting.
 
+### AP 16.4b — Temporal, Movement & Unit Semantics
+
+Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.
+
+The temporal contract parses only controlled formats: ISO date, German date, explicitly selected US date, YYYYMMDD, Excel serial, YYYY-MM, YYYYMM and MM/YYYY periods. Ambiguous slash dates are not guessed in auto mode. Date-only values are normalized as calendar strings and do not shift through time zones. When Posting Date and Period are both mapped, Posting Date drives the row-level temporal reference and conflicts are diagnosed.
+
+The analysis-as-of date must be explicit. It can be unavailable, inventory-snapshot-owned or user-confirmed; the browser's current date is never used as an analytical reference. Future movements are diagnosed only when an explicit as-of date exists.
+
+Movement Type semantics use a versioned MVP rule set. `261` is classified as consumption, `262` as reversal and unknown Movement Types remain `unknown`. Negative quantity alone never determines movement semantics. Each row separates signed source quantity, absolute quantity and net-consumption quantity.
+
+Units are normalized as conservative tokens only. ObsoliQ does not convert units, does not aggregate unlike units and diagnoses missing or multiple units per entity. Consumption History rows now carry separate `entity_key`, `temporal_reference_key`, `event_identity_key` and `unit_context_key`, plus duplicate semantics and deterministic History Readiness metadata.
+
+AP 16.4b remains analytically isolated. It does not join Consumption History to Inventory, does not calculate 3M/6M/12M metrics, does not set last-consumption dates on Inventory, and does not change Recovery, Data Quality, Actions, Opportunity Score, scenarios or Pilot Reviews. AP 16.4c is the next block for Inventory Relationship & Historical Metrics.
+
 ### AP 16.4a — Consumption History Contract & Builder
 
 ObsoliQ now accepts Consumption History as a separate optional intelligence Data Package. This package captures historical consumption evidence without changing current Inventory Snapshot analytics.

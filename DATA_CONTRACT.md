@@ -46,6 +46,55 @@ Diagnostics are package-scoped. AP 16.4a reports missing required mappings, inva
 
 The contract is isolated from Inventory Snapshot calculations. Consumption History package rows are not yet joined into Recovery, slow/dead-stock classification, Data Quality Score, Action Cockpit, Opportunity Score, scenarios, Pilot Review or exports.
 
+## AP 16.4b Consumption History Semantic Contract
+
+`SemanticInterpretationPolicy` is package-scoped and versioned as `consumption-history-semantics-v1`. It stores quantity locale and scale policy, Posting Date format, Period format, analysis-as-of ownership, Movement Type rule-set identity and unit policy. Its deterministic signature is stored in package build metadata.
+
+Supported temporal formats are:
+
+- Posting Date: `yyyy-mm-dd`, `dd.mm.yyyy`, controlled `mm/dd/yyyy`, `yyyymmdd`, `excel-serial`
+- Period: `yyyy-mm`, `yyyymm`, `mm/yyyy`
+
+Auto mode never guesses ambiguous slash dates. Date-only values are normalized to `YYYY-MM-DD` strings without time-zone conversion. When Posting Date and Period are both mapped, Posting Date has row-level priority; conflicting periods are diagnosed.
+
+`analysisAsOf` may be `inventory_snapshot`, `user_confirmed` or `unavailable`. The browser current date is not a valid analytical reference. Future movement diagnostics are emitted only when `analysisAsOf.date` is explicit.
+
+Movement semantics use rule set `sap-consumption-movement-mvp` version `1`. `261` is `consumption`, `262` is `reversal`, and unknown Movement Types remain `unknown`. Negative source quantity is preserved but is never sufficient by itself to classify a movement.
+
+Each semantic row may contain:
+
+- `raw_posting_date`
+- `raw_period`
+- `temporal_source`
+- `normalized_posting_date`
+- `normalized_period`
+- `temporal_precision`
+- `temporal_parse_status`
+- `temporal_diagnostic_codes`
+- `temporal_status`
+- `temporal_consistency_status`
+- `movement_semantic`
+- `movement_rule_set_id`
+- `movement_rule_set_version`
+- `signed_consumption_quantity`
+- `absolute_consumption_quantity`
+- `net_consumption_quantity`
+- `normalized_base_unit`
+- `unit_status`
+- `aggregation_eligible`
+- `entity_key`
+- `temporal_reference_key`
+- `event_identity_key`
+- `event_identity_status`
+- `unit_context_key`
+- `duplicate_semantic`
+
+Units are normalized as tokens only. There is no unit conversion, no compatibility claim and no aggregation across unlike units. Missing and multiple-unit contexts are diagnostics.
+
+Duplicate semantics distinguish exact source duplicates, business duplicate candidates and legitimate repeated movements. No duplicate is automatically deleted.
+
+History Readiness is deterministic and package-scoped. It summarizes semantic row count, ready row count, diagnostics, history coverage end and analysis-as-of state. `historyCoverageEnd` is descriptive coverage evidence only and is not an `analysisAsOf` date. It does not change Inventory Data Quality Score, Recovery, Actions, Opportunity Score, scenarios or Pilot Reviews.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

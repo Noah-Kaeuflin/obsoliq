@@ -5,9 +5,11 @@
   const sourceModel = root.data?.sourceModel;
   const mappingEngine = root.mapping?.engine;
   const valueUtils = root.core?.valueUtils;
+  const semanticsEngine = root.data?.consumptionHistorySemanticsEngine;
   if (!sourceModel) throw new Error("ObsoliQ Consumption History Builder requires the source-model module.");
   if (!mappingEngine) throw new Error("ObsoliQ Consumption History Builder requires the mapping engine.");
   if (!valueUtils) throw new Error("ObsoliQ Consumption History Builder requires value utilities.");
+  if (!semanticsEngine) throw new Error("ObsoliQ Consumption History Builder requires the Consumption History Semantics Engine.");
 
   const BUILDER_VERSION = "1";
   const PACKAGE_TYPE = "consumption_history";
@@ -406,29 +408,50 @@
       evaluatedAt: buildTimestamp
     });
     const approvedEntries = sortedEntries(validMappingEntries(validation.mappingValidation.mapping, sourceColumnMetadata));
-    const normalizedRows = sourceRows.map((row, index) => ({
+    const baseRows = sourceRows.map((row, index) => ({
       package_row_key: `CH-${String(index + 1).padStart(6, "0")}`,
       ...normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata)
     }));
+    const semanticAnalysis = semanticsEngine.analyzeConsumptionHistorySemantics({
+      sourceRows,
+      normalizedRows: baseRows,
+      semanticPolicy: input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {}
+    });
+    const normalizedRows = semanticAnalysis.semanticRows;
+    const semanticDiagnostics = semanticAnalysis.diagnostics || [];
+    const packageValidation = {
+      ...validation,
+      warnings: [...(validation.warnings || []), ...semanticDiagnostics],
+      diagnostics: [...(validation.blockingErrors || []), ...(validation.warnings || []), ...semanticDiagnostics],
+      historyReadinessStatus: semanticAnalysis.historyReadiness.status,
+      semanticDiagnosticCount: semanticDiagnostics.length,
+      businessDuplicateCandidateCount: semanticAnalysis.counts.businessDuplicateCandidateCount,
+      legitimateRepeatCount: semanticAnalysis.counts.legitimateRepeatCount
+    };
     const temporalSamples = validation.temporalReferenceFields.reduce((samples, fieldKey) => {
       samples[fieldKey] = normalizedRows.map(row => normalizeText(row[fieldKey])).filter(Boolean).slice(0, 5);
       return samples;
     }, {});
-    const relationshipKeys = { material: ["material_id"] };
-    if (validation.plantMapped) relationshipKeys.organization = ["plant"];
-    if (validation.temporalReferenceFields.length) relationshipKeys.temporal = [...validation.temporalReferenceFields];
+    const relationshipKeys = {
+      entityKeys: validation.plantMapped ? ["material_id", "plant"] : ["material_id"],
+      temporalReference: [...validation.temporalReferenceFields],
+      eventIdentity: ["document_id", "document_item", "movement_type", "signed_consumption_quantity", "base_unit"],
+      unitContext: ["base_unit"]
+    };
     const freshness = {
       importedAt: buildTimestamp,
-      temporalCoverage: "raw_history_uninterpreted",
+      temporalCoverage: "semantic_history_interpreted_no_aggregation",
       temporalReferenceFields: [...validation.temporalReferenceFields],
-      rawTemporalSamples: temporalSamples
+      rawTemporalSamples: temporalSamples,
+      analysisAsOf: semanticAnalysis.historyReadiness.analysisAsOf,
+      historyCoverageEnd: semanticAnalysis.historyReadiness.historyCoverageEnd
     };
-    const diagnostics = [...(validation.diagnostics || [])];
+    const diagnostics = [...(packageValidation.diagnostics || [])];
     return {
       normalizedRows,
       relationshipKeys,
-      validation,
-      packageValidation: validation,
+      validation: packageValidation,
+      packageValidation,
       freshness,
       diagnostics,
       buildMetadata: {
@@ -439,12 +462,19 @@
         sourceRowCount: sourceRows.length,
         normalizedRowCount: normalizedRows.length,
         mappingSignature: mappingEngine.columnMappingSignature(columnMapping, mappingOptions(sourceColumnMetadata)),
+        semanticPolicyVersion: semanticsEngine.POLICY_VERSION,
+        semanticPolicySignature: semanticAnalysis.semanticPolicySignature,
+        semanticPolicy: semanticAnalysis.semanticPolicy,
+        movementRuleSet: semanticAnalysis.movementRuleSet,
+        historyReadiness: semanticAnalysis.historyReadiness,
         keyGranularity: validation.keyGranularity,
         temporalReferenceFields: [...validation.temporalReferenceFields],
         negativeQuantityCount: validation.negativeQuantityCount,
         missingUnitCount: validation.missingUnitCount,
         multipleUnitCount: validation.multipleUnitCount,
         exactDuplicateRowCount: validation.exactDuplicateRowCount,
+        businessDuplicateCandidateCount: semanticAnalysis.counts.businessDuplicateCandidateCount,
+        legitimateRepeatCount: semanticAnalysis.counts.legitimateRepeatCount,
         builtAt: buildTimestamp
       }
     };
