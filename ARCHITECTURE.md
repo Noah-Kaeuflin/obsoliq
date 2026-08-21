@@ -17,6 +17,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/dataset-builder.js` builds normalized and analytical inventory rows.
 - `js/data/data-package-registry.js` owns session-level Data Package records.
 - `js/data/material-master-builder.js` validates and builds Material Master package payloads.
+- `js/data/consumption-history-builder.js` validates and builds optional Consumption History package payloads without touching UI or analytical state.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -32,6 +33,14 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/excess-pilot-review-view.js` owns Pilot Review form, stale-review notice and lifecycle summary rendering.
 - `js/application/excess-pilot-review-controller.js` owns scoped Pilot Review save/export click handling inside the Excess page.
 - `app.js` coordinates UI state, dataset transactions, remediation and rendering.
+
+## AP 16.4a Consumption History Package Boundary
+
+Consumption History enters the MVP through the existing non-Inventory Package Import Service. The service prepares source metadata, requests a package-specific Mapping policy, validates the package with the Consumption History Builder and commits the resulting package transactionally to the Data Package Registry.
+
+The builder is a pure data module. It does not read DOM state, UI filters, runtime inventory arrays, translations or rendering helpers. It receives source rows, headers, source column metadata, mapping and source metadata, then returns a package payload with normalized rows, diagnostics, relationship keys and freshness metadata.
+
+The package is stored as `consumption_history` with schema version `consumption-history-v1`. It is visible in Data Foundation as an optional intelligence source. AP 16.4a deliberately does not join Consumption History into Inventory Snapshot, Material Master, Recovery, Data Quality, Action Cockpit, Opportunity Score, scenario or Pilot Review calculations.
 
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 

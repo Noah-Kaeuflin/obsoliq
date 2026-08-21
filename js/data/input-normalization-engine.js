@@ -214,6 +214,9 @@
       }
     });
 
+    const activeNumericFields = Object.keys(fieldDefinitions || {}).filter(fieldKey => isNumericField(fieldKey, fieldDefinitions));
+    const activeCurrencyFields = Object.keys(fieldDefinitions || {}).filter(fieldKey => fieldDefinitions[fieldKey]?.type === "currency");
+    const activePercentageFields = Object.keys(fieldDefinitions || {}).filter(fieldKey => fieldDefinitions[fieldKey]?.type === "percentage");
     const summary = {
       version: VERSION,
       rowCount: rows.length,
@@ -223,9 +226,9 @@
       blockedCellCount,
       reviewCellCount,
       status: blockedCellCount ? "blocked" : reviewCellCount ? "review_required" : "trusted",
-      numericFields: [...numericFieldSet],
-      currencyFields: [...currencyKeys],
-      percentageFields: [...percentageKeys],
+      numericFields: activeNumericFields.length ? activeNumericFields : [...numericFieldSet],
+      currencyFields: activeCurrencyFields.length ? activeCurrencyFields : [...currencyKeys],
+      percentageFields: activePercentageFields.length ? activePercentageFields : [...percentageKeys],
       transformedSamples
     };
 

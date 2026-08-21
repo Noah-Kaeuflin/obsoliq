@@ -61,6 +61,9 @@ if (!ObsoliQModules.data?.packageRegistry) {
 if (!ObsoliQModules.data?.materialMasterBuilder) {
   throw new Error("ObsoliQ Material Master Builder module failed to load.");
 }
+if (!ObsoliQModules.data?.consumptionHistoryBuilder) {
+  throw new Error("ObsoliQ Consumption History Builder module failed to load.");
+}
 if (!ObsoliQModules.data?.packageRelationshipEngine) {
   throw new Error("ObsoliQ Package Relationship Engine module failed to load.");
 }
@@ -164,7 +167,10 @@ const {
 const dataPackageRegistry = createDataPackageRegistry();
 const INVENTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.INVENTORY_SNAPSHOT;
 const MATERIAL_MASTER_PACKAGE_TYPE = DATA_PACKAGE_TYPES.MATERIAL_MASTER;
+const CONSUMPTION_HISTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.CONSUMPTION_HISTORY;
 const MATERIAL_MASTER_MAPPING_POLICY = ObsoliQModules.data.materialMasterBuilder.MATERIAL_MASTER_MAPPING_POLICY;
+const CONSUMPTION_HISTORY_MAPPING_POLICY = ObsoliQModules.data.consumptionHistoryBuilder.CONSUMPTION_HISTORY_MAPPING_POLICY;
+const CONSUMPTION_HISTORY_FIELD_DEFINITIONS = ObsoliQModules.data.consumptionHistoryBuilder.CONSUMPTION_HISTORY_FIELD_DEFINITIONS;
 const inventoryEnrichmentService = ObsoliQModules.application.inventoryEnrichmentService;
 const actionOwnerContextEngine = ObsoliQModules.actions.actionOwnerContextEngine;
 const packageRelationshipQualityEngine = ObsoliQModules.data.packageRelationshipQualityEngine;
@@ -187,7 +193,9 @@ const packageImportService = ObsoliQModules.application.packageImportService.cre
   packageDefinitions: DATA_PACKAGE_TYPE_DEFINITIONS,
   builders: {
     [MATERIAL_MASTER_PACKAGE_TYPE]: ObsoliQModules.data.materialMasterBuilder,
-    materialMasterBuilder: ObsoliQModules.data.materialMasterBuilder
+    materialMasterBuilder: ObsoliQModules.data.materialMasterBuilder,
+    [CONSUMPTION_HISTORY_PACKAGE_TYPE]: ObsoliQModules.data.consumptionHistoryBuilder,
+    consumptionHistoryBuilder: ObsoliQModules.data.consumptionHistoryBuilder
   }
 });
 const INVENTORY_PACKAGE_RETENTION_LIMIT = 5;
@@ -207,11 +215,13 @@ const translations = {
     inventorySnapshotDesc: "Bestandsdaten für die aktive Analyse hochladen.",
     materialMaster: "Materialstamm",
     materialMasterDesc: "Materialstammdaten als zweite Datenbasis importieren.",
+    consumptionHistory: "Verbrauchshistorie",
+    consumptionHistoryDesc: "Historische Verbrauchsbewegungen als optionale Intelligence-Quelle importieren.",
     dataPackagesTitle: "Datenbasis",
     dataPackagesSubtitle: "Kompakter Status der aktiven Datenquellen und ihrer Verknüpfbarkeit.",
     dataFoundation: "Datenbasis",
     dataFoundationComplete: "Datenbasis vollständig",
-    dataFoundationSummary: "Datenbasis {count}/2",
+    dataFoundationSummary: "Datenbasis {count}/3",
     dataFoundationDetails: "Datenbasisdetails",
     dataSources: "Datenquellen",
     inventoryData: "Bestandsdaten",
@@ -262,12 +272,27 @@ const translations = {
     importMaterialMasterCompact: "Importieren",
     materialMasterImported: "Materialstamm importiert",
     materialMasterImportFailed: "Material-Master-Import fehlgeschlagen",
+    importConsumptionHistory: "Verbrauchshistorie importieren",
+    importConsumptionHistoryCompact: "Importieren",
+    consumptionHistoryImported: "Verbrauchshistorie importiert",
+    consumptionHistoryImportFailed: "Import der Verbrauchshistorie fehlgeschlagen",
     dropImportsInventoryNote: "Drag & Drop importiert aktuell Inventory Snapshots.",
     materialMasterMappingSubtitle: "Prüfen Sie, wie die Materialstammdatei dem ObsoliQ-Datenmodell zugeordnet wird.",
+    consumptionHistoryMappingSubtitle: "Prüfen Sie, wie die Verbrauchshistorie dem ObsoliQ-Datenmodell zugeordnet wird. Zeitbezug erforderlich: Buchungsdatum oder Periode.",
     materialMasterMissingMaterialIdMapping: "Materialnummer-Zuordnung fehlt",
     materialMasterInvalidSourceIdentity: "Ungültige physische Quellspalte",
     materialMasterMissingMaterialIdValues: "Materialnummer fehlt in Zeilen",
     materialMasterDuplicateKeys: "Doppelte Material-Master-Schlüssel",
+    consumptionHistoryMissingMaterialIdMapping: "Materialnummer-Zuordnung fehlt",
+    consumptionHistoryMissingQuantityMapping: "Verbrauchsmenge-Zuordnung fehlt",
+    consumptionHistoryMissingTemporalMapping: "Zeitbezug fehlt: Buchungsdatum oder Periode",
+    consumptionHistoryMissingMaterialIdValues: "Materialnummer fehlt in Zeilen",
+    consumptionHistoryMissingTemporalValues: "Zeitbezug fehlt in Zeilen",
+    consumptionHistoryInvalidQuantityValues: "Ungültige Verbrauchsmengen",
+    consumptionHistoryNegativeQuantities: "Negative Verbrauchsmengen erkannt",
+    consumptionHistoryMissingUnits: "Mengeneinheit fehlt",
+    consumptionHistoryMultipleUnits: "Mehrere Mengeneinheiten erkannt",
+    consumptionHistoryExactDuplicateRows: "Exakte doppelte Quellzeilen erkannt",
     navAriaLabel: "Bestandsnavigation",
     navOverview: "Übersicht",
     navInventoryExplorer: "Bestands-Explorer",
@@ -841,10 +866,13 @@ const translations = {
     requirement_recommended: "Empfohlen",
     requirement_optional: "Optional",
     requirement_derived: "Abgeleitet",
+    requirement_required_any_of: "Pflichtgruppe",
     analysis_core: "Core",
     analysis_recovery: "Recovery",
     analysis_workflow: "Workflow",
     analysis_context: "Kontext",
+    analysis_temporal: "Zeitbezug",
+    analysis_quantity: "Menge",
     analysis_derived: "Abgeleitet",
     fieldType: "Feldtyp",
     fieldType_text: "Text",
@@ -890,6 +918,7 @@ const translations = {
     mappingBlockingIssue: "Blockierend",
     mappingWarning: "Hinweis",
     mappingMissingRequired: "Pflichtfeld fehlt",
+    mappingMissingRequiredAnyOf: "Pflichtgruppe fehlt",
     mappingInvalidTarget: "Ungültiges Zielfeld",
     mappingDerivedTarget: "Abgeleitetes Feld nicht auswählbar",
     mappingDuplicateTarget: "Doppelte Zuordnung",
@@ -1323,11 +1352,13 @@ const translations = {
     inventorySnapshotDesc: "Upload inventory data for the active analysis.",
     materialMaster: "Material Master",
     materialMasterDesc: "Import material master data as a second Data Foundation source.",
+    consumptionHistory: "Consumption History",
+    consumptionHistoryDesc: "Import historical consumption movements as an optional intelligence source.",
     dataPackagesTitle: "Data Foundation",
     dataPackagesSubtitle: "Compact status of active data sources and relationship compatibility.",
     dataFoundation: "Data Foundation",
     dataFoundationComplete: "Data Foundation complete",
-    dataFoundationSummary: "Data Foundation {count}/2",
+    dataFoundationSummary: "Data Foundation {count}/3",
     dataFoundationDetails: "Data Foundation details",
     dataSources: "Data Sources",
     inventoryData: "Inventory Data",
@@ -1378,12 +1409,27 @@ const translations = {
     importMaterialMasterCompact: "Import",
     materialMasterImported: "Material Master imported",
     materialMasterImportFailed: "Material Master import failed",
+    importConsumptionHistory: "Import Consumption History",
+    importConsumptionHistoryCompact: "Import",
+    consumptionHistoryImported: "Consumption History imported",
+    consumptionHistoryImportFailed: "Consumption History import failed",
     dropImportsInventoryNote: "Drag and drop currently imports Inventory Snapshots.",
     materialMasterMappingSubtitle: "Review how the material master file maps to the ObsoliQ data model.",
+    consumptionHistoryMappingSubtitle: "Review how the consumption history file maps to the ObsoliQ data model. Temporal reference required: Posting Date or Period.",
     materialMasterMissingMaterialIdMapping: "Material number mapping is missing",
     materialMasterInvalidSourceIdentity: "Invalid physical source column",
     materialMasterMissingMaterialIdValues: "Material number missing in rows",
     materialMasterDuplicateKeys: "Duplicate material master keys",
+    consumptionHistoryMissingMaterialIdMapping: "Material ID mapping is missing",
+    consumptionHistoryMissingQuantityMapping: "Consumption Quantity mapping is missing",
+    consumptionHistoryMissingTemporalMapping: "Temporal reference is missing: Posting Date or Period",
+    consumptionHistoryMissingMaterialIdValues: "Material ID missing in rows",
+    consumptionHistoryMissingTemporalValues: "Temporal reference missing in rows",
+    consumptionHistoryInvalidQuantityValues: "Invalid consumption quantities",
+    consumptionHistoryNegativeQuantities: "Negative consumption quantities detected",
+    consumptionHistoryMissingUnits: "Base unit missing",
+    consumptionHistoryMultipleUnits: "Multiple base units detected",
+    consumptionHistoryExactDuplicateRows: "Exact duplicate source rows detected",
     navAriaLabel: "Inventory navigation",
     navOverview: "Overview",
     navInventoryExplorer: "Inventory Explorer",
@@ -1958,10 +2004,13 @@ const translations = {
     requirement_recommended: "Recommended",
     requirement_optional: "Optional",
     requirement_derived: "Derived",
+    requirement_required_any_of: "Required group",
     analysis_core: "Core",
     analysis_recovery: "Recovery",
     analysis_workflow: "Workflow",
     analysis_context: "Context",
+    analysis_temporal: "Temporal",
+    analysis_quantity: "Quantity",
     analysis_derived: "Derived",
     fieldType: "Field Type",
     fieldType_text: "Text",
@@ -2007,6 +2056,7 @@ const translations = {
     mappingBlockingIssue: "Blocking",
     mappingWarning: "Warning",
     mappingMissingRequired: "Required field missing",
+    mappingMissingRequiredAnyOf: "Required group missing",
     mappingInvalidTarget: "Invalid target field",
     mappingDerivedTarget: "Derived field is not selectable",
     mappingDuplicateTarget: "Duplicate mapping",
@@ -3734,15 +3784,20 @@ function sourceDisplayLabel(sourceColumn, sourceIndex = null) {
     : meta.originalHeader;
 }
 
-function fieldLabel(fieldKey) {
-  const definition = inventoryFieldDefinitions[fieldKey];
+function packageFieldDefinitionsForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
+  if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) return CONSUMPTION_HISTORY_FIELD_DEFINITIONS;
+  return inventoryFieldDefinitions;
+}
+
+function fieldLabel(fieldKey, fieldDefinitions = inventoryFieldDefinitions) {
+  const definition = fieldDefinitions[fieldKey] || inventoryFieldDefinitions[fieldKey];
   return definition?.label?.[currentLanguage] || definition?.label?.de || fieldKey;
 }
 
-function fieldOptionLabel(fieldKey) {
-  const definition = inventoryFieldDefinitions[fieldKey];
+function fieldOptionLabel(fieldKey, fieldDefinitions = inventoryFieldDefinitions) {
+  const definition = fieldDefinitions[fieldKey] || inventoryFieldDefinitions[fieldKey];
   if (!definition) return fieldKey;
-  return `${fieldLabel(fieldKey)} · ${fieldKey} · ${fieldRequirementLabel(definition.requirement)} · ${fieldTypeLabel(definition.type)}`;
+  return `${fieldLabel(fieldKey, fieldDefinitions)} · ${fieldKey} · ${fieldRequirementLabel(definition.requirement)} · ${fieldTypeLabel(definition.type)}`;
 }
 
 function hasMeaningfulValue(value) {
@@ -4355,7 +4410,7 @@ function applyTranslations(options = {}) {
 }
 
 function setBusy(isBusy, text = t("pleaseWait")) {
-  ["uploadButton", "sampleButton", "exportInventoryButton", "packageTypeInventoryButton", "packageTypeMaterialMasterButton"].forEach(id => {
+  ["uploadButton", "sampleButton", "exportInventoryButton", "packageTypeInventoryButton", "packageTypeMaterialMasterButton", "packageTypeConsumptionHistoryButton"].forEach(id => {
     const control = $(id);
     if (control) control.disabled = isBusy;
   });
@@ -6800,6 +6855,10 @@ function currentInventoryPackageId() {
 
 function currentMaterialMasterPackage() {
   return dataPackageRegistry.getActivePackage(MATERIAL_MASTER_PACKAGE_TYPE);
+}
+
+function currentConsumptionHistoryPackage() {
+  return dataPackageRegistry.getActivePackage(CONSUMPTION_HISTORY_PACKAGE_TYPE);
 }
 
 function currentDatasetCompatibleInventoryPackageId() {
@@ -12701,8 +12760,14 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
     if (packageRecord.freshness?.importedAt) meta.push(`${t("packageImportedAt")}: ${formatDateTime(packageRecord.freshness.importedAt)}`);
     if (options.showGranularity) meta.push(`${t("packageGranularity")}: ${packageGranularityLabel(packageRecord)}`);
   }
+  const actionKey = options.importActionType === CONSUMPTION_HISTORY_PACKAGE_TYPE
+    ? "data-data-foundation-import-consumption-history"
+    : "data-data-foundation-import-material-master";
+  const actionLabel = options.importActionType === CONSUMPTION_HISTORY_PACKAGE_TYPE
+    ? "importConsumptionHistoryCompact"
+    : "importMaterialMasterCompact";
   const action = !packageRecord && options.importAction
-    ? `<button class="secondary data-foundation-inline-action" type="button" data-data-foundation-import-material-master>${html(t("importMaterialMasterCompact"))}</button>`
+    ? `<button class="secondary data-foundation-inline-action" type="button" ${actionKey}>${html(t(actionLabel))}</button>`
     : "";
   return `
     <div class="data-foundation-source ${html(state.className)}">
@@ -12843,11 +12908,11 @@ function renderPackageTechnicalDetails(packageRecord, labelKey) {
     `).join("");
 }
 
-function dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness) {
+function dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness, consumptionHistoryPackage = null) {
   const inventoryReady = Boolean(inventoryPackage && dataFoundationSourceState(inventoryPackage).className === "available");
   const materialReady = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "available");
   const materialInvalid = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "invalid");
-  const count = [inventoryReady, Boolean(materialMasterPackage)].filter(Boolean).length;
+  const count = [inventoryReady, Boolean(materialMasterPackage), Boolean(consumptionHistoryPackage)].filter(Boolean).length;
   const quality = currentRelationshipQuality();
   if (inventoryReady && materialReady && quality.status === "complete") {
     return { className: "complete", icon: "✓", text: t("dataFoundationComplete") };
@@ -12872,11 +12937,12 @@ function renderPackageAvailability() {
   if (!target) return;
   const inventoryPackage = currentInventoryPackage();
   const materialMasterPackage = currentMaterialMasterPackage();
+  const consumptionHistoryPackage = currentConsumptionHistoryPackage();
   const readiness = packageImportService.relationshipReadiness({
     inventoryPackage,
     materialMasterPackage
   });
-  const summary = dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness);
+  const summary = dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness, consumptionHistoryPackage);
   target.innerHTML = `
     <details class="data-foundation ${html(summary.className)}" data-data-foundation>
       <summary class="data-foundation-summary">
@@ -12890,6 +12956,7 @@ function renderPackageAvailability() {
         <div class="data-foundation-source-list">
           ${renderDataFoundationSourceRow("inventoryData", inventoryPackage)}
           ${renderDataFoundationSourceRow("materialMaster", materialMasterPackage, { showGranularity: true, importAction: true })}
+          ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, { showGranularity: true, importAction: true, importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE })}
         </div>
         ${renderRelationshipReadinessItem(readiness)}
         <details class="data-foundation-technical">
@@ -12897,6 +12964,7 @@ function renderPackageAvailability() {
           <div class="data-foundation-technical-grid">
             ${renderPackageTechnicalDetails(inventoryPackage, "inventoryData")}
             ${renderPackageTechnicalDetails(materialMasterPackage, "materialMaster")}
+            ${renderPackageTechnicalDetails(consumptionHistoryPackage, "consumptionHistory")}
           </div>
         </details>
       </div>
@@ -14070,18 +14138,27 @@ function switchProcessTab(processKey, label) {
 
 function mappingPolicyForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
   if (packageType === MATERIAL_MASTER_PACKAGE_TYPE) return MATERIAL_MASTER_MAPPING_POLICY;
+  if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) return CONSUMPTION_HISTORY_MAPPING_POLICY;
   return DEFAULT_MAPPING_POLICY;
 }
 
 function mappingValidationOptionsForContext(context = {}) {
+  const packageType = context.packageType || INVENTORY_PACKAGE_TYPE;
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(packageType);
   return {
     sourceColumnMetadata: context.sourceColumnMetadata || [],
-    policy: mappingPolicyForPackageType(context.packageType || INVENTORY_PACKAGE_TYPE)
+    policy: mappingPolicyForPackageType(packageType),
+    fieldDefinitions,
+    ...(packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE ? { protectedFieldKeys: [] } : {})
   };
 }
 
 function mappingRequiredFieldsForContext(context = {}) {
   return mappingPolicyForPackageType(context.packageType || INVENTORY_PACKAGE_TYPE).requiredFields || mappingRequiredFieldKeys;
+}
+
+function mappingRequiredAnyOfGroupsForContext(context = {}) {
+  return mappingPolicyForPackageType(context.packageType || INVENTORY_PACKAGE_TYPE).requiredAnyOfMappingGroups || [];
 }
 
 function mappingOrganizationFieldsForContext(context = {}) {
@@ -14126,9 +14203,13 @@ function sourceGroupCompletenessPreview(rows, mappingEntries) {
 }
 
 function mappingMessageText(message) {
-  const field = message.field ? fieldLabel(message.field) : "";
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(pendingUploadContext?.packageType || INVENTORY_PACKAGE_TYPE);
+  const field = message.field ? fieldLabel(message.field, fieldDefinitions) : "";
   if (message.key === "mappingDuplicateTarget") {
     return `${t(message.key)}: ${field} (${(message.sources || []).map(source => sourceDisplayLabel(source)).join(", ")})`;
+  }
+  if (message.key === "mappingMissingRequiredAnyOf") {
+    return `${t(message.key)}: ${(message.fields || []).map(fieldKey => fieldLabel(fieldKey, fieldDefinitions)).join(" / ")}`;
   }
   if (message.key === "mappingUnknownColumnsRemain" || message.key === "mappingProtectedColumnsPreserved") {
     return `${t(message.key)}: ${formatCount(message.count || 0)}`;
@@ -14186,9 +14267,17 @@ function renderMappingFieldSummaryCard(label, fieldKeys, mapping, rows, options 
 
 function renderMappingRequiredSummary(context, mapping) {
   const requiredFields = mappingRequiredFieldsForContext(context);
+  const requiredAnyOfGroups = mappingRequiredAnyOfGroupsForContext(context);
   const organizationFields = mappingOrganizationFieldsForContext(context);
   const recoveryFields = mappingRecoveryFieldsForContext(context);
   const workflowFields = mappingWorkflowFieldsForContext(context);
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(context.packageType || INVENTORY_PACKAGE_TYPE);
+  const requiredAnyOfCards = requiredAnyOfGroups.map(group => {
+    const label = context.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE
+      ? t("consumptionHistoryMissingTemporalMapping").replace(/:.*$/, "")
+      : (group || []).map(fieldKey => fieldLabel(fieldKey, fieldDefinitions)).join(" / ");
+    return renderMappingFieldSummaryCard(label, group || [], mapping, context.rows, { required: true });
+  }).join("");
   const optionalCards = [
     organizationFields.length ? renderMappingFieldSummaryCard(t("mappingOrganizationIdentifier"), organizationFields, mapping, context.rows) : "",
     recoveryFields.length ? renderMappingFieldSummaryCard(t("mappingRecoveryInput"), recoveryFields, mapping, context.rows) : "",
@@ -14196,7 +14285,8 @@ function renderMappingRequiredSummary(context, mapping) {
   ].filter(Boolean).join("");
   return `
     <div class="mapping-required-grid">
-      ${requiredFields.map(fieldKey => renderMappingFieldSummaryCard(fieldLabel(fieldKey), [fieldKey], mapping, context.rows, { required: true })).join("")}
+      ${requiredFields.map(fieldKey => renderMappingFieldSummaryCard(fieldLabel(fieldKey, fieldDefinitions), [fieldKey], mapping, context.rows, { required: true })).join("")}
+      ${requiredAnyOfCards}
       ${optionalCards}
     </div>
   `;
@@ -14223,7 +14313,7 @@ function renderMappingIssues(validation) {
 }
 
 function inputTrustAssessmentForContext(context, mapping) {
-  if (!context || context.packageType === MATERIAL_MASTER_PACKAGE_TYPE) return null;
+  if (!context || (context.packageType || INVENTORY_PACKAGE_TYPE) !== INVENTORY_PACKAGE_TYPE) return null;
   const explicitOverrides = context.normalizationPolicyOverrides || (!context.appliedNormalizationPolicy ? context.normalizationPolicy : null);
   const usePolicyBaseline = meaningfulNormalizationPolicy(context.appliedNormalizationPolicy)
     || meaningfulNormalizationPolicy(explicitOverrides);
@@ -14247,7 +14337,7 @@ function inputTrustAssessmentForContext(context, mapping) {
 }
 
 function reconcilePendingNormalizationPolicy(mapping = pendingUploadContext?.approvedMapping || []) {
-  if (!pendingUploadContext || pendingUploadContext.packageType === MATERIAL_MASTER_PACKAGE_TYPE) return null;
+  if (!pendingUploadContext || (pendingUploadContext.packageType || INVENTORY_PACKAGE_TYPE) !== INVENTORY_PACKAGE_TYPE) return null;
   const effectivePolicy = sourceBoundNormalizationPolicyForMapping({
     mapping,
     sourceColumnMetadata: pendingUploadContext.sourceColumnMetadata || [],
@@ -14267,7 +14357,7 @@ function reconcilePendingNormalizationPolicy(mapping = pendingUploadContext?.app
 }
 
 function renderInputTrustSummaryBadges(context, assessment) {
-  if (!assessment || context.packageType === MATERIAL_MASTER_PACKAGE_TYPE) return "";
+  if (!assessment || (context.packageType || INVENTORY_PACKAGE_TYPE) !== INVENTORY_PACKAGE_TYPE) return "";
   const summary = assessment.diagnosticSummary || {};
   const stateClass = assessment.trustState === "blocked" ? "warning" : assessment.trustState === "review_required" ? "warning" : "";
   return `
@@ -14293,7 +14383,7 @@ function inputTrustDiagnosticDetail(diagnostic = {}) {
 }
 
 function renderInputTrustIssues(assessment = {}, context = {}) {
-  if (!assessment || context.packageType === MATERIAL_MASTER_PACKAGE_TYPE) return "";
+  if (!assessment || (context.packageType || INVENTORY_PACKAGE_TYPE) !== INVENTORY_PACKAGE_TYPE) return "";
   const diagnostics = [
     ...(assessment.blockingDiagnostics || []).map(diagnostic => ({ ...diagnostic, type: "error" })),
     ...(assessment.reviewDiagnostics || []).map(diagnostic => ({ ...diagnostic, type: "warning" }))
@@ -14343,6 +14433,8 @@ function renderTrustPolicySelect(entry, policy, key, options) {
 }
 
 function renderMappingTrustCell(entry) {
+  const packageType = pendingUploadContext?.packageType || INVENTORY_PACKAGE_TYPE;
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(packageType);
   const fieldKey = entry.selectedCanonicalField || entry.proposedCanonicalField || "";
   const activePolicy = fieldKey ? policyFieldForMappingEntry(
     pendingUploadContext?.normalizationPolicy || {},
@@ -14367,7 +14459,7 @@ function renderMappingTrustCell(entry) {
     };
   const profile = entry.profileEvidence || {};
   const warningCount = (entry.warnings || profile.warnings || []).length;
-  const isNumeric = Boolean(entry.selectedCanonicalField && ["number", "currency", "percentage"].includes(inventoryFieldDefinitions[entry.selectedCanonicalField]?.type));
+  const isNumeric = Boolean(packageType === INVENTORY_PACKAGE_TYPE && entry.selectedCanonicalField && ["number", "currency", "percentage"].includes(fieldDefinitions[entry.selectedCanonicalField]?.type));
   const summary = [
     profile.detectedContentType ? `${t("detectedContentType")}: ${profile.detectedContentType}` : "",
     profile.detectedLocale || policy.numericLocale ? `${t("detectedLocale")}: ${profile.detectedLocale || policy.numericLocale}` : "",
@@ -14440,10 +14532,19 @@ function mergeTrustEvidenceIntoMapping(mapping = [], reviewedMapping = []) {
   });
 }
 
-function renderCanonicalFieldOptions(selected) {
-  const groups = ["core", "recovery", "workflow", "context"];
+function packageImportableFieldEntries(fieldDefinitions = inventoryFieldDefinitions) {
+  return Object.entries(fieldDefinitions).filter(([, definition]) => (
+    definition
+    && definition.importable !== false
+    && definition.requirement !== "derived"
+  ));
+}
+
+function renderCanonicalFieldOptions(selected, context = pendingUploadContext) {
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(context?.packageType || INVENTORY_PACKAGE_TYPE);
+  const groups = ["core", "temporal", "quantity", "recovery", "workflow", "context"];
   const grouped = Object.fromEntries(groups.map(group => [group, []]));
-  importableFieldEntries().forEach(([fieldKey, definition]) => {
+  packageImportableFieldEntries(fieldDefinitions).forEach(([fieldKey, definition]) => {
     const group = groups.includes(definition.analysis_group) ? definition.analysis_group : "context";
     grouped[group].push([fieldKey, definition]);
   });
@@ -14453,7 +14554,7 @@ function renderCanonicalFieldOptions(selected) {
     if (!entries.length) return "";
     return `
       <optgroup label="${html(fieldAnalysisGroupLabel(group))}">
-        ${entries.map(([fieldKey]) => `<option value="${html(fieldKey)}"${fieldKey === selected ? " selected" : ""}>${html(fieldOptionLabel(fieldKey))}</option>`).join("")}
+        ${entries.map(([fieldKey]) => `<option value="${html(fieldKey)}"${fieldKey === selected ? " selected" : ""}>${html(fieldOptionLabel(fieldKey, fieldDefinitions))}</option>`).join("")}
       </optgroup>
     `;
   }).join("");
@@ -14484,6 +14585,7 @@ function renderMappingSampleValues(values) {
 }
 
 function renderMappingTable(mapping) {
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(pendingUploadContext?.packageType || INVENTORY_PACKAGE_TYPE);
   return `
     <div class="table-wrap mapping-table-wrap">
       <table class="mapping-table">
@@ -14502,9 +14604,9 @@ function renderMappingTable(mapping) {
         </thead>
         <tbody>
           ${mapping.map(entry => {
-            const selectedDefinition = entry.selectedCanonicalField ? inventoryFieldDefinitions[entry.selectedCanonicalField] : null;
+            const selectedDefinition = entry.selectedCanonicalField ? fieldDefinitions[entry.selectedCanonicalField] : null;
             const proposed = entry.proposedCanonicalField
-              ? `${fieldLabel(entry.proposedCanonicalField)} · ${entry.proposedCanonicalField}`
+              ? `${fieldLabel(entry.proposedCanonicalField, fieldDefinitions)} · ${entry.proposedCanonicalField}`
               : t("mappingNoProposal");
             return `
               <tr class="${entry.manual ? "manual" : ""} ${entry.status === "duplicate" || entry.status === "conflict" ? "has-error" : ""}">
@@ -14657,11 +14759,15 @@ function openColumnMappingAssistant(context = {}) {
   $("mappingModal")?.classList.add("active");
   document.body.classList.add("modal-open");
   if ($("mappingSubtitle")) {
-    $("mappingSubtitle").textContent = context.packageType === MATERIAL_MASTER_PACKAGE_TYPE
-      ? t("materialMasterMappingSubtitle")
-      : t("columnMappingSubtitle");
+    $("mappingSubtitle").textContent = mappingSubtitleForPackageType(context.packageType || INVENTORY_PACKAGE_TYPE);
   }
   focusInitialMappingControl(validateColumnMapping(pendingUploadContext.approvedMapping, sourceOptions));
+}
+
+function mappingSubtitleForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
+  if (packageType === MATERIAL_MASTER_PACKAGE_TYPE) return t("materialMasterMappingSubtitle");
+  if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) return t("consumptionHistoryMappingSubtitle");
+  return t("columnMappingSubtitle");
 }
 
 function closeColumnMappingAssistant(options = {}) {
@@ -14774,10 +14880,11 @@ function confirmInputTrustReview(confirmed) {
 
 function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
   options = productionSafeOptions(options);
-  if ((options.packageType || INVENTORY_PACKAGE_TYPE) === MATERIAL_MASTER_PACKAGE_TYPE) {
+  const packageType = options.packageType || INVENTORY_PACKAGE_TYPE;
+  if (packageType !== INVENTORY_PACKAGE_TYPE) {
     return beginPackageImportWithParsedData(parsed, sourceLabel, {
       ...options,
-      packageType: MATERIAL_MASTER_PACKAGE_TYPE
+      packageType
     });
   }
   const metadata = parsed.sourceColumnMetadata || buildSourceColumnMetadata(parsed.headers);
@@ -14859,6 +14966,17 @@ function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
   return { status: loaded ? "loaded" : "error", mappingState };
 }
 
+function packageImportFeedbackKey(packageType, event) {
+  if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+    if (event === "start") return "importConsumptionHistory";
+    if (event === "success") return "consumptionHistoryImported";
+    if (event === "failure") return "consumptionHistoryImportFailed";
+  }
+  if (event === "start") return "importMaterialMaster";
+  if (event === "success") return "materialMasterImported";
+  return "materialMasterImportFailed";
+}
+
 function beginPackageImportWithParsedData(parsed, sourceLabel, options = {}) {
   const packageType = options.packageType || MATERIAL_MASTER_PACKAGE_TYPE;
   try {
@@ -14891,22 +15009,24 @@ function beginPackageImportWithParsedData(parsed, sourceLabel, options = {}) {
     };
     if (options.allowMappingReview !== false) {
       openColumnMappingAssistant(context);
-      setFeedback(mappingState.valid ? t("importMaterialMaster") : t("mappingReviewRequired"), mappingState.valid ? "ok" : "error", { autoReset: true });
+      setFeedback(mappingState.valid ? t(packageImportFeedbackKey(packageType, "start")) : t("mappingReviewRequired"), mappingState.valid ? "ok" : "error", { autoReset: true });
       return { status: "mapping", mappingState };
     }
     const imported = continuePackageImportWithMapping(context.approvedMapping, context);
     return { status: imported ? "loaded" : "error", mappingState };
   } catch (error) {
     if (!options.suppressErrorLog) console.error("ObsoliQ package import preparation failed", error);
-    if (!options.suppressFeedback) setFeedback(t("materialMasterImportFailed"), "error", { autoReset: true });
+    if (!options.suppressFeedback) setFeedback(t(packageImportFeedbackKey(packageType, "failure")), "error", { autoReset: true });
     return { status: "error", error };
   }
 }
 
 function packageValidationMessage(message) {
-  const field = message.field ? fieldLabel(message.field) : "";
+  const fieldDefinitions = packageFieldDefinitionsForPackageType(pendingUploadContext?.packageType || INVENTORY_PACKAGE_TYPE);
+  const field = message.field ? fieldLabel(message.field, fieldDefinitions) : "";
+  const fields = message.fields?.length ? message.fields.map(fieldKey => fieldLabel(fieldKey, fieldDefinitions)).join(" / ") : "";
   const count = Number.isFinite(Number(message.count)) ? `: ${formatCount(Number(message.count))}` : "";
-  return `${t(message.key) || message.key}${field ? `: ${field}` : ""}${count}`;
+  return `${t(message.key) || message.key}${field ? `: ${field}` : fields ? `: ${fields}` : ""}${count}`;
 }
 
 function renderPackageValidationIssues(packageValidation) {
@@ -14980,7 +15100,7 @@ function rollbackPackageImportTransaction({
     console.error("Package import Mapping UI restore failed.", mappingUiError);
   }
   if (!context?.suppressFeedback) {
-    setFeedback(t("materialMasterImportFailed"), "error", { autoReset: true });
+    setFeedback(t(packageImportFeedbackKey(context?.packageType, "failure")), "error", { autoReset: true });
   }
   return false;
 }
@@ -15034,13 +15154,15 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
         error: result.errorMessage || result.packageValidation || result.errorCode
       });
     }
-    runInventoryMaterialMasterEnrichmentTransaction({
-      operationType: "material_master_enrichment",
-      render: false,
-      suppressErrorLog: context.suppressErrorLog,
-      forceInventoryEnrichmentFailureForTest: context.forceInventoryEnrichmentFailureForTest,
-      throwOnFailure: true
-    });
+    if (context.packageType === MATERIAL_MASTER_PACKAGE_TYPE) {
+      runInventoryMaterialMasterEnrichmentTransaction({
+        operationType: "material_master_enrichment",
+        render: false,
+        suppressErrorLog: context.suppressErrorLog,
+        forceInventoryEnrichmentFailureForTest: context.forceInventoryEnrichmentFailureForTest,
+        throwOnFailure: true
+      });
+    }
   } catch (error) {
     return rollbackPackageImportTransaction({
       previousRuntimeState,
@@ -15053,9 +15175,11 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
     });
   }
   renderPackageAvailability();
-  if (currentDatasetMeta) renderAfterDatasetChange({ syncStateFromControls: false });
+  if (context.packageType === MATERIAL_MASTER_PACKAGE_TYPE && currentDatasetMeta) {
+    renderAfterDatasetChange({ syncStateFromControls: false });
+  }
   if (!explicitContext) closeColumnMappingAssistant({ force: true });
-  if (!context.suppressSuccessFeedback) setFeedback(t("materialMasterImported"), "ok", { autoReset: true });
+  if (!context.suppressSuccessFeedback) setFeedback(t(packageImportFeedbackKey(context.packageType, "success")), "ok", { autoReset: true });
   return true;
 }
 
@@ -15087,7 +15211,7 @@ function rollbackMappingApplyTransaction({
 
 function continueUploadWithMapping(mapping = pendingUploadContext?.approvedMapping) {
   if (!pendingUploadContext || !mapping) return false;
-  if (pendingUploadContext.packageType === MATERIAL_MASTER_PACKAGE_TYPE) {
+  if ((pendingUploadContext.packageType || INVENTORY_PACKAGE_TYPE) !== INVENTORY_PACKAGE_TYPE) {
     return continuePackageImportWithMapping(mapping);
   }
   const validation = validateColumnMapping(mapping, mappingValidationOptionsForContext(pendingUploadContext));
@@ -16004,6 +16128,7 @@ $("exportActionsButton").addEventListener("click", () => showDownloadDialog("act
 addEventListenerIfPresent("packageTypeCloseButton", "click", closePackageTypeDialog);
 addEventListenerIfPresent("packageTypeInventoryButton", "click", () => selectPackageTypeForUpload(INVENTORY_PACKAGE_TYPE));
 addEventListenerIfPresent("packageTypeMaterialMasterButton", "click", () => selectPackageTypeForUpload(MATERIAL_MASTER_PACKAGE_TYPE));
+addEventListenerIfPresent("packageTypeConsumptionHistoryButton", "click", () => selectPackageTypeForUpload(CONSUMPTION_HISTORY_PACKAGE_TYPE));
 $("downloadConfirmButton").addEventListener("click", runDownload);
 $("downloadCancelButton").addEventListener("click", closeDownloadDialog);
 $("downloadCloseButton").addEventListener("click", closeDownloadDialog);
@@ -16132,6 +16257,12 @@ document.addEventListener("click", event => {
   if (materialMasterImportButton) {
     event.preventDefault();
     selectPackageTypeForUpload(MATERIAL_MASTER_PACKAGE_TYPE);
+    return;
+  }
+  const consumptionHistoryImportButton = event.target.closest("[data-data-foundation-import-consumption-history]");
+  if (consumptionHistoryImportButton) {
+    event.preventDefault();
+    selectPackageTypeForUpload(CONSUMPTION_HISTORY_PACKAGE_TYPE);
     return;
   }
   if (!event.target.closest(".remediation-action-menu")) {
@@ -16444,12 +16575,15 @@ function createObsoliqTestBridge() {
     schemaProfilerForTest: ObsoliQModules.data.schemaProfiler,
     inputNormalizationEngineForTest: ObsoliQModules.data.inputNormalizationEngine,
     valueUtilsForTest: ObsoliQModules.core.valueUtils,
+    consumptionHistoryBuilderForTest: ObsoliQModules.data.consumptionHistoryBuilder,
     getRegistrySnapshot: () => clonePlainRecord(dataPackageRegistry.snapshot()),
     getRegistryStats: () => clonePlainRecord(dataPackageRegistry.getStats()),
     getActiveInventoryPackage: () => clonePlainRecord(currentInventoryPackage()),
     getActiveMaterialMasterPackage: () => clonePlainRecord(currentMaterialMasterPackage()),
+    getActiveConsumptionHistoryPackage: () => clonePlainRecord(currentConsumptionHistoryPackage()),
     getInventoryPackages: () => clonePlainArray(dataPackageRegistry.listByType(INVENTORY_PACKAGE_TYPE)),
     getMaterialMasterPackages: () => clonePlainArray(dataPackageRegistry.listByType(MATERIAL_MASTER_PACKAGE_TYPE)),
+    getConsumptionHistoryPackages: () => clonePlainArray(dataPackageRegistry.listByType(CONSUMPTION_HISTORY_PACKAGE_TYPE)),
     getActivePackageByType: packageType => clonePlainRecord(dataPackageRegistry.getActivePackage(packageType)),
     packageImportServiceForTest: packageImportService,
     relationshipEngineForTest: ObsoliQModules.data.packageRelationshipEngine,
@@ -16483,6 +16617,15 @@ function createObsoliqTestBridge() {
       return beginPackageImportWithParsedData(parsed, sourceLabel, {
         sourceType: "upload",
         packageType: MATERIAL_MASTER_PACKAGE_TYPE,
+        allowMappingReview: false,
+        ...options
+      });
+    },
+    importConsumptionHistoryTextForTest: (text, sourceLabel = "consumption-history.csv", options = {}) => {
+      const parsed = parseDelimited(text);
+      return beginPackageImportWithParsedData(parsed, sourceLabel, {
+        sourceType: "upload",
+        packageType: CONSUMPTION_HISTORY_PACKAGE_TYPE,
         allowMappingReview: false,
         ...options
       });
@@ -16676,6 +16819,7 @@ function createObsoliqTestBridge() {
       activeInventoryPackageId: currentInventoryPackageId(),
       activeInventoryPackage: clonePlainRecord(currentInventoryPackage()),
       activeMaterialMasterPackage: clonePlainRecord(currentMaterialMasterPackage()),
+      activeConsumptionHistoryPackage: clonePlainRecord(currentConsumptionHistoryPackage()),
       materialMasterRelationship: clonePlainRecord(currentInventoryMaterialMasterRelationship),
       inventoryEnrichment: clonePlainRecord(currentInventoryEnrichmentDiagnostics),
       rawRows: rawRows.length,
@@ -16760,4 +16904,3 @@ function bootstrapObsoliQApp() {
 }
 
 bootstrapObsoliQApp();
-

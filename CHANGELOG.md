@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-08-21 - AP 16.4a:
+Consumption History Contract & Builder
+
+### Added
+
+- Added `consumption_history` as an importable optional intelligence Data Package.
+- Added a DOM-independent Consumption History Builder with schema version `consumption-history-v1`.
+- Added package-specific Mapping Engine support for Consumption History field definitions and required-any temporal mapping groups.
+- Added Consumption History package validation for `material_id`, `consumption_quantity` and at least one raw temporal reference (`posting_date` or `period`).
+- Added immutable normalized Consumption History package rows with stable package row keys, raw temporal values, preserved identifiers and relationship keys.
+- Added warning diagnostics for negative consumption quantities, missing units, multiple units and exact duplicate source rows.
+- Added transaction-safe Consumption History package import through the existing Package Import Service.
+- Added Data Foundation UI visibility for Consumption History as an optional, non-calculating intelligence source.
+- Added regression tests for contract validation, rollback, raw-source immutability, Data Foundation UI routing and analytical isolation.
+
+### Preserved
+
+- KPI and Recovery calculations.
+- Inventory Snapshot upload and parsing logic.
+- Material Master matching and fill-missing-only enrichment.
+- Data Quality Score and remediation semantics.
+- Action Cockpit, Opportunity Score, scenario and Pilot Review behavior.
+- Inventory export behavior.
+- Sample data loading.
+- Local `file://` prototype behavior.
+- Baseline tag `baseline-2026-08-21`.
+
+### Known Limitations
+
+- Consumption History is stored as an optional Data Package only.
+- No consumption buckets, 3M/6M/12M aggregation, slow/dead-stock classification or score-model changes are included yet.
+- No joins from Consumption History into Inventory Snapshot analytics are included yet.
+- Units are preserved as source evidence and are not converted.
+- The MVP remains local, session-based and file-backed.
+
 ## 2026-08-21 - AP 16.3b.1.1:
 Pilot Review Contract, Lifecycle UX & Navigation Acceptance Closure
 

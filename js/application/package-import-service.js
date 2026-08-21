@@ -82,7 +82,36 @@
 
     function mappingPolicyFor(packageType) {
       const { definition, builder } = builderFor(packageType);
-      return builder.MATERIAL_MASTER_MAPPING_POLICY || definition.mappingPolicy || mappingEngine.DEFAULT_MAPPING_POLICY;
+      return builder.MATERIAL_MASTER_MAPPING_POLICY
+        || builder.CONSUMPTION_HISTORY_MAPPING_POLICY
+        || definition.mappingPolicy
+        || mappingEngine.DEFAULT_MAPPING_POLICY;
+    }
+
+    function fieldDefinitionsFor(packageType) {
+      const { builder } = builderFor(packageType);
+      return builder.CONSUMPTION_HISTORY_FIELD_DEFINITIONS || null;
+    }
+
+    function mappingOptionsFor(packageType, sourceColumnMetadata = []) {
+      const fieldDefinitions = fieldDefinitionsFor(packageType);
+      return {
+        sourceColumnMetadata,
+        policy: mappingPolicyFor(packageType),
+        ...(fieldDefinitions ? { fieldDefinitions, protectedFieldKeys: [] } : {})
+      };
+    }
+
+    function validatePackageWithBuilder(builder, input) {
+      if (builder.validateMaterialMasterPackage) return builder.validateMaterialMasterPackage(input);
+      if (builder.validateConsumptionHistoryPackage) return builder.validateConsumptionHistoryPackage(input);
+      return null;
+    }
+
+    function buildPackageWithBuilder(builder, input) {
+      if (builder.buildMaterialMasterPackage) return builder.buildMaterialMasterPackage(input);
+      if (builder.buildConsumptionHistoryPackage) return builder.buildConsumptionHistoryPackage(input);
+      throw new Error("Registered Data Package Builder does not expose a supported build method.");
     }
 
     function normalizedParsedSource(parsedSource = {}) {
@@ -99,18 +128,17 @@
     }
 
     function prepareImport({ packageType, parsedSource, sourceDescriptor = {} } = {}) {
-      const policy = mappingPolicyFor(packageType);
       const source = normalizedParsedSource(parsedSource);
       const automaticMapping = mappingEngine.createAutomaticColumnMapping({
         headers: source.headers,
         rows: source.rows,
         sourceColumnMetadata: source.sourceColumnMetadata,
-        policy
+        ...mappingOptionsFor(packageType, source.sourceColumnMetadata)
       });
       const mappingState = mappingEngine.evaluateMappingState(automaticMapping, {
         headers: source.headers,
         sourceColumnMetadata: source.sourceColumnMetadata,
-        policy
+        ...mappingOptionsFor(packageType, source.sourceColumnMetadata)
       });
       const inputTrustResult = inputTrustService
         ? inputTrustService.assessInputTrust({
@@ -119,7 +147,8 @@
           rows: source.rows,
           sourceColumnMetadata: source.sourceColumnMetadata,
           mapping: automaticMapping,
-          mappingPolicy: policy,
+          mappingPolicy: mappingPolicyFor(packageType),
+          fieldDefinitions: fieldDefinitionsFor(packageType) || undefined,
           sourceDescriptor
         })
         : null;
@@ -129,7 +158,7 @@
         packageType,
         sourceDescriptor: cloneData(sourceDescriptor),
         parsedSource: source,
-        mappingPolicy: cloneData(policy),
+        mappingPolicy: cloneData(mappingPolicyFor(packageType)),
         automaticMapping,
         approvedMapping: mappingEngine.cloneColumnMapping(automaticMapping),
         mappingState,
@@ -142,7 +171,7 @@
       const source = normalizedParsedSource(parsedSource);
       const mappingValidation = mappingEngine.validateColumnMapping(mapping || [], {
         sourceColumnMetadata: source.sourceColumnMetadata,
-        policy
+        ...mappingOptionsFor(packageType, source.sourceColumnMetadata)
       });
       const inputTrustResult = inputTrustService
         ? inputTrustService.assessInputTrust({
@@ -151,20 +180,19 @@
           rows: source.rows,
           sourceColumnMetadata: source.sourceColumnMetadata,
           mapping: mappingValidation.mapping,
-          mappingPolicy: policy
+          mappingPolicy: policy,
+          fieldDefinitions: fieldDefinitionsFor(packageType) || undefined
         })
         : null;
       const { builder } = builderFor(packageType);
-      const packageValidation = builder.validateMaterialMasterPackage
-        ? builder.validateMaterialMasterPackage({
+      const packageValidation = validatePackageWithBuilder(builder, {
           sourceRows: source.rows,
           headers: source.headers,
           sourceColumnMetadata: source.sourceColumnMetadata,
           columnMapping: mappingValidation.mapping,
           inputTrustResult,
           evaluatedAt: clock()
-        })
-        : { status: mappingValidation.valid ? "ready" : "invalid", blockingErrors: mappingValidation.errors, warnings: mappingValidation.warnings };
+        }) || { status: mappingValidation.valid ? "ready" : "invalid", blockingErrors: mappingValidation.errors, warnings: mappingValidation.warnings };
       return freezeResult({
         ok: mappingValidation.valid && packageValidation.status !== "invalid" && inputTrustResult?.trustState !== "blocked",
         mappingValidation,
@@ -189,6 +217,7 @@
           sourceColumnMetadata: source.sourceColumnMetadata,
           mapping: approvedMapping,
           mappingPolicy: mappingPolicyFor(packageType),
+          fieldDefinitions: fieldDefinitionsFor(packageType) || undefined,
           sourceDescriptor
         })
         : null;
@@ -205,7 +234,7 @@
           }
         });
       }
-      const buildResult = builder.buildMaterialMasterPackage({
+      const buildResult = buildPackageWithBuilder(builder, {
         sourceRows: source.rows,
         headers: source.headers,
         sourceColumnMetadata: source.sourceColumnMetadata,
@@ -215,18 +244,19 @@
         datasetId,
         buildTimestamp: timestamp
       });
-      if (buildResult.validation.status === "invalid") {
+      const packageValidation = buildResult.validation || buildResult.packageValidation || {};
+      if (packageValidation.status === "invalid") {
         return freezeResult({
           ok: false,
           errorCode: "PACKAGE_INVALID",
-          packageValidation: buildResult.validation,
-          mappingValidation: buildResult.validation.mappingValidation
+          packageValidation,
+          mappingValidation: packageValidation.mappingValidation
         });
       }
       const packageRecord = {
         packageType,
         datasetId,
-        schemaVersion: "1",
+        schemaVersion: definition.schemaVersion || buildResult.buildMetadata?.schemaVersion || builder.schemaVersion || "1",
         status: "ready",
         sourceDescriptor: {
           sourceLabel: sourceDescriptor.sourceLabel || "",
@@ -262,17 +292,23 @@
         },
         qualitySummary: {},
         packageValidation: {
-          statusKey: buildResult.validation.statusKey,
-          blockingErrorCount: buildResult.validation.blockingErrors.length,
-          warningCount: buildResult.validation.warnings.length,
-          missingRequiredValueCount: buildResult.validation.missingMaterialIdCount,
-          duplicateRelationshipKeyCount: buildResult.validation.duplicateRelationshipKeyCount,
-          evaluatedAt: buildResult.validation.evaluatedAt,
-          keyGranularity: buildResult.validation.keyGranularity,
-          rowCount: buildResult.validation.rowCount,
-          validRowCount: buildResult.validation.validRowCount
+          statusKey: packageValidation.statusKey,
+          blockingErrorCount: (packageValidation.blockingErrors || []).length,
+          warningCount: (packageValidation.warnings || []).length,
+          missingRequiredValueCount: Number(packageValidation.missingMaterialIdCount || 0)
+            + Number(packageValidation.missingTemporalValueCount || 0)
+            + Number(packageValidation.invalidQuantityCount || 0),
+          duplicateRelationshipKeyCount: packageValidation.duplicateRelationshipKeyCount || 0,
+          evaluatedAt: packageValidation.evaluatedAt,
+          keyGranularity: packageValidation.keyGranularity,
+          rowCount: packageValidation.rowCount,
+          validRowCount: packageValidation.validRowCount,
+          diagnostics: cloneData(packageValidation.diagnostics || [
+            ...(packageValidation.blockingErrors || []),
+            ...(packageValidation.warnings || [])
+          ])
         },
-        freshness: {
+        freshness: buildResult.freshness || {
           importedAt: timestamp,
           temporalCoverage: definition.temporalMode || "unknown"
         },
