@@ -220,8 +220,9 @@ const translations = {
     dataPackagesTitle: "Datenbasis",
     dataPackagesSubtitle: "Kompakter Status der aktiven Datenquellen und ihrer Verknüpfbarkeit.",
     dataFoundation: "Datenbasis",
-    dataFoundationComplete: "Datenbasis vollständig",
-    dataFoundationSummary: "Datenbasis {count}/3",
+    dataFoundationComplete: "Kern-Datenbasis vollständig",
+    dataFoundationSummary: "Kern-Datenbasis {count}/2",
+    optionalIntelligenceSummary: "Optionale Intelligence-Quellen {count}/1",
     dataFoundationDetails: "Datenbasisdetails",
     dataSources: "Datenquellen",
     inventoryData: "Bestandsdaten",
@@ -1357,8 +1358,9 @@ const translations = {
     dataPackagesTitle: "Data Foundation",
     dataPackagesSubtitle: "Compact status of active data sources and relationship compatibility.",
     dataFoundation: "Data Foundation",
-    dataFoundationComplete: "Data Foundation complete",
-    dataFoundationSummary: "Data Foundation {count}/3",
+    dataFoundationComplete: "Core Data Foundation complete",
+    dataFoundationSummary: "Core Data Foundation {count}/2",
+    optionalIntelligenceSummary: "Optional Intelligence Sources {count}/1",
     dataFoundationDetails: "Data Foundation details",
     dataSources: "Data Sources",
     inventoryData: "Inventory Data",
@@ -12912,24 +12914,27 @@ function dataFoundationSummary(inventoryPackage, materialMasterPackage, readines
   const inventoryReady = Boolean(inventoryPackage && dataFoundationSourceState(inventoryPackage).className === "available");
   const materialReady = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "available");
   const materialInvalid = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "invalid");
-  const count = [inventoryReady, Boolean(materialMasterPackage), Boolean(consumptionHistoryPackage)].filter(Boolean).length;
+  const coreCount = [inventoryReady, Boolean(materialMasterPackage)].filter(Boolean).length;
+  const optionalCount = Boolean(consumptionHistoryPackage) ? 1 : 0;
+  const coreText = t("dataFoundationSummary").replace("{count}", formatCount(coreCount));
+  const optionalText = t("optionalIntelligenceSummary").replace("{count}", formatCount(optionalCount));
   const quality = currentRelationshipQuality();
   if (inventoryReady && materialReady && quality.status === "complete") {
-    return { className: "complete", icon: "✓", text: t("dataFoundationComplete") };
+    return { className: "complete", icon: "✓", text: `${t("dataFoundationComplete")} · ${optionalText}` };
   }
   if (inventoryReady && materialReady && quality.status === "limited") {
-    return { className: "warning", icon: "›", text: `${t("dataFoundationSummary").replace("{count}", formatCount(count))} · ${relationshipQualityLabel(quality)}` };
+    return { className: "warning", icon: "›", text: `${coreText} · ${optionalText} · ${relationshipQualityLabel(quality)}` };
   }
   if (inventoryReady && materialReady && quality.status === "critical") {
-    return { className: "invalid", icon: "!", text: `${t("dataFoundationSummary").replace("{count}", formatCount(count))} · ${relationshipQualityLabel(quality)}` };
+    return { className: "invalid", icon: "!", text: `${coreText} · ${optionalText} · ${relationshipQualityLabel(quality)}` };
   }
   if (materialInvalid) {
-    return { className: "invalid", icon: "!", text: `${t("dataFoundationSummary").replace("{count}", formatCount(count))} · ${t("materialMaster")} ${t("packageInvalid").toLocaleLowerCase(locale())}` };
+    return { className: "invalid", icon: "!", text: `${coreText} · ${optionalText} · ${t("materialMaster")} ${t("packageInvalid").toLocaleLowerCase(locale())}` };
   }
   if (!materialMasterPackage) {
-    return { className: "missing", icon: "›", text: `${t("dataFoundationSummary").replace("{count}", formatCount(count))} · ${t("materialMaster")} ${t("packageMissing").toLocaleLowerCase(locale())}` };
+    return { className: "missing", icon: "›", text: `${coreText} · ${optionalText} · ${t("materialMaster")} ${t("packageMissing").toLocaleLowerCase(locale())}` };
   }
-  return { className: "warning", icon: "›", text: `${t("dataFoundationSummary").replace("{count}", formatCount(count))} · ${relationshipCompatibilityState(readiness).label}` };
+  return { className: "warning", icon: "›", text: `${coreText} · ${optionalText} · ${relationshipCompatibilityState(readiness).label}` };
 }
 
 function renderPackageAvailability() {

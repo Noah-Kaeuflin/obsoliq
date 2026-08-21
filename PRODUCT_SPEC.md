@@ -24,6 +24,12 @@ The current AP 16.4a scope is intentionally narrow:
 
 Consumption History is not yet used for slow-moving or dead-stock classification, Recovery calculations, Opportunity Score, Data Quality Score, Action recommendations, Pilot Review logic, scenarios or exports. Those integrations belong to later AP 16.4 work blocks.
 
+Next sequence:
+
+- AP 16.4b - Temporal, Movement & Unit Semantics
+- AP 16.4c - Inventory Relationship & Historical Metrics
+- AP 16.4d - Slow / Dead Stock Intelligence
+
 ### AP 16.3b.1.1 — Pilot Review Contract, Lifecycle UX & Navigation Acceptance Closure
 
 Pilot Review creation is now protected by a strict Service-level contract. New Reviews require a complete Dataset, Case, Inventory row, Package, Package revision, Case fingerprint, fingerprint version, fingerprint payload and Opportunity Score model identity before any Review state is mutated. Package Revision is a positive integer and is not coerced from text.
@@ -1444,4 +1450,9 @@ These decisions may change what the app shows or how issues are classified, but 
 
 ## Recommended Next Work Block
 
-AP 16.4: Consumption History Package & Historical Consumption Intelligence. This next block should add actual last-consumption date, 3M / 6M / 12M consumption, average monthly consumption, movement frequency, intermittency, demand trend, inventory coverage and run-out evidence before stronger Slow / Dead Stock and later predictive risk work.
+AP 16.4b: Temporal, Movement & Unit Semantics. This next block should make Consumption History dates, periods, movement types and units deterministic and reviewable before any historical aggregation.
+
+Subsequent roadmap:
+
+- AP 16.4c: Inventory Relationship & Historical Metrics
+- AP 16.4d: Slow / Dead Stock Intelligence
