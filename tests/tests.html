@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ObsoliQ Test Suite</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --text: #082b54;
+      --muted: #66758c;
+      --border: #d8e0ea;
+      --surface: #ffffff;
+      --bg: #f4f7fb;
+      --ok: #0f8b5f;
+      --fail: #c93838;
+    }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+    .suite-header,
+    .summary,
+    .result {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(8, 43, 84, 0.06);
+    }
+    .suite-header {
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+    p {
+      margin: 6px 0 0;
+      color: var(--muted);
+    }
+    button {
+      height: 38px;
+      border: 1px solid #b9c7d9;
+      border-radius: 8px;
+      padding: 0 14px;
+      color: var(--text);
+      background: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .summary {
+      margin-top: 16px;
+      padding: 14px 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .summary span {
+      color: var(--muted);
+    }
+    .summary strong {
+      font-variant-numeric: tabular-nums;
+    }
+    .results {
+      list-style: none;
+      margin: 16px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .result {
+      padding: 12px 14px;
+      display: grid;
+      gap: 5px;
+    }
+    .result.pass {
+      border-left: 4px solid var(--ok);
+    }
+    .result.fail {
+      border-left: 4px solid var(--fail);
+    }
+    .result-title {
+      font-weight: 800;
+    }
+    .result-meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .error {
+      color: var(--fail);
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+    iframe {
+      width: 1px;
+      height: 1px;
+      border: 0;
+      position: fixed;
+      left: -9999px;
+      top: -9999px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="suite-header">
+      <div>
+        <h1>ObsoliQ Test Suite</h1>
+        <p>AP 15.5 runtime transaction, bootstrap and migrated regression boundary.</p>
+      </div>
+      <button id="runTestsButton" type="button">Run tests</button>
+    </section>
+    <section id="summary" class="summary" aria-live="polite">
+      <span>Waiting for test registration…</span>
+    </section>
+    <ol id="results" class="results"></ol>
+    <iframe id="appFrame" title="ObsoliQ prototype test frame"></iframe>
+  </main>
+
+  <script src="test-runner.js?v=20260820-ap16-3a"></script>
+  <script src="app-template.js?v=20260820-ap16-3a"></script>
+  <script src="test-helpers.js?v=20260820-ap16-3a"></script>
+  <script src="bootstrap.test.js?v=20260820-ap16-3a"></script>
+  <script src="dataset-transaction.test.js?v=20260820-ap16-3a"></script>
+  <script src="mapping-transaction.test.js?v=20260820-ap16-3a"></script>
+  <script src="runtime-context.test.js?v=20260820-ap16-3a"></script>
+  <script src="registry.test.js?v=20260820-ap16-3a"></script>
+  <script src="package-import.test.js?v=20260820-ap16-3a"></script>
+  <script src="input-trust.test.js?v=20260820-ap16-2b-2"></script>
+  <script src="input-trust-excess-closure.test.js?v=20260820-ap16-2b-2-1"></script>
+  <script src="applied-mapping-normalization-integrity.test.js?v=20260820-ap16-2b-2-2"></script>
+  <script src="applied-policy-identity-closure.test.js?v=20260820-ap16-2b-2-3"></script>
+  <script src="confirmation-invalidation-export-ui-closure.test.js?v=20260820-ap16-2b-2-4"></script>
+  <script src="package-relationship-engine.test.js?v=20260820-ap16-3a"></script>
+  <script src="package-enrichment-engine.test.js?v=20260820-ap16-3a"></script>
+  <script src="excess-intelligence.test.js?v=20260820-ap16-3a"></script>
+  <script src="fixtures/excess-pilot-cases.js?v=20260820-ap16-3b"></script>
+  <script src="excess-pilot-fixtures.test.js?v=20260820-ap16-3b"></script>
+  <script src="opportunity-score-calibration.test.js?v=20260820-ap16-3b"></script>
+  <script src="excess-scenario-semantics.test.js?v=20260820-ap16-3b"></script>
+  <script src="excess-pilot-review-service.test.js?v=20260820-ap16-3b"></script>
+  <script src="excess-pilot-review-ui.test.js?v=20260820-ap16-3b"></script>
+  <script src="relationship-drilldown.test.js?v=20260820-ap16-3b"></script>
+  <script src="ap-16-3b-integration.test.js?v=20260820-ap16-3b"></script>
+  <script src="excess-pilot-review-lifecycle.test.js?v=20260821-ap16-3b-1"></script>
+  <script src="excess-pilot-review-package-integration.test.js?v=20260821-ap16-3b-1"></script>
+  <script src="relationship-navigation-lifecycle.test.js?v=20260821-ap16-3b-1"></script>
+  <script src="excess-pilot-review-performance.test.js?v=20260821-ap16-3b-1"></script>
+  <script src="inventory-enrichment-integration.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-foundation-ui.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-quality-ui.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-quality-responsive-ui.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-quality-alignment.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-quality-review-hierarchy.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-quality-primary-metrics.test.js?v=20260820-ap16-3a"></script>
+  <script src="data-quality-final-polish.test.js?v=20260820-ap16-3a"></script>
+  <script src="overview-layout.test.js?v=20260820-ap16-3a"></script>
+  <script src="legacy-regression.test.js?v=20260820-ap16-3a"></script>
+  <script>
+    document.getElementById("runTestsButton").addEventListener("click", () => window.ObsoliQTests.run());
+    window.addEventListener("load", () => window.ObsoliQTests.run());
+  </script>
+</body>
+</html>

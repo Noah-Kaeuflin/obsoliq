@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ObsoliQ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand-row">
+      <img class="brand-mark" src="assets/obsoliq-q.png" alt="ObsoliQ" />
+      <div class="brand-copy">
+        <h1>ObsoliQ</h1>
+        <span class="brand-subtitle">Inventory Recovery Cockpit</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button id="navToggleButton" class="nav-toggle" type="button" aria-expanded="true" aria-haspopup="menu" data-i18n="navSections">Bereiche</button>
+      <span id="currentSectionLabel" class="current-section-label">Overview</span>
+      <button id="uploadButton" class="primary" type="button" data-i18n="uploadButton">Datei hochladen</button>
+      <input id="fileInput" type="file" accept=".xlsx,.csv,.tsv" />
+      <button id="sampleButton" class="secondary" type="button" data-i18n="sampleButton">Beispieldaten</button>
+      <button id="exportInventoryButton" class="secondary" type="button" data-i18n="exportInventory">Bestand exportieren</button>
+      <span id="actionFeedback" class="action-feedback" data-i18n="ready">Bereit</span>
+    </div>
+  </header>
+
+  <nav class="main-nav" aria-label="Bestandsnavigation" data-i18n-aria-label="navAriaLabel">
+    <div class="main-nav-inner">
+      <div class="process-tabs nav-tabs">
+        <button class="active" data-process="overview" type="button" data-i18n="navOverview">Overview</button>
+        <button data-process="inventory-explorer" type="button" data-i18n="navInventoryExplorer">Inventory Explorer</button>
+        <button data-process="excess-stock" type="button" data-i18n="navExcessStock">Excess Stock</button>
+        <button data-process="slow-dead-stock" type="button" data-i18n="navSlowDeadStock">Slow / Dead Stock</button>
+        <button data-process="blocked-quality" type="button" data-i18n="navBlockedQuality">Blocked / Quality</button>
+        <button data-process="purchase-orders" type="button" data-i18n="navPurchaseOrders">Purchase Orders</button>
+        <button data-process="actions" type="button" data-i18n="navActions">Actions</button>
+        <button data-process="data-quality" type="button" data-i18n="navDataQuality">Data Quality</button>
+        <button data-process="reports" type="button" data-i18n="navReports">Reports</button>
+        <button data-process="settings" type="button" data-i18n="navSettings">Settings</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section id="dropZone" class="drop-zone" data-i18n="dropZone">Datei hier ablegen: XLSX, CSV oder TSV</section>
+
+    <div id="overviewWorkspace" class="workspace" data-view="dashboard">
+
+    <section class="overview-header">
+      <div class="overview-heading">
+        <h2 data-i18n="overviewTitle">Übersicht</h2>
+        <p data-i18n="overviewSubtitle">Managementübersicht über Bestandswert, Recovery-Potenzial und priorisierte Bestandsrisiken.</p>
+      </div>
+      <section id="dataPackagesPanel" class="data-foundation-panel" aria-label="Datenbasis" data-i18n-aria-label="dataFoundation"></section>
+    </section>
+
+    <section class="overview-top">
+      <div class="overview-main">
+        <div class="metric-section-head" data-i18n="summarySectionLabel">Kernkennzahlen</div>
+
+        <section class="metrics">
+          <div class="metric inventory">
+            <div class="label" data-i18n="metricInventory">Gesamtbestand</div>
+            <div id="mInventory" class="value">0 EUR</div>
+            <div id="mRows" class="sub">0 Zeilen</div>
+          </div>
+          <div class="metric excess">
+            <div class="label" data-i18n="metricExcess">Überbestand</div>
+            <div id="mExcess" class="value">0 EUR</div>
+            <div id="mExcessSub" class="sub" data-i18n="metricExcessSub">adressierbarer Überbestand</div>
+          </div>
+          <div class="metric bad">
+            <div class="label" data-i18n="metricBad">Gesperrt / QI</div>
+            <div id="mBad" class="value">0 EUR</div>
+            <div class="sub" data-i18n="metricBadSub">gesperrter / QI-Bestand</div>
+          </div>
+          <div class="metric noneed">
+            <div class="label" data-i18n="metricNoNeed">Ohne Bedarf</div>
+            <div id="mNoNeed" class="value">0 EUR</div>
+            <div class="sub" data-i18n="metricNoNeedSub">Bestand ohne sichtbaren Bedarf</div>
+          </div>
+          <div class="metric noplan">
+            <div class="label" data-i18n="metricNoPlan">Ohne Plan</div>
+            <div id="mNoPlan" class="value">0 EUR</div>
+            <div class="sub" data-i18n="metricNoPlanSub">Bestand ohne Planbezug</div>
+          </div>
+          <div class="metric recovery">
+            <div class="label" data-i18n="metricRecovery">Recovery-Potenzial</div>
+            <div id="mRecovery" class="value">0 EUR</div>
+            <div id="mShare" class="sub">0 % vom Bestand</div>
+            <div class="recovery-progress" aria-hidden="true">
+              <span id="recoveryProgressFill"></span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="overviewGlobalFilterBlock" class="overview-global-filter" aria-label="Overview filters" data-i18n-aria-label="overviewFiltersAria">
+      <div class="overview-global-filter-field">
+        <label for="overviewGlobalSearch" data-i18n="searchLabel">Suche</label>
+        <input id="overviewGlobalSearch" type="search" placeholder="Material oder Beschreibung suchen …" data-i18n-placeholder="searchPlaceholder" />
+      </div>
+      <div class="overview-global-filter-field">
+        <label for="overviewGlobalProfitCenter" data-i18n="plantLabel">Werk / Profit Center</label>
+        <select id="overviewGlobalProfitCenter"><option value="all" data-i18n="all">Alle</option></select>
+      </div>
+      <div class="overview-global-filter-field">
+        <label for="overviewGlobalProgram" data-i18n="groupLabel">Programm / Gruppe</label>
+        <select id="overviewGlobalProgram"><option value="all" data-i18n="all">Alle</option></select>
+      </div>
+      <div class="overview-global-filter-field">
+        <label for="overviewGlobalCategory" data-i18n="categoryLabel">Kategorie</label>
+        <select id="overviewGlobalCategory"><option value="all" data-i18n="all">Alle</option></select>
+      </div>
+      <button id="overviewGlobalReset" class="secondary overview-global-reset" type="button" data-i18n="resetFilters">Filter zurücksetzen</button>
+    </section>
+
+    <section id="inventoryExplorerHeader" class="tab-page-header control-card explorer-control-card">
+      <div class="control-card-top">
+        <div class="overview-heading">
+          <h2 data-i18n="inventoryExplorerTitle">Inventory Explorer</h2>
+          <p data-i18n="inventoryExplorerSubtitle">Vollbestand in Excel-Anordnung mit Filtern, horizontalem Scroll und Export der sichtbaren Zeilen.</p>
+        </div>
+        <div class="control-card-actions">
+          <div class="dataset-context" aria-label="Dataset context">
+            <span class="dataset-chip state">
+              <span class="status-dot"></span>
+              <span class="dataset-status-text" data-i18n="dataLoaded">Daten geladen</span>
+            </span>
+            <span class="dataset-chip dataset-rows-chip">0 Zeilen</span>
+            <span class="dataset-chip dataset-columns-chip">0 Spalten</span>
+            <span class="dataset-chip dataset-visible-chip">0 sichtbar</span>
+            <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
+          </div>
+          <button id="exportVisibleInventoryButton" class="secondary" type="button" data-i18n="exportVisible">Sichtbare Zeilen exportieren</button>
+        </div>
+      </div>
+      <div id="inventoryToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
+      <div id="inventoryAdvancedFilters" class="advanced-filter-row"></div>
+      <div id="inventoryActiveFilters" class="active-filter-row hidden" aria-live="polite"></div>
+    </section>
+
+    <section id="dataQualityHeader" class="tab-page-header data-quality-page-header">
+      <div class="overview-heading">
+        <h2 data-i18n="dataQualityTitle">Data Quality</h2>
+        <p data-i18n="dataQualitySubtitle">Datenprobleme erkennen, priorisieren und kontrolliert bereinigen.</p>
+      </div>
+      <div class="dataset-context" aria-label="Dataset context">
+        <span class="dataset-chip state">
+          <span class="status-dot"></span>
+          <span class="dataset-status-text" data-i18n="dataLoaded">Daten geladen</span>
+        </span>
+        <span class="dataset-chip dataset-rows-chip">0 Zeilen</span>
+        <span class="dataset-chip dataset-columns-chip">0 Spalten</span>
+        <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
+      </div>
+    </section>
+
+    <section id="actionsHeader" class="tab-page-header">
+      <div class="overview-heading">
+        <h2 data-i18n="actionsTitle">Maßnahmen</h2>
+        <p data-i18n="actionsSubtitle">Priorisierte Recovery-Maßnahmen mit Ursache, Verantwortlichkeit, Priorität und Status.</p>
+      </div>
+      <div class="dataset-context" aria-label="Dataset context">
+        <span class="dataset-chip state">
+          <span class="status-dot"></span>
+          <span class="dataset-status-text" data-i18n="dataLoaded">Daten geladen</span>
+        </span>
+        <span class="dataset-chip dataset-rows-chip">0 Zeilen</span>
+        <span class="dataset-chip dataset-columns-chip">0 Spalten</span>
+        <span class="dataset-chip dataset-visible-chip">0 sichtbar</span>
+        <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
+      </div>
+    </section>
+
+    <div id="overviewToolbarSlot" class="toolbar-slot overview-toolbar-slot">
+      <section id="sharedToolbar" class="toolbar">
+        <div class="filters">
+          <div class="field">
+            <label for="searchInput" data-i18n="searchLabel">Suche</label>
+            <input id="searchInput" type="search" placeholder="Material oder Beschreibung suchen …" data-i18n-placeholder="searchPlaceholder" />
+          </div>
+          <div class="field">
+            <label for="plantFilter" data-i18n="plantLabel">Werk / Profit Center</label>
+            <select id="plantFilter"><option value="">Alle</option></select>
+          </div>
+          <div class="field">
+            <label for="groupFilter" data-i18n="groupLabel">Programm / Gruppe</label>
+            <select id="groupFilter"><option value="">Alle</option></select>
+          </div>
+          <div class="field">
+            <label for="categoryFilter" data-i18n="categoryLabel">Kategorie</label>
+            <select id="categoryFilter"><option value="">Alle</option></select>
+          </div>
+          <div class="field">
+            <label for="rowLimit" data-i18n="rowLimitLabel">Bestandszeilen</label>
+            <select id="rowLimit">
+              <option value="250">250</option>
+              <option value="500" selected>500</option>
+              <option value="2000">2000</option>
+              <option value="all" data-i18n="all">Alle</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section id="view-dashboard" class="view overview-grid active">
+      <div class="panel chart-panel category-chart-panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <h2 data-i18n="categoryChartTitle">Inventory Value by Category</h2>
+            <small data-i18n="categoryChartSubtitle">Bestandswert nach Recovery-Kategorie</small>
+          </div>
+        </div>
+        <div id="categoryBars" class="bars"></div>
+      </div>
+      <div class="panel chart-panel profit-center-chart-panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <h2 data-i18n="plantChartTitle">Recovery Potential by Profit Center</h2>
+            <small data-i18n="plantChartSubtitle">Priorisierung nach finanzieller Wirkung</small>
+          </div>
+        </div>
+        <div id="plantBars" class="bars"></div>
+      </div>
+      <div class="panel overview-top-list-panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <h2 data-i18n="topTitle">Recovery Opportunities</h2>
+            <small data-i18n="topSubtitle">All addressable inventory cases, sorted by financial potential.</small>
+          </div>
+          <div class="panel-actions">
+            <button id="exportTopButton" class="secondary top-export-button" type="button" data-i18n="exportTop">Exportieren</button>
+          </div>
+        </div>
+        <div id="topTable" class="table-wrap overview-top-list-wrap"></div>
+      </div>
+    </section>
+
+    <section id="view-excess" class="view">
+      <div id="excessPage"></div>
+    </section>
+
+    <section id="view-actions" class="view">
+      <div class="panel action-cockpit-panel">
+        <div class="panel-head action-worklist-header">
+          <div class="panel-title action-worklist-title">
+            <h2 data-i18n="actionsTitle">Maßnahmen</h2>
+            <small data-i18n="actionsSubtitle">Priorisierte Recovery-Maßnahmen mit Ursache, nächstem Schritt, Verantwortlichkeit, Priorität und Status.</small>
+            <div id="actionSummaryChips" class="action-summary-chips" aria-label="Action summary"></div>
+          </div>
+          <div class="panel-actions action-header-actions">
+            <button id="exportActionsButton" class="secondary action-export-button" type="button" data-i18n="exportActions">Sichtbare Maßnahmen exportieren</button>
+          </div>
+        </div>
+        <div class="action-filter-row">
+          <div id="actionsToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
+          <div class="action-worklist-filters">
+            <button id="actionAdvancedFilterToggle" class="advanced-filter-toggle" type="button" data-actions-advanced-filter-toggle aria-expanded="false">
+              <span id="actionAdvancedFilterLabel" class="advanced-filter-label" data-i18n="moreFilters">Weitere Filter</span>
+            </button>
+            <div class="field">
+              <label for="actionPriorityFilter" data-i18n="colPriority">Priorität</label>
+              <select id="actionPriorityFilter"><option value="">Alle</option></select>
+            </div>
+            <div class="field">
+              <label for="actionStatusFilter" data-i18n="colStatus">Status</label>
+              <select id="actionStatusFilter"><option value="">Alle</option></select>
+            </div>
+            <div class="field">
+              <label for="actionOwnerFilter" data-i18n="colOwnerFunction">Verantwortlicher Bereich</label>
+              <select id="actionOwnerFilter"><option value="">Alle</option></select>
+            </div>
+            <div class="field">
+              <label for="actionDecisionFilter" data-i18n="colDecisionType">Entscheidungstyp</label>
+              <select id="actionDecisionFilter"><option value="">Alle</option></select>
+            </div>
+            <div class="field">
+              <label for="actionConfidenceFilter" data-i18n="colConfidence">Sicherheit</label>
+              <select id="actionConfidenceFilter" class="live-filter-control"><option value="">Alle</option></select>
+            </div>
+          </div>
+        </div>
+        <div id="actionsActiveFilters" class="active-filter-row hidden" aria-live="polite"></div>
+        <div id="actionsTable" class="table-wrap action-table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="view-inventory" class="view">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 data-i18n="fullInventoryTitle">Vollbestand in Excel-Anordnung</h2>
+        </div>
+        <div class="resizable-table-shell">
+          <div id="inventoryResizeHandle" class="table-resize-handle" role="separator" aria-orientation="horizontal" tabindex="0" data-i18n="tableResizeHint">Tabellenhöhe ziehen</div>
+          <div id="inventoryTable" class="table-wrap inventory-table-scroll"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-check" class="view">
+      <div class="panel">
+        <div id="dataCheck"></div>
+      </div>
+    </section>
+
+    </div>
+
+    <section id="placeholderPage" class="placeholder-page hidden">
+      <div class="placeholder-card">
+        <strong id="placeholderTitle">In Bearbeitung</strong>
+        <span id="placeholderDescription" data-i18n="placeholderText">Diese Seite wird aktuell aufgebaut.</span>
+      </div>
+    </section>
+  </main>
+
+  <div id="packageTypeModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="packageTypeTitle" aria-describedby="packageTypeSubtitle">
+    <div class="modal package-type-modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="packageTypeTitle" data-i18n="selectPackageType">Package-Typ auswählen</h2>
+          <p id="packageTypeSubtitle" data-i18n="selectPackageTypeSubtitle">Wähle, welche Datei du importieren möchtest.</p>
+        </div>
+        <button id="packageTypeCloseButton" class="modal-close" type="button" aria-label="Schließen" data-i18n-aria-label="close">X</button>
+      </div>
+      <div class="package-type-options">
+        <button id="packageTypeInventoryButton" class="package-type-card" type="button">
+          <strong data-i18n="inventorySnapshot">Inventory Snapshot</strong>
+          <span data-i18n="inventorySnapshotDesc">Bestandsdaten für die aktive Analyse hochladen.</span>
+        </button>
+        <button id="packageTypeMaterialMasterButton" class="package-type-card" type="button">
+          <strong data-i18n="materialMaster">Material Master</strong>
+          <span data-i18n="materialMasterDesc">Materialstammdaten als zweites Data Package importieren.</span>
+        </button>
+      </div>
+      <p class="package-type-note" data-i18n="dropImportsInventoryNote">Drag & Drop importiert aktuell Inventory Snapshots.</p>
+    </div>
+  </div>
+
+  <div id="downloadModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="downloadTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="downloadTitle" data-i18n="downloadPrepare">Bestand exportieren</h2>
+          <p id="downloadSubtitle" data-i18n="downloadSubtitle">Exportiere Bestandsdaten als Excel-kompatible Datei oder als CSV für Google Sheets.</p>
+        </div>
+        <button id="downloadCloseButton" class="modal-close" type="button" aria-label="Schließen" data-i18n-aria-label="close">X</button>
+      </div>
+      <div class="download-options">
+        <div class="download-section">
+          <div class="download-section-title" data-i18n="exportScopeLabel">Exportumfang</div>
+          <div class="scope-options">
+            <label class="scope-option">
+              <input id="downloadScopeFiltered" name="downloadScope" type="radio" value="filtered" checked />
+              <span data-i18n="exportScopeFiltered">Aktuell gefilterte Ansicht</span>
+            </label>
+            <label class="scope-option">
+              <input id="downloadScopeAll" name="downloadScope" type="radio" value="all" />
+              <span data-i18n="exportScopeAll">Alle geladenen Zeilen</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="downloadVariantSection" class="download-section">
+          <div class="download-section-title" data-i18n="exportVariantLabel">Datenvariante</div>
+          <div class="scope-options export-variant-options">
+            <label class="scope-option">
+              <input id="downloadVariantOriginal" name="downloadVariant" type="radio" value="original" checked />
+              <span>
+                <strong data-i18n="exportVariantOriginal">Originale Quelldaten</strong>
+                <small data-i18n="exportVariantOriginalDesc">Nur die unveränderten Originalspalten aus dem Upload.</small>
+              </span>
+            </label>
+            <label class="scope-option">
+              <input id="downloadVariantEnriched" name="downloadVariant" type="radio" value="enriched" />
+              <span>
+                <strong data-i18n="exportVariantEnriched">Angereicherter Analysedatensatz</strong>
+                <small data-i18n="exportVariantEnrichedDesc">Originalspalten plus angereicherte Materialstammfelder.</small>
+              </span>
+            </label>
+            <label class="scope-option">
+              <input id="downloadVariantProvenance" name="downloadVariant" type="radio" value="provenance" />
+              <span>
+                <strong data-i18n="exportVariantProvenance">Angereichert mit Provenance</strong>
+                <small data-i18n="exportVariantProvenanceDesc">Angereicherte Daten plus Package-, Match- und Provenance-Spalten.</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="download-section">
+          <div class="download-section-title" data-i18n="exportFormatLabel">Format</div>
+          <label class="download-option primary-choice" for="downloadFormatExcel">
+            <input id="downloadFormatExcel" name="downloadFormat" type="radio" value="excel" checked />
+            <span>
+            <strong data-i18n="downloadExcel">Excel-kompatible Datei herunterladen</strong>
+            <span data-i18n="downloadExcelDesc">Excel-kompatibler Export für lokale Auswertungen in Microsoft Excel.</span>
+            </span>
+          </label>
+          <label class="download-option" for="downloadFormatSheets">
+            <input id="downloadFormatSheets" name="downloadFormat" type="radio" value="sheets" />
+            <span>
+            <strong data-i18n="downloadSheets">CSV für Google Sheets herunterladen</strong>
+            <span data-i18n="downloadSheetsDesc">CSV-kompatibler Export, den du in Google Sheets über Datei &gt; Importieren hochladen kannst.</span>
+            </span>
+          </label>
+        </div>
+
+        <p class="download-note" data-i18n="downloadFilterNote">Hinweis: Der Export basiert auf dem gewählten Exportumfang.</p>
+        <div class="download-actions">
+          <button id="downloadCancelButton" class="secondary" type="button" data-i18n="cancel">Abbrechen</button>
+          <button id="downloadConfirmButton" class="primary" type="button" data-i18n="downloadConfirm">Herunterladen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="settingsTitle" data-i18n="settingsTitle">Settings</h2>
+          <p data-i18n="settingsSubtitle">Darstellung und Sprache für den Prototyp einstellen.</p>
+        </div>
+        <button id="settingsCloseButton" class="modal-close" type="button" aria-label="Schließen" data-i18n-aria-label="close">X</button>
+      </div>
+      <div class="settings-options">
+        <div class="settings-row">
+          <div>
+            <strong data-i18n="darkModeTitle">Dunkelmodus</strong>
+            <span data-i18n="darkModeDesc">Schaltet das Dashboard auf eine dunkle, kontrastreiche Ansicht.</span>
+          </div>
+          <label class="switch" for="darkModeToggle">
+            <input id="darkModeToggle" type="checkbox" />
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <div>
+            <strong data-i18n="languageTitle">Sprache</strong>
+            <span data-i18n="languageDesc">Deutsch oder Englisch für die gesamte Oberfläche.</span>
+          </div>
+          <select id="languageSelect" aria-label="Sprache" data-i18n-aria-label="languageTitle">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div>
+            <strong data-i18n="currencyTitle">Währung</strong>
+            <span data-i18n="currencyDesc">Geldwerte im Dashboard direkt in EUR, USD oder UK/GBP anzeigen.</span>
+          </div>
+          <select id="currencySelect" aria-label="Währung" data-i18n-aria-label="currencyTitle">
+            <option value="EUR">EUR</option>
+            <option value="USD">USD / Dollar</option>
+            <option value="GBP">UK / GBP</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button id="settingsDoneButton" class="primary" type="button" data-i18n="done">Fertig</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="remediationIssueModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="remediationIssueTitle" aria-describedby="remediationIssueSubtitle">
+    <div class="modal remediation-modal">
+      <div class="modal-head remediation-modal-head">
+        <div class="remediation-sheet-title-row">
+          <div>
+            <h2 id="remediationIssueTitle">Datenproblem prüfen</h2>
+            <p id="remediationIssueSubtitle">Ursache, betroffene Zeilen und Korrekturwirkung prüfen.</p>
+          </div>
+          <span id="remediationIssueSeverity" class="remediation-sheet-severity"></span>
+        </div>
+        <button id="remediationIssueCloseButton" class="modal-close" type="button" aria-label="Schließen" data-i18n-aria-label="close">X</button>
+      </div>
+      <div id="remediationIssueBody" class="remediation-modal-body"></div>
+      <footer class="remediation-sheet-footer">
+        <div id="remediationFooterImpact" class="remediation-footer-impact" aria-live="polite"></div>
+        <div class="remediation-modal-actions remediation-footer-actions">
+          <button id="remediationIssueCancelButton" class="secondary" type="button" data-i18n="cancel">Abbrechen</button>
+          <button id="remediationIssueApplyButton" class="primary" type="button" data-i18n="applyCorrection">Korrektur anwenden</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div id="mappingModal" class="modal-backdrop mapping-backdrop" role="dialog" aria-modal="true" aria-labelledby="mappingTitle" aria-describedby="mappingSubtitle">
+    <div class="modal mapping-modal">
+      <div class="modal-head mapping-modal-head">
+        <div>
+          <h2 id="mappingTitle" data-i18n="columnMapping">Spaltenzuordnung</h2>
+          <p id="mappingSubtitle" data-i18n="columnMappingSubtitle">Prüfen Sie, wie die Spalten der hochgeladenen Datei dem ObsoliQ-Datenmodell zugeordnet werden.</p>
+        </div>
+        <button id="mappingCloseButton" class="modal-close" type="button" aria-label="Schließen" data-i18n-aria-label="close">X</button>
+      </div>
+      <div id="mappingSummary" class="mapping-summary" aria-live="polite"></div>
+      <div id="mappingRequiredSummary" class="mapping-required-summary"></div>
+      <div id="mappingIssues" class="mapping-issues-wrap" aria-live="polite"></div>
+      <div id="mappingTable" class="mapping-table-region"></div>
+      <div class="mapping-actions">
+        <button id="mappingCancelButton" class="secondary" type="button" data-i18n="cancel">Abbrechen</button>
+        <button id="mappingRestoreButton" class="secondary" type="button" data-i18n="restoreAutomaticMapping">Automatische Zuordnung wiederherstellen</button>
+        <button id="mappingApplyButton" class="primary" type="button" data-i18n="applyMapping">Zuordnung anwenden</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="sample-data.js"></script>
+  <script src="js/core/canonical-model.js"></script>
+  <script src="js/core/value-utils.js"></script>
+  <script src="js/data/source-model.js"></script>
+  <script src="js/data/source-ingestion.js"></script>
+  <script src="js/data/schema-profiler.js"></script>
+  <script src="js/data/input-normalization-engine.js"></script>
+  <script src="js/mapping/mapping-engine.js"></script>
+  <script src="js/recovery/recovery-engine.js"></script>
+  <script src="js/data/dataset-builder.js"></script>
+  <script src="js/data/data-package-registry.js"></script>
+  <script src="js/data/material-master-builder.js"></script>
+  <script src="js/data/package-relationship-engine.js"></script>
+  <script src="js/data/package-enrichment-engine.js"></script>
+  <script src="js/actions/action-owner-context-engine.js"></script>
+  <script src="js/data/package-relationship-quality-engine.js"></script>
+  <script src="js/excess/excess-analysis-engine.js"></script>
+  <script src="js/excess/opportunity-score-engine.js"></script>
+  <script src="js/excess/excess-scenario-engine.js"></script>
+  <script src="js/application/input-trust-service.js"></script>
+  <script src="js/application/package-import-service.js"></script>
+  <script src="js/application/inventory-enrichment-service.js"></script>
+  <script src="js/application/excess-analysis-service.js"></script>
+  <script src="js/application/excess-pilot-review-service.js"></script>
+  <script src="js/application/excess-pilot-review-view.js"></script>
+  <script src="js/application/excess-pilot-review-controller.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

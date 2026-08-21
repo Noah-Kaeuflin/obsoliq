@@ -1,0 +1,54 @@
+# Operating system
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python caches / legacy
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# JavaScript dependencies and coverage
+node_modules/
+coverage/
+
+# Temporary and generated files
+*.tmp
+*.temp
+*.log
+*.bak
+~$*
+tmp/
+temp/
+exports/
+dist/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+secrets/
+credentials/
+
+# Private customer and pilot data
+data/private/
+data/customer/
+data/pilot-private/
+customer-data/
+pilot-data/private/
+
+# Local backups and release archives
+*.zip
+*.7z
+*.rar
