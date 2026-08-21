@@ -118,6 +118,28 @@ Explicit Quantity Scale requires `scaleSource = "explicit"`, a valid finite `sou
 
 Interpretation Trust and History Readiness are separate contracts. Trust describes whether the interpretation policy can be applied. History Readiness is produced by the Semantics Engine from temporal, movement, unit and event evidence. Data Foundation displays Consumption History Package availability separately from analytical History Readiness and does not calculate Readiness.
 
+### AP 16.4c Inventory Relationship & Historical Metrics Contract
+
+Inventory entity keys use `material_id` and `plant` exactly as normalized text tokens: `material:<material_id>|plant:<plant>`. History entity keys use the same shape. Material IDs are not numeric-coerced, so leading zeroes remain part of identity.
+
+Relationship states are `exact_material_plant`, `material_fallback`, `unmatched`, `ambiguous` and `invalid_key`. Exact Material + Plant matching has priority. Material-only fallback is allowed only when the Inventory side and History side each have one unique entity for the material. If plantless History could fan out to multiple plant-specific Inventory entities, the relationship is `ambiguous` with reason `material_history_fanout_blocked`.
+
+The relationship result stores model version, deterministic signature, package IDs, package revisions, entity counts, exact/fallback/unmatched/ambiguous/invalid counts, match indexes, unmatched entities, ambiguous diagnostics, invalid-key diagnostics and limitation codes.
+
+Historical aggregation consumes semantic Consumption History rows only. It uses `net_consumption_quantity`, `normalized_posting_date`, `normalized_period`, `temporal_precision`, `temporal_parse_status`, `movement_semantic`, `normalized_base_unit`, `aggregation_eligible`, `duplicate_semantic`, `event_identity_key` and `event_identity_status`. Raw Posting Date, Raw Period, Raw Movement Type and raw quantity sign are not reinterpreted.
+
+Exclusion provenance records the Package row key, source row index, History entity key, temporal reference, movement semantic, unit context, duplicate semantic and exclusion reasons. Known exclusions include future movements, unknown movement semantics, missing net quantity, missing unit, unit conflict, exact-source duplicate ambiguity, business-duplicate ambiguity, unmatched relationships, ambiguous relationships and invalid relationships. Excluded rows are not deleted.
+
+Rolling windows are calendar-month windows anchored by explicit `analysisAsOf.date`. The current browser or system date is not a fallback. A non-month-end as-of date sets `partial_current_period = true`. Day precision remains date evidence, month precision remains period evidence and month precision is not converted into an invented day.
+
+Historical metrics include Last Consumption date/period/precision, Net Consumption 3M/6M/12M, Average Monthly Consumption, Active Consumption Months, Movement Frequency, Intermittency, Months Since Last Consumption, Consumption Trend, History Coverage start/end, History Completeness, Inventory Coverage Months and Estimated Run-out Months.
+
+Metric status is `available`, `limited` or `unavailable`. Coverage and run-out require stock quantity, Inventory unit, History unit, compatible unit tokens, positive average consumption and sufficient covered months. There is no unit conversion and no financial-value substitute for missing quantity evidence.
+
+Metric provenance includes Inventory Package ID/revision, History Package ID/revision, semantic-policy signature, relationship model version, aggregation model version, historical metric model version, window model version, Analysis-as-of date/source/provenance, relationship state, unit status, included/excluded row counts, coverage range and limitation codes.
+
+The Historical Metrics Runtime is derived and session-local. It indexes metrics by Inventory entity and exposes shared row-level views for repeated Inventory rows. Entity-level metric authority prevents row-level portfolio double counting. Runtime signatures include Package identity, revisions, semantic policy, model versions and Analysis-as-of evidence; changed inputs invalidate stale metrics. Metric calculation does not create Package revisions and does not mutate Raw Source or authoritative Inventory analytical rows.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

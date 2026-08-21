@@ -22,6 +22,20 @@ Analysis-as-of provenance is auditable. Inventory-snapshot-derived as-of dates r
 
 AP 16.4b.1 remains analytically isolated. It does not join Consumption History to Inventory, does not calculate rolling historical metrics, does not classify Slow / Dead Stock and does not change Recovery, Data Quality, Actions, Opportunity Score, scenarios or Pilot Reviews.
 
+### AP 16.4c — Inventory Relationship & Historical Metrics
+
+AP 16.4c connects the active Inventory Snapshot with the active semantically interpreted Consumption History Package to produce derived, auditable historical evidence. The relationship model first matches exact `material_id + plant`, then allows material-only fallback only when the assignment is unique. Plantless History is never copied across multiple plant-specific Inventory entities, and unmatched, ambiguous and invalid relationships remain explicit diagnostics. Leading-zero Material IDs remain unchanged.
+
+Historical aggregation consumes only AP 16.4b semantic fields such as `net_consumption_quantity`, normalized date or period evidence, temporal precision, movement semantics, unit context, aggregation eligibility and duplicate semantics. Raw Posting Date, Raw Period, raw Movement Type and raw quantity sign are not reinterpreted. Unknown movements, future movements, exact-source duplicate ambiguity, business-duplicate ambiguity and incompatible units are excluded with provenance.
+
+The metric windows are deterministic 3M, 6M and 12M calendar windows based on an explicit Analysis-as-of date. The browser or system date is not an analytical fallback. Day precision remains day evidence, month precision remains period evidence and an incomplete current month is flagged as partial.
+
+Current derived metrics include Last Consumption, Net Consumption 3M/6M/12M, Average Monthly Consumption, Active Consumption Months, Movement Frequency, Intermittency, Months Since Last Consumption, Consumption Trend, History Coverage, History Completeness, Inventory Coverage and Estimated Run-out Months. Coverage and run-out are calculated only when quantity evidence and compatible unit evidence exist; financial value is never used as a quantity substitute.
+
+Historical metrics are derived runtime evidence only. They do not mutate Registry records, do not create Package revisions and do not change authoritative Inventory analytical rows. Data Foundation shows historical relationship and metric status, Inventory Explorer can show `· CH` columns, and the Inventory export offers an explicit historical enriched variant. Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios and Pilot Reviews remain unchanged.
+
+Recommended next work block: AP 16.4d — Slow / Dead Stock Intelligence. AP 16.4c does not add predictive analytics.
+
 ### AP 16.4b — Temporal, Movement & Unit Semantics
 
 Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.

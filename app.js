@@ -67,6 +67,12 @@ if (!ObsoliQModules.data?.consumptionHistorySemanticsEngine) {
 if (!ObsoliQModules.data?.consumptionHistoryBuilder) {
   throw new Error("ObsoliQ Consumption History Builder module failed to load.");
 }
+if (!ObsoliQModules.data?.consumptionHistoryRelationshipEngine) {
+  throw new Error("ObsoliQ Consumption History Relationship Engine module failed to load.");
+}
+if (!ObsoliQModules.data?.consumptionHistoryAggregationEngine) {
+  throw new Error("ObsoliQ Consumption History Aggregation Engine module failed to load.");
+}
 if (!ObsoliQModules.data?.packageRelationshipEngine) {
   throw new Error("ObsoliQ Package Relationship Engine module failed to load.");
 }
@@ -81,6 +87,9 @@ if (!ObsoliQModules.application?.inputTrustService) {
 }
 if (!ObsoliQModules.application?.consumptionHistoryInterpretationService) {
   throw new Error("ObsoliQ Consumption History Interpretation Service module failed to load.");
+}
+if (!ObsoliQModules.application?.historicalInventoryMetricsService) {
+  throw new Error("ObsoliQ Historical Inventory Metrics Service module failed to load.");
 }
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
@@ -181,6 +190,10 @@ const inventoryEnrichmentService = ObsoliQModules.application.inventoryEnrichmen
 const actionOwnerContextEngine = ObsoliQModules.actions.actionOwnerContextEngine;
 const packageRelationshipQualityEngine = ObsoliQModules.data.packageRelationshipQualityEngine;
 const consumptionHistoryInterpretationService = ObsoliQModules.application.consumptionHistoryInterpretationService;
+const historicalMetricsService = ObsoliQModules.application.historicalInventoryMetricsService.createHistoricalInventoryMetricsService({
+  relationshipEngine: ObsoliQModules.data.consumptionHistoryRelationshipEngine,
+  aggregationEngine: ObsoliQModules.data.consumptionHistoryAggregationEngine
+});
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -225,6 +238,63 @@ const translations = {
     materialMasterDesc: "Materialstammdaten als zweite Datenbasis importieren.",
     consumptionHistory: "Verbrauchshistorie",
     consumptionHistoryDesc: "Historische Verbrauchsbewegungen als optionale Intelligence-Quelle importieren.",
+    historicalMetrics: "Historische Kennzahlen",
+    historicalEvidence: "Historische Evidenz",
+    historyRelationship: "Inventory ↔ History Beziehung",
+    historicalMetricStatus: "Historische Kennzahlen",
+    historicalMetricsAvailable: "Verfügbar",
+    historicalMetricsLimited: "Eingeschränkt",
+    historicalMetricsUnavailable: "Nicht verfügbar",
+    historicalMetricMissing: "Keine Historie",
+    historyAvailability: "Verbrauchshistorie Verfügbarkeit",
+    historyAvailabilityImported: "Importiert",
+    historyAvailabilityMissing: "Nicht importiert",
+    historyAvailabilityInvalid: "Ungültig",
+    historicalRelationshipRate: "Exact / Fallback Match Rate",
+    historicalMatchedEntities: "Verknüpfte Einheiten",
+    historicalExactMatches: "Exact Matches",
+    historicalFallbackMatches: "Fallback Matches",
+    historicalUnmatched: "Unmatched",
+    historicalAmbiguous: "Ambiguous",
+    historicalInvalid: "Invalid",
+    historicalCoverageRange: "Historische Abdeckung",
+    partialCurrentPeriod: "Teilperiode aktuell",
+    lastConsumption: "Letzter Verbrauch",
+    lastConsumptionPeriod: "Letzte Verbrauchsperiode",
+    temporalPrecision: "Zeitliche Präzision",
+    netConsumption3m: "Nettoverbrauch 3M",
+    netConsumption6m: "Nettoverbrauch 6M",
+    netConsumption12m: "Nettoverbrauch 12M",
+    averageMonthlyConsumptionHistory: "Ø Monatsverbrauch",
+    activeConsumptionMonths: "Aktive Verbrauchsmonate",
+    movementFrequency: "Bewegungsfrequenz",
+    intermittency: "Intermittenz",
+    monthsSinceLastConsumption: "Monate seit letztem Verbrauch",
+    consumptionTrend: "Verbrauchstrend",
+    inventoryCoverage: "Bestandsreichweite",
+    estimatedRunOut: "Geschätzte Reichweite",
+    historyCoverage: "History Coverage",
+    historyCompleteness: "History Completeness",
+    exactMaterialPlant: "Exact Material + Werk",
+    materialFallback: "Material-Fallback",
+    unmatched: "Nicht verknüpft",
+    ambiguous: "Mehrdeutig",
+    invalidKey: "Ungültiger Schlüssel",
+    sharedEntityMetric: "Geteilte Entity-Kennzahl",
+    includedRows: "Einbezogene Zeilen",
+    excludedRows: "Ausgeschlossene Zeilen",
+    exclusionReasons: "Ausschlussgründe",
+    historyTrend_increasing: "Steigend",
+    historyTrend_declining: "Rückläufig",
+    historyTrend_stable: "Stabil",
+    historyTrend_insufficient_evidence: "Zu wenig Evidenz",
+    historyReason_history_package_missing: "Consumption History nicht importiert",
+    historyReason_history_package_invalid: "Consumption History ungültig",
+    historyReason_history_interpretation_not_trusted: "History-Semantik nicht bestätigt",
+    historyReason_history_not_ready: "History nicht aggregationsbereit",
+    historyReason_missing_as_of: "Analyse-Stichtag fehlt",
+    historyReason_no_relationship_matches: "Keine belastbare Inventory-History-Verknüpfung",
+    historyReason_relationship_input_not_ready: "Inventory-History-Eingang nicht bereit",
     dataPackagesTitle: "Datenbasis",
     dataPackagesSubtitle: "Kompakter Status der aktiven Datenquellen und ihrer Verknüpfbarkeit.",
     dataFoundation: "Datenbasis",
@@ -311,7 +381,7 @@ const translations = {
     historyReviewConfirmed: "Zeit-, Mengen-, Bewegungs- und Einheitensemantik geprüft",
     historyReviewRequired: "Prüfung erforderlich",
     historyBlocked: "Blockiert",
-    historyTrusted: "Bereit",
+    historyTrusted: "Vertrauenswürdig",
     dateFormat: "Datumsformat",
     periodFormat: "Periodenformat",
     analysisAsOfDate: "Analyse-Stichtag",
@@ -644,9 +714,11 @@ const translations = {
     exportVariantLabel: "Datenvariante",
     exportVariantOriginal: "Originale Quelldaten",
     exportVariantEnriched: "Angereicherter Analysedatensatz",
+    exportVariantHistorical: "Inventory + historische Kennzahlen",
     exportVariantProvenance: "Angereichert mit Provenance",
     exportVariantOriginalDesc: "Nur die unveränderten Originalspalten aus dem Upload.",
     exportVariantEnrichedDesc: "Originalspalten plus angereicherte Materialstammfelder.",
+    exportVariantHistoricalDesc: "Originalspalten plus abgeleitete Verbrauchshistorien-Kennzahlen.",
     exportVariantProvenanceDesc: "Angereicherte Daten plus Package-, Match- und Provenance-Spalten.",
     relationshipQualityComplete: "Relationship vollständig",
     relationshipQualityLimited: "Relationship eingeschränkt",
@@ -1413,6 +1485,63 @@ const translations = {
     materialMasterDesc: "Import material master data as a second Data Foundation source.",
     consumptionHistory: "Consumption History",
     consumptionHistoryDesc: "Import historical consumption movements as an optional intelligence source.",
+    historicalMetrics: "Historical Metrics",
+    historicalEvidence: "Historical Evidence",
+    historyRelationship: "Inventory ↔ History Relationship",
+    historicalMetricStatus: "Historical Metrics",
+    historicalMetricsAvailable: "Available",
+    historicalMetricsLimited: "Limited",
+    historicalMetricsUnavailable: "Unavailable",
+    historicalMetricMissing: "No history",
+    historyAvailability: "Consumption History Availability",
+    historyAvailabilityImported: "Imported",
+    historyAvailabilityMissing: "Not imported",
+    historyAvailabilityInvalid: "Invalid",
+    historicalRelationshipRate: "Exact / Fallback Match Rate",
+    historicalMatchedEntities: "Matched Entities",
+    historicalExactMatches: "Exact Matches",
+    historicalFallbackMatches: "Fallback Matches",
+    historicalUnmatched: "Unmatched",
+    historicalAmbiguous: "Ambiguous",
+    historicalInvalid: "Invalid",
+    historicalCoverageRange: "History Coverage",
+    partialCurrentPeriod: "Partial Current Period",
+    lastConsumption: "Last Consumption",
+    lastConsumptionPeriod: "Last Consumption Period",
+    temporalPrecision: "Temporal Precision",
+    netConsumption3m: "Net Consumption 3M",
+    netConsumption6m: "Net Consumption 6M",
+    netConsumption12m: "Net Consumption 12M",
+    averageMonthlyConsumptionHistory: "Avg. Monthly Consumption",
+    activeConsumptionMonths: "Active Consumption Months",
+    movementFrequency: "Movement Frequency",
+    intermittency: "Intermittency",
+    monthsSinceLastConsumption: "Months Since Last Consumption",
+    consumptionTrend: "Consumption Trend",
+    inventoryCoverage: "Inventory Coverage",
+    estimatedRunOut: "Estimated Run-out",
+    historyCoverage: "History Coverage",
+    historyCompleteness: "History Completeness",
+    exactMaterialPlant: "Exact Material + Plant",
+    materialFallback: "Material Fallback",
+    unmatched: "Unmatched",
+    ambiguous: "Ambiguous",
+    invalidKey: "Invalid Key",
+    sharedEntityMetric: "Shared Entity Metric",
+    includedRows: "Included Rows",
+    excludedRows: "Excluded Rows",
+    exclusionReasons: "Exclusion Reasons",
+    historyTrend_increasing: "Increasing",
+    historyTrend_declining: "Declining",
+    historyTrend_stable: "Stable",
+    historyTrend_insufficient_evidence: "Insufficient evidence",
+    historyReason_history_package_missing: "Consumption History not imported",
+    historyReason_history_package_invalid: "Consumption History invalid",
+    historyReason_history_interpretation_not_trusted: "History semantics not confirmed",
+    historyReason_history_not_ready: "History not aggregation-ready",
+    historyReason_missing_as_of: "Analysis as-of date missing",
+    historyReason_no_relationship_matches: "No reliable Inventory-History relationship",
+    historyReason_relationship_input_not_ready: "Inventory-History input not ready",
     dataPackagesTitle: "Data Foundation",
     dataPackagesSubtitle: "Compact status of active data sources and relationship compatibility.",
     dataFoundation: "Data Foundation",
@@ -1499,7 +1628,7 @@ const translations = {
     historyReviewConfirmed: "Time, quantity, movement and unit semantics reviewed",
     historyReviewRequired: "Review required",
     historyBlocked: "Blocked",
-    historyTrusted: "Ready",
+    historyTrusted: "Trusted",
     dateFormat: "Date Format",
     periodFormat: "Period Format",
     analysisAsOfDate: "Analysis as-of date",
@@ -1833,9 +1962,11 @@ const translations = {
     exportVariantLabel: "Data variant",
     exportVariantOriginal: "Original source data",
     exportVariantEnriched: "Enriched analytical dataset",
+    exportVariantHistorical: "Inventory + Historical Metrics",
     exportVariantProvenance: "Enriched with provenance",
     exportVariantOriginalDesc: "Only the unchanged original upload columns.",
     exportVariantEnrichedDesc: "Original columns plus enriched material-master fields.",
+    exportVariantHistoricalDesc: "Original columns plus derived consumption-history metrics.",
     exportVariantProvenanceDesc: "Enriched data plus package, match and provenance columns.",
     relationshipQualityComplete: "Relationship complete",
     relationshipQualityLimited: "Relationship limited",
@@ -3109,6 +3240,7 @@ let currentDatasetMeta = null;
 let currentInventoryMaterialMasterRelationship = null;
 let currentInventoryEnrichmentDiagnostics = null;
 let currentInventoryEnrichmentProvenance = {};
+let currentHistoricalMetricsRuntime = null;
 let datasetIdentitySequence = 0;
 let feedbackResetTimer = null;
 let activeColumnFilterPopover = null;
@@ -4616,6 +4748,9 @@ function filterableText(row, key) {
   if (key === "material_action") {
     return [row.material_id, row.material_description].join(" ");
   }
+  if (historicalFieldDefinition(key)) {
+    return [row[key], formatHistoricalMetricValue(key, row[key], row)].join(" ");
+  }
   if (key === "category" || key === "primary_category") {
     const value = row.primary_category || row.category;
     return [value, displayCategory(value)].join(" ");
@@ -4638,6 +4773,7 @@ function filterableText(row, key) {
 function rawColumnFilterValue(row, key) {
   if (key === "material_action") return [row.material_id, row.material_description].join(" ");
   if (key === "primary_category") return row.primary_category || row.category || "";
+  if (historicalFieldDefinition(key)) return row[key] ?? "";
   return row[key] ?? "";
 }
 
@@ -4841,7 +4977,7 @@ function inventoryFilteredRows(data, options = {}) {
 
 function getInventoryRows() {
   updateFilterStateFromControls();
-  return inventoryFilteredRows(applyGlobalBusinessFilters(enrichedRows), { applyRowLimit: true });
+  return inventoryFilteredRows(composeHistoricalInventoryRows(applyGlobalBusinessFilters(enrichedRows)), { applyRowLimit: true });
 }
 
 function currentExcessPageModel(rows = applyGlobalBusinessFilters(enrichedRows)) {
@@ -5006,6 +5142,16 @@ function columnClass(key) {
 function actionColumnFilterDef(key) {
   const def = actionColumnFilterDefs.find(item => item.key === key);
   if (def) return def;
+  const historicalDef = historicalFieldDefinition(key);
+  if (historicalDef) {
+    return {
+      key,
+      labelKey: historicalDef.labelKey,
+      titleKey: "filter",
+      type: historicalDef.type,
+      formatter: value => formatHistoricalMetricValue(key, value)
+    };
+  }
   const fieldDefinition = inventoryFieldDefinitions[key];
   if (!fieldDefinition) return null;
   return {
@@ -5050,7 +5196,7 @@ function columnFilterSourceRows(scope, key) {
     return applyColumnFiltersExcept(excessCaseRows(base), scope, key);
   }
   if (scope === "inventory") {
-    return applyColumnFiltersExcept(inventoryControlFilteredRows(base), scope, key);
+    return applyColumnFiltersExcept(inventoryControlFilteredRows(composeHistoricalInventoryRows(base)), scope, key);
   }
   return base;
 }
@@ -5740,10 +5886,15 @@ function renderRawInventory(data) {
   const limitValue = rowLimitValue();
   const limit = limitValue === "all" ? data.length : Number(limitValue);
   const enrichedFieldKeys = activeEnrichedInventoryFieldKeys();
+  const historicalFieldKeys = activeHistoricalInventoryFieldKeys();
   const enrichedHeaders = enrichedFieldKeys.map(fieldKey => `
     ${renderTableHeaderCell(fieldKey, `${fieldLabel(fieldKey)} · MM`, { columnFilterScope: "inventory" }).replace("<th ", `<th title="${html(t("materialMaster"))}: ${html(fieldKey)}" `)}
   `).join("");
+  const historicalHeaders = historicalFieldKeys.map(fieldKey => `
+    ${renderTableHeaderCell(fieldKey, historicalInventoryColumnLabel(fieldKey), { columnFilterScope: "inventory" }).replace("<th ", `<th title="${html(t("historicalEvidence"))}: ${html(fieldKey)}" `)}
+  `).join("");
   const enrichedFilterCells = enrichedFieldKeys.map(() => `<th class="column-filter-cell enriched-inventory-column"></th>`).join("");
+  const historicalFilterCells = historicalFieldKeys.map(() => `<th class="column-filter-cell historical-inventory-column"></th>`).join("");
   const visibleRaw = data
     .map(analyticalRow => {
       const rowNumber = Number(analyticalRow.row_number || analyticalRow.__sourceRowIndex || 0);
@@ -5760,8 +5911,8 @@ function renderRawInventory(data) {
   return `
     <table class="wide">
       <thead>
-        <tr>${originalHeaders.map((header, sourceIndex) => rawInventoryHeaderCell(header, sourceIndex)).join("")}${enrichedHeaders}</tr>
-        <tr class="column-filter-row">${originalHeaders.map((header, sourceIndex) => rawInventoryFilterCell(header, sourceIndex)).join("")}${enrichedFilterCells}</tr>
+        <tr>${originalHeaders.map((header, sourceIndex) => rawInventoryHeaderCell(header, sourceIndex)).join("")}${enrichedHeaders}${historicalHeaders}</tr>
+        <tr class="column-filter-row">${originalHeaders.map((header, sourceIndex) => rawInventoryFilterCell(header, sourceIndex)).join("")}${enrichedFilterCells}${historicalFilterCells}</tr>
       </thead>
       <tbody>
         ${rows.map(({ row, analyticalRow }) => `
@@ -5770,6 +5921,11 @@ function renderRawInventory(data) {
             ${enrichedFieldKeys.map(fieldKey => {
               const value = analyticalRow?.[fieldKey] ?? "";
               return `<td class="enriched-inventory-cell">${html(value)}</td>`;
+            }).join("")}
+            ${historicalFieldKeys.map(fieldKey => {
+              const value = analyticalRow?.[fieldKey] ?? "";
+              const displayValue = formatHistoricalMetricValue(fieldKey, value, analyticalRow);
+              return `<td class="historical-inventory-cell" title="${html(displayValue)}">${html(displayValue)}</td>`;
             }).join("")}
           </tr>
         `).join("")}
@@ -12999,6 +13155,48 @@ function renderRelationshipReadinessItem(readiness) {
   `;
 }
 
+function renderHistoricalMetricsReadinessItem(runtime = ensureHistoricalMetricsRuntime()) {
+  const state = historicalMetricsSummaryState(runtime);
+  const summary = state.summary || {};
+  const relationship = runtime?.inventoryHistoryRelationshipResult || {};
+  const coverage = summary.historyCoverageStart || summary.historyCoverageEnd
+    ? `${summary.historyCoverageStart || "-"} – ${summary.historyCoverageEnd || "-"}`
+    : t("notAvailable");
+  const matchRate = Number.isFinite(Number(summary.relationshipMatchRate))
+    ? formatQualityPercent(Number(summary.relationshipMatchRate || 0) * 100)
+    : t("notAvailable");
+  const matched = Number.isFinite(Number(summary.matchedInventoryEntityCount))
+    ? formatCount(summary.matchedInventoryEntityCount)
+    : t("notAvailable");
+  const rows = [
+    [t("historyAvailability"), state.packageRecord ? t("historyAvailabilityImported") : t("historyAvailabilityMissing")],
+    [t("historicalMetricStatus"), state.label],
+    [t("historicalRelationshipRate"), matchRate],
+    [t("historicalMatchedEntities"), matched],
+    [t("historicalExactMatches"), formatCount(summary.exactMatchCount || relationship.exactMatchCount || 0)],
+    [t("historicalFallbackMatches"), formatCount(summary.fallbackMatchCount || relationship.fallbackMatchCount || 0)],
+    [t("historicalCoverageRange"), coverage],
+    [t("partialCurrentPeriod"), summary.partialCurrentPeriod ? t("yes") : t("no")]
+  ];
+  return `
+    <section class="data-foundation-relationship historical-metrics-readiness ${html(state.className)}">
+      <div>
+        <span>${html(t("historicalMetrics"))}</span>
+        <strong>${html(state.label)}</strong>
+      </div>
+      <div class="data-foundation-relationship-grid">
+        ${rows.map(([label, value]) => `
+          <div>
+            <span>${html(label)}</span>
+            <strong>${html(value)}</strong>
+          </div>
+        `).join("")}
+      </div>
+      ${runtime?.reason ? `<p>${html(translatedCodeLabel(`historyReason_${runtime.reason}`, runtime.reason))}</p>` : ""}
+    </section>
+  `;
+}
+
 function renderPackageTechnicalDetails(packageRecord, labelKey) {
   if (!packageRecord) {
     return `
@@ -13084,6 +13282,7 @@ function renderPackageAvailability() {
           ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, { showGranularity: true, importAction: true, importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE })}
         </div>
         ${renderRelationshipReadinessItem(readiness)}
+        ${renderHistoricalMetricsReadinessItem(ensureHistoricalMetricsRuntime())}
         <details class="data-foundation-technical">
           <summary>${html(t("technicalDetails"))}</summary>
           <div class="data-foundation-technical-grid">
@@ -13391,13 +13590,234 @@ function activeEnrichedInventoryFieldKeys() {
   return [...fields].sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b), locale()));
 }
 
+const historicalInventoryFieldDefinitions = Object.freeze({
+  history_last_consumption_ch: { labelKey: "lastConsumption", type: "multi", sourceKey: "last_consumption" },
+  history_net_consumption_3m_ch: { labelKey: "netConsumption3m", type: "number", sourceKey: "net_consumption_quantity_3m" },
+  history_net_consumption_6m_ch: { labelKey: "netConsumption6m", type: "number", sourceKey: "net_consumption_quantity_6m" },
+  history_net_consumption_12m_ch: { labelKey: "netConsumption12m", type: "number", sourceKey: "net_consumption_quantity_12m" },
+  history_average_monthly_consumption_ch: { labelKey: "averageMonthlyConsumptionHistory", type: "number", sourceKey: "average_monthly_consumption_12m" },
+  history_coverage_months_ch: { labelKey: "inventoryCoverage", type: "number", sourceKey: "inventory_coverage_months" },
+  history_status_ch: { labelKey: "historicalMetricStatus", type: "multi", sourceKey: "history_metric_status" },
+  history_relationship_ch: { labelKey: "historyRelationship", type: "multi", sourceKey: "matchType", exportOnly: true },
+  history_limitations_ch: { labelKey: "exclusionReasons", type: "multi", sourceKey: "history_metric_limitation_codes", exportOnly: true },
+  history_included_rows_ch: { labelKey: "includedRows", type: "number", sourceKey: "included_row_count", exportOnly: true },
+  history_excluded_rows_ch: { labelKey: "excludedRows", type: "number", sourceKey: "excluded_row_count", exportOnly: true },
+  history_analysis_as_of_ch: { labelKey: "analysisAsOfDate", type: "multi", sourceKey: "analysis_as_of_date", exportOnly: true },
+  history_partial_current_period_ch: { labelKey: "partialCurrentPeriod", type: "multi", sourceKey: "partial_current_period", exportOnly: true }
+});
+
+function historicalFieldDefinition(key) {
+  return historicalInventoryFieldDefinitions[key] || null;
+}
+
+function historyRowsForActivePackage(packageRecord = currentConsumptionHistoryPackage()) {
+  return Array.isArray(packageRecord?.buildData?.packageRows) ? packageRecord.buildData.packageRows : [];
+}
+
+function historicalPackageRevision(packageRecord = {}) {
+  return Number(packageRecord?.revision || packageRecord?.packageRevision || 0) || 0;
+}
+
+function historyReadinessForPackage(packageRecord = currentConsumptionHistoryPackage()) {
+  return packageRecord?.buildData?.buildMetadata?.historyReadiness
+    || packageRecord?.interpretationMetadata?.historyReadiness
+    || packageRecord?.packageValidation?.historyReadiness
+    || null;
+}
+
+function historySemanticPolicySignature(packageRecord = currentConsumptionHistoryPackage()) {
+  return packageRecord?.buildData?.buildMetadata?.semanticPolicySignature
+    || packageRecord?.interpretationMetadata?.semanticPolicySignature
+    || "";
+}
+
+function historyAnalysisAsOf(packageRecord = currentConsumptionHistoryPackage()) {
+  return packageRecord?.freshness?.analysisAsOf
+    || packageRecord?.buildData?.freshness?.analysisAsOf
+    || historyReadinessForPackage(packageRecord)?.analysisAsOf
+    || null;
+}
+
+function historicalMetricsInputSignatureForCurrentState() {
+  const inventoryPackage = currentInventoryPackage();
+  const historyPackage = currentConsumptionHistoryPackage();
+  const baseSignature = historicalMetricsService.historicalMetricInputSignature({
+    inventoryPackage,
+    historyPackage,
+    analysisAsOf: historyAnalysisAsOf(historyPackage),
+    semanticPolicySignature: historySemanticPolicySignature(historyPackage)
+  }, {
+    relationshipModelVersion: ObsoliQModules.data.consumptionHistoryRelationshipEngine.RELATIONSHIP_MODEL_VERSION,
+    aggregationModelVersion: ObsoliQModules.data.consumptionHistoryAggregationEngine.AGGREGATION_MODEL_VERSION,
+    windowModelVersion: ObsoliQModules.data.consumptionHistoryAggregationEngine.WINDOW_MODEL_VERSION
+  });
+  return `${baseSignature}:dataset:${currentDatasetId()}:rows:${enrichedRows.length}`;
+}
+
+function ensureHistoricalMetricsRuntime(options = {}) {
+  const signature = historicalMetricsInputSignatureForCurrentState();
+  if (!options.force && currentHistoricalMetricsRuntime?.historicalMetricsInputSignature === signature) {
+    return currentHistoricalMetricsRuntime;
+  }
+  const inventoryPackage = currentInventoryPackage();
+  const historyPackage = currentConsumptionHistoryPackage();
+  currentHistoricalMetricsRuntime = historicalMetricsService.buildHistoricalMetricRuntime({
+    inventoryPackage,
+    historyPackage,
+    inventoryRows: enrichedRows,
+    historyRows: historyRowsForActivePackage(historyPackage),
+    analysisAsOf: historyAnalysisAsOf(historyPackage),
+    semanticPolicySignature: historySemanticPolicySignature(historyPackage)
+  });
+  currentHistoricalMetricsRuntime.historicalMetricsInputSignature = signature;
+  return currentHistoricalMetricsRuntime;
+}
+
+function historicalMetricsRuntimeHasColumns(runtime = ensureHistoricalMetricsRuntime()) {
+  return Boolean(
+    runtime
+    && runtime.status !== "unavailable"
+    && Object.keys(runtime.historicalMetricsByInventoryRowKey || {}).length
+  );
+}
+
+function historicalMetricRowKey(row = {}) {
+  return String(row.inventory_row_key || row.inventoryRowKey || `INV-${row.__sourceRowIndex || row.row_number || ""}`);
+}
+
+function historicalMetricsForRow(row = {}, runtime = ensureHistoricalMetricsRuntime()) {
+  const rowKey = historicalMetricRowKey(row);
+  return runtime?.historicalMetricsByInventoryRowKey?.[rowKey] || null;
+}
+
+function activeHistoricalInventoryFieldKeys(options = {}) {
+  if (!options.export && !historicalMetricsRuntimeHasColumns()) return [];
+  return Object.entries(historicalInventoryFieldDefinitions)
+    .filter(([, definition]) => options.export ? true : !definition.exportOnly)
+    .map(([key]) => key);
+}
+
+function historicalInventoryColumnLabel(key) {
+  const definition = historicalFieldDefinition(key);
+  return definition ? `${getTranslationLabel(definition.labelKey)} · CH` : key;
+}
+
+function displayHistoricalMetricStatus(status) {
+  if (status === "available") return t("historicalMetricsAvailable");
+  if (status === "limited") return t("historicalMetricsLimited");
+  if (status === "unavailable") return t("historicalMetricsUnavailable");
+  if (status === "missing") return t("historicalMetricMissing");
+  return status ? translatedCodeLabel(`historyReason_${status}`, status) : t("historicalMetricMissing");
+}
+
+function displayHistoricalRelationshipState(state) {
+  if (state === "exact_material_plant") return t("exactMaterialPlant");
+  if (state === "material_fallback") return t("materialFallback");
+  if (state === "unmatched") return t("unmatched");
+  if (state === "ambiguous") return t("ambiguous");
+  if (state === "invalid_key") return t("invalidKey");
+  return state ? state.replace(/_/g, " ") : t("notAvailable");
+}
+
+function displayHistoryTrend(value) {
+  return translatedCodeLabel(`historyTrend_${value || "insufficient_evidence"}`, value || t("notAvailable"));
+}
+
+function formatHistoryQuantity(value) {
+  if (value === "" || value === null || value === undefined) return t("notAvailable");
+  const number = Number(value);
+  if (!Number.isFinite(number)) return t("notAvailable");
+  return number.toLocaleString(locale(), { maximumFractionDigits: Math.abs(number) >= 100 ? 0 : 1 });
+}
+
+function formatHistoryMonths(value) {
+  if (value === "" || value === null || value === undefined) return t("notAvailable");
+  const number = Number(value);
+  if (!Number.isFinite(number)) return t("notAvailable");
+  const unit = currentLanguage === "de" ? "Mon." : "mo";
+  return `${number.toLocaleString(locale(), { maximumFractionDigits: 1 })} ${unit}`;
+}
+
+function historicalValueForField(metric = null, key = "") {
+  if (!metric) return key === "history_status_ch" ? "missing" : "";
+  const definition = historicalFieldDefinition(key);
+  if (!definition) return "";
+  if (key === "history_last_consumption_ch") {
+    return metric.last_consumption_date || metric.last_consumption_period || "";
+  }
+  if (key === "history_analysis_as_of_ch") {
+    return metric.provenance?.analysisAsOfDate || "";
+  }
+  const value = metric[definition.sourceKey];
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "boolean") return value;
+  return value ?? "";
+}
+
+function formatHistoricalMetricValue(key, value, row = {}) {
+  if (key === "history_status_ch") return displayHistoricalMetricStatus(value || "missing");
+  if (key === "history_relationship_ch") return displayHistoricalRelationshipState(value);
+  if (key === "history_limitations_ch") {
+    return String(value || "")
+      .split(",")
+      .map(item => item.trim())
+      .filter(Boolean)
+      .map(item => translatedCodeLabel(`historyReason_${item}`, item))
+      .join(", ") || t("notAvailable");
+  }
+  if (key === "history_partial_current_period_ch") return formatBooleanForExport(value);
+  if (key === "history_coverage_months_ch") return formatHistoryMonths(value);
+  if (["history_net_consumption_3m_ch", "history_net_consumption_6m_ch", "history_net_consumption_12m_ch", "history_average_monthly_consumption_ch"].includes(key)) {
+    return formatHistoryQuantity(value);
+  }
+  if (["history_included_rows_ch", "history_excluded_rows_ch"].includes(key)) {
+    return value === "" || value === null || value === undefined ? t("notAvailable") : formatCount(value);
+  }
+  if (key === "history_last_consumption_ch" || key === "history_analysis_as_of_ch") return value || t("notAvailable");
+  if (key === "history_consumption_trend_ch") return displayHistoryTrend(value);
+  return value ?? t("notAvailable");
+}
+
+function composeHistoricalInventoryRows(rows = []) {
+  const runtime = ensureHistoricalMetricsRuntime();
+  if (!historicalMetricsRuntimeHasColumns(runtime)) return rows;
+  return rows.map(row => {
+    const metric = historicalMetricsForRow(row, runtime);
+    const historicalValues = Object.fromEntries(activeHistoricalInventoryFieldKeys({ export: true }).map(key => [
+      key,
+      historicalValueForField(metric, key)
+    ]));
+    return { ...row, ...historicalValues };
+  });
+}
+
+function historicalMetricsSummaryState(runtime = ensureHistoricalMetricsRuntime()) {
+  const historyPackage = currentConsumptionHistoryPackage();
+  const state = !historyPackage
+    ? { className: "missing", label: t("historyAvailabilityMissing") }
+    : historyPackage.status === "invalid" || historyPackage.packageValidation?.statusKey === "invalid"
+      ? { className: "invalid", label: t("historyAvailabilityInvalid") }
+      : runtime?.status === "available"
+        ? { className: "available", label: t("historicalMetricsAvailable") }
+        : runtime?.status === "limited"
+          ? { className: "warning", label: t("historicalMetricsLimited") }
+          : { className: "warning", label: translatedCodeLabel(`historyReason_${runtime?.reason || "history_package_missing"}`, runtime?.reason || t("historicalMetricsUnavailable")) };
+  return {
+    ...state,
+    packageRecord: historyPackage,
+    runtime,
+    summary: runtime?.historicalMetricsSummary || {}
+  };
+}
+
 function snapshotDatasetRuntimeState() {
   return {
     ...snapshotRemediationRuntimeState(),
     filterState: clonePlainRecord(filterState),
     filterControlState: snapshotFilterControlState(),
     datasetUiState: snapshotDatasetUiState(),
-    actionStatusSnapshot: actionStatusSnapshotForCurrentRows()
+    actionStatusSnapshot: actionStatusSnapshotForCurrentRows(),
+    currentHistoricalMetricsRuntime: clonePlainRecord(currentHistoricalMetricsRuntime)
   };
 }
 
@@ -13409,6 +13829,7 @@ function restoreDatasetRuntimeState(snapshot) {
   refreshFilterOptions({ syncStateFromControls: false });
   applyFilterStateToControls(filterState, { rebuildOptions: false });
   restoreActionStatusesFromSnapshot(snapshot.actionStatusSnapshot);
+  currentHistoricalMetricsRuntime = clonePlainRecord(snapshot.currentHistoricalMetricsRuntime || null);
   syncDatasetUiFromMeta(currentDatasetMeta);
   renderActiveFilterChips({ syncStateFromControls: false });
 }
@@ -14007,6 +14428,7 @@ function commitInventoryDatasetBuild(buildResult, statusSnapshot = null, nextDat
     timestamp: buildResult.buildMetadata?.builtAt || new Date().toISOString()
   });
   enrichedRows = decorateActionRows(enrichment.rows);
+  currentHistoricalMetricsRuntime = null;
   restoreActionStatusesFromSnapshot(statusSnapshot);
   recoveryValidationErrors = buildResult.recoveryValidationErrors;
   excludedSourceRows = buildResult.excludedSourceRows;
@@ -15550,8 +15972,9 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       error
     });
   }
+  currentHistoricalMetricsRuntime = null;
   renderPackageAvailability();
-  if (context.packageType === MATERIAL_MASTER_PACKAGE_TYPE && currentDatasetMeta) {
+  if ([MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(context.packageType) && currentDatasetMeta) {
     renderAfterDatasetChange({ syncStateFromControls: false });
   }
   if (!explicitContext) closeColumnMappingAssistant({ force: true });
@@ -15919,6 +16342,7 @@ function rawRowsForExport(data) {
 
 function exportValue(row, key) {
   const value = row[key];
+  if (historicalFieldDefinition(key)) return formatHistoricalMetricValue(key, value, row);
   if (key === "recovery_is_capped") return formatBooleanForExport(value);
   if (moneyKeys.has(key)) return convertMoneyValue(value);
   if (key === "category" || key === "primary_category") return displayCategory(value || row.category);
@@ -15929,9 +16353,10 @@ function exportValue(row, key) {
   return typeof value === "number" ? value : String(value ?? "");
 }
 
-function enrichedExportFieldKeys() {
+function enrichedExportFieldKeys(options = {}) {
   return [...new Set([
     ...activeEnrichedInventoryFieldKeys(),
+    ...(options.historical ? activeHistoricalInventoryFieldKeys({ export: true }) : []),
     "primary_category",
     "recovery_potential",
     "gross_recovery_potential",
@@ -15948,7 +16373,7 @@ function enrichedExportFieldKeys() {
     "priority",
     "confidence",
     "status"
-  ])].filter(key => key && (inventoryFieldDefinitions[key] || key in (enrichedRows[0] || {}) || actionColumnFilterDef(key)));
+  ])].filter(key => key && (inventoryFieldDefinitions[key] || historicalFieldDefinition(key) || key in (enrichedRows[0] || {}) || actionColumnFilterDef(key)));
 }
 
 function relationshipMatchByInventoryRowKey() {
@@ -15997,13 +16422,15 @@ function enrichmentConflictFieldsByRowKey() {
 }
 
 function enrichedRowsForExport(data, options = {}) {
-  const allowed = new Set(data.map(row => row.row_number));
-  const analyticalByRowNumber = new Map(data.map(row => [Number(row.row_number), row]));
+  const exportData = options.historical ? composeHistoricalInventoryRows(data) : data;
+  const allowed = new Set(exportData.map(row => row.row_number));
+  const analyticalByRowNumber = new Map(exportData.map(row => [Number(row.row_number), row]));
   const exportHeaders = sourceColumnMetadata.length === originalHeaders.length
     ? sourceColumnMetadata.map(meta => meta.originalHeader)
     : originalHeaders;
-  const fieldKeys = enrichedExportFieldKeys();
+  const fieldKeys = enrichedExportFieldKeys({ historical: options.historical === true });
   const fieldHeaders = fieldKeys.map(fieldKey => {
+    if (historicalFieldDefinition(fieldKey)) return historicalInventoryColumnLabel(fieldKey);
     if (inventoryFieldDefinitions[fieldKey]) return fieldLabel(fieldKey);
     const def = actionColumnFilterDef(fieldKey);
     return def ? getTranslationLabel(def.labelKey) : fieldKey;
@@ -16115,14 +16542,14 @@ function selectedDownloadFormat() {
 
 function selectedDownloadVariant() {
   const value = document.querySelector("input[name='downloadVariant']:checked")?.value || pendingDownloadVariant || "original";
-  return ["original", "enriched", "provenance"].includes(value) ? value : "original";
+  return ["original", "enriched", "historical", "provenance"].includes(value) ? value : "original";
 }
 
 function exportDataForScope(scope, type = "report") {
   if (type === "top") {
     return scope === "all" ? overviewTopRows(enrichedRows) : visibleTopRows(getFilteredRows("overview"));
   }
-  if (type === "inventory") return scope === "all" ? enrichedRows : getFilteredRows("inventory");
+  if (type === "inventory") return scope === "all" ? composeHistoricalInventoryRows(enrichedRows) : getFilteredRows("inventory");
   if (type === "actions") return scope === "all" ? topRecoveryRows(enrichedRows) : sortRowsForScope(topRecoveryRows(getFilteredRows("actions")), "actions");
   if (type === "excess") return scope === "all" ? excessCaseRows(enrichedRows) : getFilteredRows("excess");
   if (scope === "all") return enrichedRows;
@@ -16179,7 +16606,7 @@ function buildDownloadPayload(type, format, scope = "filtered") {
   const actionRows = rowsForExport(type === "actions" ? data : visibleActionRows(data), actionExportColumns());
   const variant = type === "inventory" ? selectedDownloadVariant() : "original";
   const fullRows = type === "inventory" && variant !== "original"
-    ? enrichedRowsForExport(data, { provenance: variant === "provenance" })
+    ? enrichedRowsForExport(data, { historical: variant === "historical", provenance: variant === "provenance" })
     : rawRowsForExport(data);
   const excessRows = type === "excess" ? rowsForExport(data, excessExportColumns()) : [];
 
@@ -16965,8 +17392,11 @@ function createObsoliqTestBridge() {
     inputNormalizationEngineForTest: ObsoliQModules.data.inputNormalizationEngine,
     valueUtilsForTest: ObsoliQModules.core.valueUtils,
     consumptionHistorySemanticsEngineForTest: ObsoliQModules.data.consumptionHistorySemanticsEngine,
+    consumptionHistoryRelationshipEngineForTest: ObsoliQModules.data.consumptionHistoryRelationshipEngine,
+    consumptionHistoryAggregationEngineForTest: ObsoliQModules.data.consumptionHistoryAggregationEngine,
     consumptionHistoryInterpretationServiceForTest: consumptionHistoryInterpretationService,
     consumptionHistoryBuilderForTest: ObsoliQModules.data.consumptionHistoryBuilder,
+    historicalInventoryMetricsServiceForTest: historicalMetricsService,
     getRegistrySnapshot: () => clonePlainRecord(dataPackageRegistry.snapshot()),
     getRegistryStats: () => clonePlainRecord(dataPackageRegistry.getStats()),
     getActiveInventoryPackage: () => clonePlainRecord(currentInventoryPackage()),
@@ -16976,6 +17406,18 @@ function createObsoliqTestBridge() {
     getMaterialMasterPackages: () => clonePlainArray(dataPackageRegistry.listByType(MATERIAL_MASTER_PACKAGE_TYPE)),
     getConsumptionHistoryPackages: () => clonePlainArray(dataPackageRegistry.listByType(CONSUMPTION_HISTORY_PACKAGE_TYPE)),
     getActivePackageByType: packageType => clonePlainRecord(dataPackageRegistry.getActivePackage(packageType)),
+    getHistoricalMetricsRuntimeForTest: () => clonePlainRecord(ensureHistoricalMetricsRuntime()),
+    buildHistoricalMetricsRuntimeForTest: options => clonePlainRecord(ensureHistoricalMetricsRuntime({ force: options?.force !== false })),
+    runHistoricalMetricsForTest: input => clonePlainRecord(historicalMetricsService.buildHistoricalMetricRuntime(input || {
+      inventoryPackage: currentInventoryPackage(),
+      historyPackage: currentConsumptionHistoryPackage(),
+      inventoryRows: enrichedRows,
+      historyRows: historyRowsForActivePackage(),
+      analysisAsOf: historyAnalysisAsOf(),
+      semanticPolicySignature: historySemanticPolicySignature()
+    })),
+    historicalInventoryFieldKeysForTest: options => activeHistoricalInventoryFieldKeys(options || {}),
+    composeHistoricalInventoryRowsForTest: rows => clonePlainArray(composeHistoricalInventoryRows(rows || enrichedRows)),
     packageImportServiceForTest: packageImportService,
     relationshipEngineForTest: ObsoliQModules.data.packageRelationshipEngine,
     enrichmentEngineForTest: ObsoliQModules.data.packageEnrichmentEngine,
@@ -17211,6 +17653,11 @@ function createObsoliqTestBridge() {
       activeInventoryPackage: clonePlainRecord(currentInventoryPackage()),
       activeMaterialMasterPackage: clonePlainRecord(currentMaterialMasterPackage()),
       activeConsumptionHistoryPackage: clonePlainRecord(currentConsumptionHistoryPackage()),
+      historicalMetricsRuntime: clonePlainRecord(currentHistoricalMetricsRuntime ? {
+        status: currentHistoricalMetricsRuntime.status,
+        reason: currentHistoricalMetricsRuntime.reason,
+        summary: currentHistoricalMetricsRuntime.historicalMetricsSummary
+      } : null),
       materialMasterRelationship: clonePlainRecord(currentInventoryMaterialMasterRelationship),
       inventoryEnrichment: clonePlainRecord(currentInventoryEnrichmentDiagnostics),
       rawRows: rawRows.length,

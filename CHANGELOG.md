@@ -1,5 +1,59 @@
 # Changelog
 
+## 2026-08-21 - AP 16.4c:
+Inventory Relationship & Historical Metrics
+
+### Changed
+
+- Added a DOM-independent Inventory-to-Consumption-History Relationship Engine.
+- Added exact Material + Plant relationship matching.
+- Added controlled unique Material fallback.
+- Added an anti-fan-out invariant preventing plantless History from being duplicated across plant-specific Inventory entities.
+- Added unmatched, ambiguous and invalid relationship diagnostics.
+- Preserved leading-zero Material identifiers.
+- Added a DOM-independent Consumption History Aggregation Engine.
+- Reused AP 16.4b semantic rows without reparsing Raw dates, periods, Movement Types or quantity signs.
+- Added explicit exclusion provenance for non-aggregable History rows.
+- Added unit-safe monthly aggregation without unit conversion.
+- Added Analysis-as-of-based 3M, 6M and 12M calendar windows.
+- Preserved day and month temporal precision.
+- Added partial-current-period evidence.
+- Added Last Consumption evidence.
+- Added Net Consumption 3M, 6M and 12M.
+- Added Average Monthly Consumption.
+- Added Active Consumption Months.
+- Added Movement Frequency.
+- Added Intermittency.
+- Added Months Since Last Consumption.
+- Added explainable Consumption Trend.
+- Added History Coverage and History Completeness.
+- Added evidence-bound Inventory Coverage and Estimated Run-out Months.
+- Prevented Coverage calculations without quantity and compatible unit evidence.
+- Added per-metric available, limited and unavailable states.
+- Added complete Package, model, relationship, unit and exclusion provenance.
+- Added derived Historical Metric Runtime outside authoritative Inventory analytical rows.
+- Added controlled invalidation after Inventory, History, semantic-policy or Analysis-as-of changes.
+- Added Data Foundation Historical Relationship and Metric status.
+- Added derived Consumption History columns to Inventory Explorer.
+- Added explicit historical enriched export while preserving Original Data export.
+- Added Relationship, aggregation, metric, provenance, invalidation, transaction, isolation and performance tests.
+- Clarified History Interpretation Trust labels as Vertrauenswürdig / Trusted.
+- Added separate Consumption History processing state fields for raw source received, semantic interpretation and aggregation status.
+- Preserved Inventory KPIs, Recovery, Data Quality, Actions, Opportunity Scores, scenarios and Pilot Reviews.
+
+### Known Limitations
+
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Predictive Inventory Risk
+- no demand forecast
+- no Purchase Order optimization
+- no unit conversion
+- no Snapshot History
+- no persistence
+- no SAP integration
+
 ## 2026-08-21 - AP 16.4b.1:
 Source-Bound Interpretation & History Readiness Closure
 

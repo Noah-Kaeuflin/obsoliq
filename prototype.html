@@ -387,6 +387,13 @@
               </span>
             </label>
             <label class="scope-option">
+              <input id="downloadVariantHistorical" name="downloadVariant" type="radio" value="historical" />
+              <span>
+                <strong data-i18n="exportVariantHistorical">Inventory + historische Kennzahlen</strong>
+                <small data-i18n="exportVariantHistoricalDesc">Originalspalten plus abgeleitete Verbrauchshistorien-Kennzahlen.</small>
+              </span>
+            </label>
+            <label class="scope-option">
               <input id="downloadVariantProvenance" name="downloadVariant" type="radio" value="provenance" />
               <span>
                 <strong data-i18n="exportVariantProvenance">Angereichert mit Provenance</strong>
@@ -529,6 +536,8 @@
   <script src="js/data/material-master-builder.js"></script>
   <script src="js/data/consumption-history-semantics-engine.js"></script>
   <script src="js/data/consumption-history-builder.js"></script>
+  <script src="js/data/consumption-history-relationship-engine.js"></script>
+  <script src="js/data/consumption-history-aggregation-engine.js"></script>
   <script src="js/data/package-relationship-engine.js"></script>
   <script src="js/data/package-enrichment-engine.js"></script>
   <script src="js/actions/action-owner-context-engine.js"></script>
@@ -538,6 +547,7 @@
   <script src="js/excess/excess-scenario-engine.js"></script>
   <script src="js/application/input-trust-service.js"></script>
   <script src="js/application/consumption-history-interpretation-service.js"></script>
+  <script src="js/application/historical-inventory-metrics-service.js"></script>
   <script src="js/application/package-import-service.js"></script>
   <script src="js/application/inventory-enrichment-service.js"></script>
   <script src="js/application/excess-analysis-service.js"></script>

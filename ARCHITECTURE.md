@@ -19,6 +19,8 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/material-master-builder.js` validates and builds Material Master package payloads.
 - `js/data/consumption-history-semantics-engine.js` owns deterministic Consumption History temporal, movement, unit, event and readiness semantics.
 - `js/data/consumption-history-builder.js` validates and builds optional Consumption History package payloads without touching UI or analytical state.
+- `js/data/consumption-history-relationship-engine.js` owns Inventory-to-Consumption-History entity matching, anti-fan-out diagnostics and relationship provenance.
+- `js/data/consumption-history-aggregation-engine.js` owns semantic-row-only rolling windows, monthly buckets, exclusions, historical metrics and metric provenance.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -29,6 +31,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/package-import-service.js` prepares, validates, builds and transactionally commits non-Inventory Data Packages.
 - `js/application/input-trust-service.js` orchestrates source profiling, mapping evidence, normalization policy and trust-state decisions.
 - `js/application/consumption-history-interpretation-service.js` prepares and revalidates package-specific Consumption History interpretation policy and diagnostics.
+- `js/application/historical-inventory-metrics-service.js` validates active Inventory and Consumption History inputs, orchestrates relationship and aggregation, assembles derived runtime metrics and owns metric invalidation signatures.
 - `js/application/inventory-enrichment-service.js` orchestrates Inventory-to-Material-Master matching and enrichment outside the UI layer.
 - `js/application/excess-analysis-service.js` composes Excess cases, owner context, relationship quality, scoring and scenarios for the UI.
 - `js/application/excess-pilot-review-service.js` owns session-only Excess Pilot Review records, case fingerprints, lifecycle reconciliation, summaries, export rows and snapshot/restore behavior.
@@ -57,6 +60,20 @@ The Interpretation Service owns source-bound Quantity, Posting Date and Period p
 The Builder remains responsible for package rows, package validation and build metadata. It reuses the effective source-bound semantic policy and exposes the Builder-side semantic-policy signature for the Package Import Service invariant. The Registry remains responsible for immutable package identity, revision, committed metadata and active package state. Data Foundation is presentation-only for Consumption History availability and History Readiness; it does not calculate readiness.
 
 AP 16.4b explicitly does not create an Inventory relationship, historical metrics, rolling buckets, coverage, run-out, Slow / Dead classification or current KPI impact.
+
+## AP 16.4c Inventory Relationship And Historical Metrics
+
+The AP 16.4c flow is:
+
+Inventory Package + Semantically Interpreted Consumption History Package -> Historical Metrics Service -> Relationship Engine -> Entity Relationship Result -> Aggregation Engine -> Historical Metric Result -> Derived Historical Runtime -> Data Foundation / Inventory Explorer / Export.
+
+The Relationship Engine owns entity-key construction, exact Material + Plant matching, controlled unique Material fallback, anti-fan-out enforcement, unmatched/ambiguous/invalid diagnostics, package provenance and relationship signatures. It does not parse dates, interpret Movement Types, convert units, render UI, read Registry directly or mutate Package or Inventory rows.
+
+The Aggregation Engine owns calendar windows, semantic eligible-row selection, exclusion classification, unit-safe monthly aggregation, Last Consumption, 3M/6M/12M net consumption, average monthly consumption, active months, movement frequency, intermittency, trend, coverage, run-out, metric status and provenance. It consumes AP 16.4b semantic rows and does not reinterpret raw source fields.
+
+The Historical Metrics Service owns package validation, semantic acceptance, explicit Analysis-as-of validation, orchestration, deterministic input signatures, invalidation and coherent unavailable runtimes. Derived metrics remain outside the authoritative Inventory analytical rows and outside Registry mutation. Data Foundation presents status only; Inventory Explorer composes a read-only `· CH` view; export includes historical columns only when the historical variant is selected.
+
+AP 16.4c does not implement Slow / Dead classification, predictive logic, Snapshot History, Purchase Order optimization, SAP integration, persistence or changes to Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios or Pilot Reviews.
 
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 
