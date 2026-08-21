@@ -52,3 +52,5 @@ pilot-data/private/
 *.zip
 *.7z
 *.rar
+
+tests/screenshots/
