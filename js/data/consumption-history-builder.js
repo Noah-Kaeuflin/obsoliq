@@ -5,9 +5,11 @@
   const sourceModel = root.data?.sourceModel;
   const mappingEngine = root.mapping?.engine;
   const valueUtils = root.core?.valueUtils;
+  const semanticsEngine = root.data?.consumptionHistorySemanticsEngine;
   if (!sourceModel) throw new Error("ObsoliQ Consumption History Builder requires the source-model module.");
   if (!mappingEngine) throw new Error("ObsoliQ Consumption History Builder requires the mapping engine.");
   if (!valueUtils) throw new Error("ObsoliQ Consumption History Builder requires value utilities.");
+  if (!semanticsEngine) throw new Error("ObsoliQ Consumption History Builder requires the Consumption History Semantics Engine.");
 
   const BUILDER_VERSION = "1";
   const PACKAGE_TYPE = "consumption_history";
@@ -232,14 +234,34 @@
     });
   }
 
-  function parseNumericField(rawValue, fieldKey) {
+  function localeOverrideForPolicy(policy = {}) {
+    if (policy.numericLocale === "de-DE") return "de";
+    if (policy.numericLocale === "en-US") return "en";
+    if (policy.numericLocale === "de-CH") return "swiss";
+    return "";
+  }
+
+  function numericPolicyForField(fieldKey, semanticPolicy = {}) {
+    if (fieldKey === "consumption_quantity") return semanticPolicy.quantity || {};
+    return {};
+  }
+
+  function parseNumericField(rawValue, fieldKey, entry = null, semanticPolicy = {}) {
+    const fieldPolicy = numericPolicyForField(fieldKey, semanticPolicy);
+    const headerHints = valueUtils.extractSourceHeaderHints(entry?.sourceColumn || entry?.originalHeader || "");
     return valueUtils.parseLocalizedNumericValue({
       rawValue,
       fieldDefinition: {
         ...(CONSUMPTION_HISTORY_FIELD_DEFINITIONS[fieldKey] || { type: "number" }),
         fieldKey
       },
-      normalizationPolicy: { allowAmbiguousFallback: true }
+      headerHints,
+      normalizationPolicy: {
+        allowAmbiguousFallback: true,
+        localeOverride: localeOverrideForPolicy(fieldPolicy),
+        scaleSource: fieldPolicy.scaleSource === "auto" ? "" : fieldPolicy.scaleSource || "",
+        sourceScaleFactor: fieldPolicy.sourceScaleFactor
+      }
     });
   }
 
@@ -247,13 +269,13 @@
     return String(value ?? "").trim();
   }
 
-  function normalizeMappedPreviewRow(row = {}, index = 0, entries = [], sourceColumnMetadata = []) {
+  function normalizeMappedPreviewRow(row = {}, index = 0, entries = [], sourceColumnMetadata = [], semanticPolicy = {}) {
     const item = { __sourceRowIndex: row?.__sourceRowIndex ?? index + 1 };
     entries.forEach(entry => {
       const fieldKey = entry.selectedCanonicalField;
       const rawValue = sourceValue(row, entry, sourceColumnMetadata);
       if (["consumption_quantity", "consumption_value", "movement_count"].includes(fieldKey)) {
-        const parseResult = parseNumericField(rawValue, fieldKey);
+        const parseResult = parseNumericField(rawValue, fieldKey, entry, semanticPolicy);
         item[fieldKey] = parseResult.status === "valid" && Number.isFinite(parseResult.normalizedValue)
           ? parseResult.normalizedValue
           : rawValue;
@@ -297,6 +319,7 @@
     const sourceRows = Array.isArray(input.sourceRows) ? input.sourceRows : [];
     const sourceColumnMetadata = Array.isArray(input.sourceColumnMetadata) ? input.sourceColumnMetadata : [];
     const columnMapping = Array.isArray(input.columnMapping) ? input.columnMapping : [];
+    const semanticPolicy = input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {};
     const mappingValidation = mappingEngine.validateColumnMapping(columnMapping, mappingOptions(sourceColumnMetadata));
     const approvedEntries = validMappingEntries(mappingValidation.mapping, sourceColumnMetadata);
     const invalidPhysicalMappings = (mappingValidation.mapping || []).filter(entry => (
@@ -310,7 +333,7 @@
     const plantEntry = approvedEntries.find(entry => entry.selectedCanonicalField === "plant") || null;
     const baseUnitEntry = approvedEntries.find(entry => entry.selectedCanonicalField === "base_unit") || null;
     const temporalFields = temporalFieldsFromEntries(approvedEntries);
-    const normalizedPreview = sourceRows.map((row, index) => normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata));
+    const normalizedPreview = sourceRows.map((row, index) => normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata, semanticPolicy));
     const missingMaterialIdCount = materialEntry
       ? normalizedPreview.filter(row => !normalizeText(row.material_id)).length
       : sourceRows.length;
@@ -322,7 +345,7 @@
     let zeroQuantityCount = 0;
     sourceRows.forEach(row => {
       const parseResult = quantityEntry
-        ? parseNumericField(sourceValue(row, quantityEntry, sourceColumnMetadata), "consumption_quantity")
+        ? parseNumericField(sourceValue(row, quantityEntry, sourceColumnMetadata), "consumption_quantity", quantityEntry, semanticPolicy)
         : { status: "missing", normalizedValue: null };
       if (parseResult.status !== "valid" || !Number.isFinite(parseResult.normalizedValue)) {
         invalidQuantityCount += 1;
@@ -403,32 +426,55 @@
       sourceRows,
       sourceColumnMetadata,
       columnMapping,
+      semanticInterpretation: input.semanticInterpretation,
+      semanticPolicy: input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {},
       evaluatedAt: buildTimestamp
     });
     const approvedEntries = sortedEntries(validMappingEntries(validation.mappingValidation.mapping, sourceColumnMetadata));
-    const normalizedRows = sourceRows.map((row, index) => ({
+    const baseRows = sourceRows.map((row, index) => ({
       package_row_key: `CH-${String(index + 1).padStart(6, "0")}`,
-      ...normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata)
+      ...normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata, input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {})
     }));
+    const semanticAnalysis = semanticsEngine.analyzeConsumptionHistorySemantics({
+      sourceRows,
+      normalizedRows: baseRows,
+      semanticPolicy: input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {}
+    });
+    const normalizedRows = semanticAnalysis.semanticRows;
+    const semanticDiagnostics = semanticAnalysis.diagnostics || [];
+    const packageValidation = {
+      ...validation,
+      warnings: [...(validation.warnings || []), ...semanticDiagnostics],
+      diagnostics: [...(validation.blockingErrors || []), ...(validation.warnings || []), ...semanticDiagnostics],
+      historyReadinessStatus: semanticAnalysis.historyReadiness.status,
+      semanticDiagnosticCount: semanticDiagnostics.length,
+      businessDuplicateCandidateCount: semanticAnalysis.counts.businessDuplicateCandidateCount,
+      legitimateRepeatCount: semanticAnalysis.counts.legitimateRepeatCount
+    };
     const temporalSamples = validation.temporalReferenceFields.reduce((samples, fieldKey) => {
       samples[fieldKey] = normalizedRows.map(row => normalizeText(row[fieldKey])).filter(Boolean).slice(0, 5);
       return samples;
     }, {});
-    const relationshipKeys = { material: ["material_id"] };
-    if (validation.plantMapped) relationshipKeys.organization = ["plant"];
-    if (validation.temporalReferenceFields.length) relationshipKeys.temporal = [...validation.temporalReferenceFields];
+    const relationshipKeys = {
+      entityKeys: validation.plantMapped ? ["material_id", "plant"] : ["material_id"],
+      temporalReference: [...validation.temporalReferenceFields],
+      eventIdentity: ["document_id", "document_item", "movement_type", "signed_consumption_quantity", "base_unit"],
+      unitContext: ["base_unit"]
+    };
     const freshness = {
       importedAt: buildTimestamp,
-      temporalCoverage: "raw_history_uninterpreted",
+      temporalCoverage: "semantic_history_interpreted_no_aggregation",
       temporalReferenceFields: [...validation.temporalReferenceFields],
-      rawTemporalSamples: temporalSamples
+      rawTemporalSamples: temporalSamples,
+      analysisAsOf: semanticAnalysis.historyReadiness.analysisAsOf,
+      historyCoverageEnd: semanticAnalysis.historyReadiness.historyCoverageEnd
     };
-    const diagnostics = [...(validation.diagnostics || [])];
+    const diagnostics = [...(packageValidation.diagnostics || [])];
     return {
       normalizedRows,
       relationshipKeys,
-      validation,
-      packageValidation: validation,
+      validation: packageValidation,
+      packageValidation,
       freshness,
       diagnostics,
       buildMetadata: {
@@ -439,12 +485,19 @@
         sourceRowCount: sourceRows.length,
         normalizedRowCount: normalizedRows.length,
         mappingSignature: mappingEngine.columnMappingSignature(columnMapping, mappingOptions(sourceColumnMetadata)),
+        semanticPolicyVersion: semanticsEngine.POLICY_VERSION,
+        semanticPolicySignature: semanticAnalysis.semanticPolicySignature,
+        semanticPolicy: semanticAnalysis.semanticPolicy,
+        movementRuleSet: semanticAnalysis.movementRuleSet,
+        historyReadiness: semanticAnalysis.historyReadiness,
         keyGranularity: validation.keyGranularity,
         temporalReferenceFields: [...validation.temporalReferenceFields],
         negativeQuantityCount: validation.negativeQuantityCount,
         missingUnitCount: validation.missingUnitCount,
         multipleUnitCount: validation.multipleUnitCount,
         exactDuplicateRowCount: validation.exactDuplicateRowCount,
+        businessDuplicateCandidateCount: semanticAnalysis.counts.businessDuplicateCandidateCount,
+        legitimateRepeatCount: semanticAnalysis.counts.legitimateRepeatCount,
         builtAt: buildTimestamp
       }
     };

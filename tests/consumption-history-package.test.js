@@ -111,10 +111,10 @@
     assert.equal(rows[1].consumption_quantity, 0, "Zero quantity should remain valid");
     assert.equal(rows[2].consumption_quantity, -2, "Negative quantity should be preserved");
     assert.ok(diagnostics.some(diagnostic => diagnostic.key === "consumptionHistoryNegativeQuantities"), "Negative quantity should be diagnosed");
-    assert.equal(active.relationshipKeys.material[0], "material_id", "Material relationship key should be exposed");
-    assert.equal(active.relationshipKeys.organization[0], "plant", "Plant relationship key should be exposed when mapped");
-    assert.includes(active.relationshipKeys.temporal, "posting_date", "Temporal relationship key should preserve raw posting date field");
-    assert.equal(active.freshness.temporalCoverage, "raw_history_uninterpreted", "Freshness should be explicit about raw temporal coverage");
+    assert.includes(active.relationshipKeys.entityKeys, "material_id", "Material entity key should be exposed");
+    assert.includes(active.relationshipKeys.entityKeys, "plant", "Plant entity key should be exposed when mapped");
+    assert.includes(active.relationshipKeys.temporalReference, "posting_date", "Temporal reference should remain separated from entity keys");
+    assert.equal(active.freshness.temporalCoverage, "semantic_history_interpreted_no_aggregation", "Freshness should be explicit about semantic interpretation without aggregation");
   });
 
   test("AP 16.4a invalid quantity rejects package without consuming a Registry ID", async assert => {

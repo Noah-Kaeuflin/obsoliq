@@ -46,6 +46,78 @@ Diagnostics are package-scoped. AP 16.4a reports missing required mappings, inva
 
 The contract is isolated from Inventory Snapshot calculations. Consumption History package rows are not yet joined into Recovery, slow/dead-stock classification, Data Quality Score, Action Cockpit, Opportunity Score, scenarios, Pilot Review or exports.
 
+## AP 16.4b Consumption History Semantic Contract
+
+`SemanticInterpretationPolicy` is package-scoped and versioned as `consumption-history-semantics-v1`. It stores quantity locale and scale policy, Posting Date format, Period format, analysis-as-of ownership, Movement Type rule-set identity and unit policy. Its deterministic signature is stored in package build metadata.
+
+Supported temporal formats are:
+
+- Posting Date: `yyyy-mm-dd`, `dd.mm.yyyy`, controlled `mm/dd/yyyy`, `yyyymmdd`, `excel-serial`
+- Period: `yyyy-mm`, `yyyymm`, `mm/yyyy`
+
+Auto mode never guesses ambiguous slash dates. Date-only values are normalized to `YYYY-MM-DD` strings without time-zone conversion. When Posting Date and Period are both mapped, Posting Date has row-level priority; conflicting periods are diagnosed.
+
+`analysisAsOf` may be `inventory_snapshot`, `user_confirmed` or `unavailable`. The browser current date is not a valid analytical reference. Future movement diagnostics are emitted only when `analysisAsOf.date` is explicit.
+
+Movement semantics use rule set `sap-consumption-movement-mvp` version `1`. `261` is `consumption`, `262` is `reversal`, and unknown Movement Types remain `unknown`. Negative source quantity is preserved but is never sufficient by itself to classify a movement.
+
+Each semantic row may contain:
+
+- `raw_posting_date`
+- `raw_period`
+- `temporal_source`
+- `normalized_posting_date`
+- `normalized_period`
+- `temporal_precision`
+- `temporal_parse_status`
+- `temporal_diagnostic_codes`
+- `temporal_status`
+- `temporal_consistency_status`
+- `movement_semantic`
+- `movement_rule_set_id`
+- `movement_rule_set_version`
+- `signed_consumption_quantity`
+- `absolute_consumption_quantity`
+- `net_consumption_quantity`
+- `normalized_base_unit`
+- `unit_status`
+- `aggregation_eligible`
+- `entity_key`
+- `temporal_reference_key`
+- `event_identity_key`
+- `event_identity_status`
+- `unit_context_key`
+- `duplicate_semantic`
+
+Units are normalized as tokens only. There is no unit conversion, no compatibility claim and no aggregation across unlike units. Missing and multiple-unit contexts are diagnostics.
+
+Duplicate semantics distinguish exact source duplicates, business duplicate candidates and legitimate repeated movements. No duplicate is automatically deleted.
+
+History Readiness is deterministic and package-scoped. It summarizes semantic row count, ready row count, diagnostics, history coverage end and analysis-as-of state. `historyCoverageEnd` is descriptive coverage evidence only and is not an `analysisAsOf` date. It does not change Inventory Data Quality Score, Recovery, Actions, Opportunity Score, scenarios or Pilot Reviews.
+
+### AP 16.4b.1 Source-Bound Interpretation Contract
+
+Quantity, Posting Date and Period interpretation policies are source-bound. Header text alone is not physical identity. Each source-bound section must include:
+
+- `canonicalField`
+- `sourceIndex`
+- `sourceKey`
+- `sourceColumn`
+
+`sourceIndex` is a JavaScript number, must be an integer `>= 0` and is not coerced from text, boolean, `null` or empty string. `sourceKey` must match the current `sourceColumnMetadata[sourceIndex]`. Duplicate visible headers are distinguished by `sourceIndex` and `sourceKey`.
+
+Quantity policy includes `numericLocale`, `scaleSource`, `sourceScaleFactor`, `userConfirmed`, `confirmedAt` and `confirmationReason`. Posting Date policy includes `dateFormat`, `excelDateSystem`, `userConfirmed`, `confirmedAt` and `confirmationReason`. Period policy includes `periodFormat`, `userConfirmed`, `confirmedAt` and `confirmationReason`.
+
+Source-bound confirmation is valid only while the current reviewed Mapping still points to the same physical source identity. If a mapped physical source changes, the previous section policy is stale, confirmation is reset and the top-level History confirmation is invalidated. A stale Quantity, Posting Date or Period policy must block Builder and Registry commit, and failed interpretation or signature-invariant checks must not create a Package, consume a Package ID or create a revision.
+
+The semantic-policy signature includes the physical source identity and review-relevant policy values for Quantity, Posting Date and Period. Package Import verifies the Interpretation Service signature against the Builder signature before commit.
+
+Explicit Quantity Scale requires `scaleSource = "explicit"`, a valid finite `sourceScaleFactor` from the supported factor set and current review confirmation. Invalid explicit factors block Apply. Excel serial-date interpretation requires an explicit `excelDateSystem` of `1900` or `1904`; ObsoliQ does not guess the date system, and the Excel 1900 phantom leap date is invalid.
+
+`analysisAsOf.source = "inventory_snapshot"` requires an Inventory Package ID and positive Package Revision. `historyCoverageEnd` is coverage evidence only and cannot become `analysisAsOf` automatically. Browser date is not a valid analytical as-of source.
+
+Interpretation Trust and History Readiness are separate contracts. Trust describes whether the interpretation policy can be applied. History Readiness is produced by the Semantics Engine from temporal, movement, unit and event evidence. Data Foundation displays Consumption History Package availability separately from analytical History Readiness and does not calculate Readiness.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

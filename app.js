@@ -61,6 +61,9 @@ if (!ObsoliQModules.data?.packageRegistry) {
 if (!ObsoliQModules.data?.materialMasterBuilder) {
   throw new Error("ObsoliQ Material Master Builder module failed to load.");
 }
+if (!ObsoliQModules.data?.consumptionHistorySemanticsEngine) {
+  throw new Error("ObsoliQ Consumption History Semantics Engine module failed to load.");
+}
 if (!ObsoliQModules.data?.consumptionHistoryBuilder) {
   throw new Error("ObsoliQ Consumption History Builder module failed to load.");
 }
@@ -75,6 +78,9 @@ if (!ObsoliQModules.application?.packageImportService) {
 }
 if (!ObsoliQModules.application?.inputTrustService) {
   throw new Error("ObsoliQ Input Trust Service module failed to load.");
+}
+if (!ObsoliQModules.application?.consumptionHistoryInterpretationService) {
+  throw new Error("ObsoliQ Consumption History Interpretation Service module failed to load.");
 }
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
@@ -174,6 +180,7 @@ const CONSUMPTION_HISTORY_FIELD_DEFINITIONS = ObsoliQModules.data.consumptionHis
 const inventoryEnrichmentService = ObsoliQModules.application.inventoryEnrichmentService;
 const actionOwnerContextEngine = ObsoliQModules.actions.actionOwnerContextEngine;
 const packageRelationshipQualityEngine = ObsoliQModules.data.packageRelationshipQualityEngine;
+const consumptionHistoryInterpretationService = ObsoliQModules.application.consumptionHistoryInterpretationService;
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -189,6 +196,7 @@ const packageImportService = ObsoliQModules.application.packageImportService.cre
   sourceModel: ObsoliQModules.data.sourceModel,
   mappingEngine: ObsoliQModules.mapping.engine,
   inputTrustService,
+  consumptionHistoryInterpretationService,
   registry: dataPackageRegistry,
   packageDefinitions: DATA_PACKAGE_TYPE_DEFINITIONS,
   builders: {
@@ -280,6 +288,56 @@ const translations = {
     dropImportsInventoryNote: "Drag & Drop importiert aktuell Inventory Snapshots.",
     materialMasterMappingSubtitle: "Prüfen Sie, wie die Materialstammdatei dem ObsoliQ-Datenmodell zugeordnet wird.",
     consumptionHistoryMappingSubtitle: "Prüfen Sie, wie die Verbrauchshistorie dem ObsoliQ-Datenmodell zugeordnet wird. Zeitbezug erforderlich: Buchungsdatum oder Periode.",
+    historyInterpretation: "History Interpretation",
+    historyInterpretationStatus: "Interpretationsstatus",
+    historyReadiness: "History Readiness",
+    historyReadinessPreview: "History Readiness Vorschau",
+    historyReady: "Bereit",
+    historyLimited: "Eingeschränkt",
+    historyNotReady: "Nicht bereit",
+    historyUnavailable: "Nicht verfügbar",
+    historyRowsSemantic: "Semantische Zeilen",
+    historyRowsEligible: "Aggregationsfähige Zeilen",
+    temporalCoverage: "Zeitabdeckung",
+    movementCoverage: "Bewegungsabdeckung",
+    unitCoverage: "Einheitenabdeckung",
+    eventIdentityCoverage: "Event-ID-Abdeckung",
+    blockerCount: "Blocker",
+    limitationCount: "Einschränkungen",
+    explicitScaleFactor: "Expliziter Skalierungsfaktor",
+    excelDateSystem: "Excel-Datumssystem",
+    sourceIdentity: "Quellspalte",
+    packageAvailability: "Paketverfügbarkeit",
+    historyReviewConfirmed: "Zeit-, Mengen-, Bewegungs- und Einheitensemantik geprüft",
+    historyReviewRequired: "Prüfung erforderlich",
+    historyBlocked: "Blockiert",
+    historyTrusted: "Bereit",
+    dateFormat: "Datumsformat",
+    periodFormat: "Periodenformat",
+    analysisAsOfDate: "Analyse-Stichtag",
+    historyQuantityLocaleReviewRequired: "Verbrauchsmenge: Locale prüfen",
+    historyQuantityDoubleScaleBlocked: "Verbrauchsmenge: doppelte Skalierung blockiert",
+    historyDateFormatReviewRequired: "Datumsformat prüfen",
+    historyDateFormatInvalid: "Ungültiges Datumsformat",
+    historyMixedTemporalFormats: "Gemischte Zeitformate",
+    historyPostingPeriodConflict: "Buchungsdatum und Periode widersprechen sich",
+    historyTemporalInvalid: "Zeitbezug semantisch ungültig",
+    historyTemporalReviewRequired: "Zeitbezug benötigt Prüfung",
+    historyFutureMovements: "Zukünftige Bewegungen erkannt",
+    historyUnknownMovementTypes: "Unbekannte Bewegungsarten",
+    historyMissingUnits: "Fehlende Mengeneinheiten",
+    historyMultipleUnitsForEntity: "Mehrere Mengeneinheiten je Entität",
+    historyBusinessDuplicateCandidates: "Fachliche Duplikat-Kandidaten",
+    historyExactSourceDuplicates: "Exakte Quell-Duplikate",
+    historyLegitimateRepeatedMovements: "Wiederholte Bewegungen erkannt",
+    historyAnalysisAsOfUnavailable: "Kein Analyse-Stichtag gesetzt",
+    historyAnalysisAsOfProvenanceMissing: "Analyse-Stichtag ohne Paket-Provenienz",
+    historyAnalysisAsOfConfirmationRequired: "Analyse-Stichtag benötigt Bestätigung",
+    historySourcePolicyStale: "Quellgebundene History-Policy ist veraltet",
+    historyExplicitScaleFactorInvalid: "Expliziter Skalierungsfaktor ungültig",
+    historyExplicitScaleFactorReviewRequired: "Expliziter Skalierungsfaktor benötigt Bestätigung",
+    historyExcelDateSystemReviewRequired: "Excel-Datumssystem auswählen",
+    historySemanticSignatureMismatch: "History-Signatur passt nicht zur Build-Policy",
     materialMasterMissingMaterialIdMapping: "Materialnummer-Zuordnung fehlt",
     materialMasterInvalidSourceIdentity: "Ungültige physische Quellspalte",
     materialMasterMissingMaterialIdValues: "Materialnummer fehlt in Zeilen",
@@ -1418,6 +1476,56 @@ const translations = {
     dropImportsInventoryNote: "Drag and drop currently imports Inventory Snapshots.",
     materialMasterMappingSubtitle: "Review how the material master file maps to the ObsoliQ data model.",
     consumptionHistoryMappingSubtitle: "Review how the consumption history file maps to the ObsoliQ data model. Temporal reference required: Posting Date or Period.",
+    historyInterpretation: "History Interpretation",
+    historyInterpretationStatus: "Interpretation Status",
+    historyReadiness: "History Readiness",
+    historyReadinessPreview: "History Readiness Preview",
+    historyReady: "Ready",
+    historyLimited: "Limited",
+    historyNotReady: "Not ready",
+    historyUnavailable: "Unavailable",
+    historyRowsSemantic: "Semantic rows",
+    historyRowsEligible: "Aggregation-eligible rows",
+    temporalCoverage: "Temporal coverage",
+    movementCoverage: "Movement coverage",
+    unitCoverage: "Unit coverage",
+    eventIdentityCoverage: "Event identity coverage",
+    blockerCount: "Blockers",
+    limitationCount: "Limitations",
+    explicitScaleFactor: "Explicit Scale Factor",
+    excelDateSystem: "Excel Date System",
+    sourceIdentity: "Source column",
+    packageAvailability: "Package availability",
+    historyReviewConfirmed: "Time, quantity, movement and unit semantics reviewed",
+    historyReviewRequired: "Review required",
+    historyBlocked: "Blocked",
+    historyTrusted: "Ready",
+    dateFormat: "Date Format",
+    periodFormat: "Period Format",
+    analysisAsOfDate: "Analysis as-of date",
+    historyQuantityLocaleReviewRequired: "Consumption quantity: review locale",
+    historyQuantityDoubleScaleBlocked: "Consumption quantity: double scaling blocked",
+    historyDateFormatReviewRequired: "Review date format",
+    historyDateFormatInvalid: "Invalid date format",
+    historyMixedTemporalFormats: "Mixed temporal formats",
+    historyPostingPeriodConflict: "Posting Date and Period conflict",
+    historyTemporalInvalid: "Temporal reference semantically invalid",
+    historyTemporalReviewRequired: "Temporal reference requires review",
+    historyFutureMovements: "Future movements detected",
+    historyUnknownMovementTypes: "Unknown movement types",
+    historyMissingUnits: "Missing units",
+    historyMultipleUnitsForEntity: "Multiple units per entity",
+    historyBusinessDuplicateCandidates: "Business duplicate candidates",
+    historyExactSourceDuplicates: "Exact source duplicates",
+    historyLegitimateRepeatedMovements: "Repeated movements detected",
+    historyAnalysisAsOfUnavailable: "No analysis as-of date set",
+    historyAnalysisAsOfProvenanceMissing: "Analysis as-of date is missing Package provenance",
+    historyAnalysisAsOfConfirmationRequired: "Analysis as-of date requires confirmation",
+    historySourcePolicyStale: "Source-bound History policy is stale",
+    historyExplicitScaleFactorInvalid: "Explicit scale factor is invalid",
+    historyExplicitScaleFactorReviewRequired: "Explicit scale factor requires confirmation",
+    historyExcelDateSystemReviewRequired: "Select Excel date system",
+    historySemanticSignatureMismatch: "History signature does not match build policy",
     materialMasterMissingMaterialIdMapping: "Material number mapping is missing",
     materialMasterInvalidSourceIdentity: "Invalid physical source column",
     materialMasterMissingMaterialIdValues: "Material number missing in rows",
@@ -12740,6 +12848,13 @@ function dataFoundationSourceState(packageRecord) {
   return { className: "available", label: t("packageAvailable") };
 }
 
+function consumptionHistoryReadiness(packageRecord) {
+  return packageRecord?.buildData?.buildMetadata?.historyReadiness
+    || packageRecord?.interpretationMetadata?.historyReadiness
+    || packageRecord?.packageValidation?.historyReadiness
+    || null;
+}
+
 function relationshipCompatibilityState(readiness) {
   const statusKey = readiness?.statusKey || "missing";
   if (currentInventoryMaterialMasterRelationship?.status === "executed") {
@@ -12761,6 +12876,11 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
     meta.push(packageRowsText(packageRecord));
     if (packageRecord.freshness?.importedAt) meta.push(`${t("packageImportedAt")}: ${formatDateTime(packageRecord.freshness.importedAt)}`);
     if (options.showGranularity) meta.push(`${t("packageGranularity")}: ${packageGranularityLabel(packageRecord)}`);
+    if (packageRecord.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+      const readiness = consumptionHistoryReadiness(packageRecord);
+      if (readiness?.status) meta.push(`${t("historyReadiness")}: ${historyReadinessStatusLabel(readiness.status)}`);
+      if (Number.isFinite(Number(readiness?.readyRowCount))) meta.push(`${t("historyRowsEligible")}: ${formatCount(readiness.readyRowCount)}`);
+    }
   }
   const actionKey = options.importActionType === CONSUMPTION_HISTORY_PACKAGE_TYPE
     ? "data-data-foundation-import-consumption-history"
@@ -14421,6 +14541,131 @@ function renderInputTrustIssues(assessment = {}, context = {}) {
   `;
 }
 
+function historyInterpretationForContext(context, mapping) {
+  if (!context || (context.packageType || INVENTORY_PACKAGE_TYPE) !== CONSUMPTION_HISTORY_PACKAGE_TYPE) return null;
+  return consumptionHistoryInterpretationService.prepareConsumptionHistoryInterpretation({
+    packageType: CONSUMPTION_HISTORY_PACKAGE_TYPE,
+    headers: context.headers,
+    rows: context.rows,
+    sourceColumnMetadata: context.sourceColumnMetadata,
+    mapping,
+    sourceDescriptor: {
+      ...(context.sourceDescriptor || {}),
+      sourceLabel: context.sourceLabel,
+      sourceType: context.sourceType || "upload"
+    },
+    semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null
+  });
+}
+
+function historyInterpretationStatusLabel(state) {
+  if (state === "blocked") return t("historyBlocked");
+  if (state === "review_required") return t("historyReviewRequired");
+  return t("historyTrusted");
+}
+
+function historyReadinessStatusLabel(state) {
+  if (state === "ready") return t("historyReady");
+  if (state === "limited") return t("historyLimited");
+  if (state === "not_ready" || state === "critical") return t("historyNotReady");
+  return t("historyUnavailable");
+}
+
+function formatReadinessRatio(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return t("notAvailable");
+  return formatQualityPercent(numeric * 100);
+}
+
+function renderHistorySourceIdentity(section = {}) {
+  if (!section.sourceColumn && section.sourceIndex === null) return "";
+  return `<small>${html(t("sourceIdentity"))}: ${html(section.sourceColumn || section.sourceKey || "-")} · #${html(String(section.sourceIndex ?? "-"))}</small>`;
+}
+
+function renderHistoryInterpretationSummaryBadges(result) {
+  if (!result) return "";
+  const issueCount = (result.diagnostics || []).length;
+  const readiness = result.historyReadiness || {};
+  return `
+    <span class="${result.trustState === "trusted" ? "" : "warning"}"><span>${html(t("historyInterpretationStatus"))}</span><strong>${html(historyInterpretationStatusLabel(result.trustState))}</strong></span>
+    <span class="${readiness.status === "ready" ? "" : "warning"}"><span>${html(result.readinessPreview ? t("historyReadinessPreview") : t("historyReadiness"))}</span><strong>${html(historyReadinessStatusLabel(readiness.status))}</strong></span>
+    <span class="${issueCount ? "warning" : ""}"><span>${html(t("warningCount"))}</span><strong>${html(formatCount(issueCount))}</strong></span>
+  `;
+}
+
+function renderHistoryPolicySelect(section, key, selected, options) {
+  return `
+    <select class="input-trust-policy-select" data-history-policy data-policy-section="${html(section)}" data-policy-key="${html(key)}">
+      ${options.map(([value, label]) => `<option value="${html(value)}"${String(selected ?? "") === String(value) ? " selected" : ""}>${html(label)}</option>`).join("")}
+    </select>
+  `;
+}
+
+function renderHistoryInterpretationIssues(result = {}, context = {}) {
+  if (!result || (context.packageType || INVENTORY_PACKAGE_TYPE) !== CONSUMPTION_HISTORY_PACKAGE_TYPE) return "";
+  const policy = result.effectivePolicy || {};
+  const readiness = result.historyReadiness || {};
+  const diagnostics = [
+    ...(result.blockingDiagnostics || []).map(diagnostic => ({ ...diagnostic, type: "error" })),
+    ...(result.reviewDiagnostics || []).map(diagnostic => ({ ...diagnostic, type: "warning" }))
+  ].slice(0, 8);
+  const explicitScaleControl = policy.quantity?.scaleSource === "explicit" ? `
+    <label>${html(t("explicitScaleFactor"))}
+      ${renderHistoryPolicySelect("quantity", "sourceScaleFactor", policy.quantity?.sourceScaleFactor || 1, [[1, "1"], [1000, "1.000"], [1000000, "1.000.000"], [1000000000, "1.000.000.000"]])}
+    </label>
+  ` : "";
+  const excelDateSystemControl = policy.postingDate?.dateFormat === "excel-serial" ? `
+    <label>${html(t("excelDateSystem"))}
+      ${renderHistoryPolicySelect("postingDate", "excelDateSystem", policy.postingDate?.excelDateSystem || "", [["", t("historyReviewRequired")], ["1900", "1900"], ["1904", "1904"]])}
+    </label>
+  ` : "";
+  const readinessEvidence = `
+    <div class="input-trust-controls history-readiness-evidence">
+      <span>${html(t("historyRowsSemantic"))}: <strong>${html(formatCount(readiness.rowCount || 0))}</strong></span>
+      <span>${html(t("historyRowsEligible"))}: <strong>${html(formatCount(readiness.readyRowCount || 0))}</strong></span>
+      <span>${html(t("temporalCoverage"))}: <strong>${html(formatReadinessRatio(readiness.temporalCoverageRatio))}</strong></span>
+      <span>${html(t("movementCoverage"))}: <strong>${html(formatReadinessRatio(readiness.movementSemanticsCoverageRatio))}</strong></span>
+      <span>${html(t("unitCoverage"))}: <strong>${html(formatReadinessRatio(readiness.unitCoverageRatio))}</strong></span>
+      <span>${html(t("eventIdentityCoverage"))}: <strong>${html(formatReadinessRatio(readiness.eventIdentityCoverageRatio))}</strong></span>
+      <span>${html(t("blockerCount"))}: <strong>${html(formatCount(readiness.blockerCount || 0))}</strong></span>
+      <span>${html(t("limitationCount"))}: <strong>${html(formatCount(readiness.limitationCount || 0))}</strong></span>
+    </div>
+  `;
+  return `
+    <div class="mapping-issues input-trust-issues history-interpretation-issues">
+      <div class="mapping-issue ${html(result.trustState === "trusted" ? "ok" : "warning")}">
+        <strong>${html(t("historyInterpretation"))}</strong>
+        <span>${html(`${t("historyInterpretationStatus")}: ${historyInterpretationStatusLabel(result.trustState)} · ${result.readinessPreview ? t("historyReadinessPreview") : t("historyReadiness")}: ${historyReadinessStatusLabel(readiness.status)}`)}</span>
+        <div class="input-trust-controls">
+          ${renderHistoryPolicySelect("quantity", "numericLocale", policy.quantity?.numericLocale || "auto", [["auto", t("auto")], ["de-DE", "de-DE"], ["en-US", "en-US"], ["de-CH", "de-CH"]])}
+          ${renderHistoryPolicySelect("quantity", "scaleSource", policy.quantity?.scaleSource || "auto", [["auto", t("auto")], ["header", t("header")], ["cell", t("cell")], ["none", t("none")], ["explicit", t("explicit")]])}
+          ${explicitScaleControl}
+          ${renderHistoryPolicySelect("postingDate", "dateFormat", policy.postingDate?.dateFormat || "auto", [["auto", t("auto")], ["yyyy-mm-dd", "YYYY-MM-DD"], ["dd.mm.yyyy", "DD.MM.YYYY"], ["mm/dd/yyyy", "MM/DD/YYYY"], ["yyyymmdd", "YYYYMMDD"], ["excel-serial", "Excel Serial"]])}
+          ${excelDateSystemControl}
+          ${renderHistoryPolicySelect("period", "periodFormat", policy.period?.periodFormat || "auto", [["auto", t("auto")], ["yyyy-mm", "YYYY-MM"], ["yyyymm", "YYYYMM"], ["mm/yyyy", "MM/YYYY"]])}
+          <label>${html(t("analysisAsOfDate"))}<input class="input-trust-policy-select" type="date" data-history-as-of-date value="${html(policy.analysisAsOf?.date || "")}"></label>
+        </div>
+        ${renderHistorySourceIdentity(policy.quantity)}
+        ${renderHistorySourceIdentity(policy.postingDate)}
+        ${renderHistorySourceIdentity(policy.period)}
+        ${readinessEvidence}
+      </div>
+      ${diagnostics.map(diagnostic => `
+        <div class="mapping-issue ${html(diagnostic.type)}">
+          <strong>${html(diagnostic.type === "error" ? t("mappingBlockingIssue") : t("mappingWarning"))}</strong>
+          <span>${html(t(diagnostic.key) || diagnostic.key)}${Number.isFinite(Number(diagnostic.count)) ? `: ${html(formatCount(diagnostic.count))}` : ""}</span>
+        </div>
+      `).join("")}
+      ${result.trustState === "review_required" ? `
+        <label class="mapping-issue-confirm">
+          <input type="checkbox" data-history-interpretation-confirm ${context.historyInterpretationReviewConfirmed ? "checked" : ""}>
+          <span>${html(t("historyReviewConfirmed"))}</span>
+        </label>
+      ` : ""}
+    </div>
+  `;
+}
+
 function localePolicyUiValue(policy = {}) {
   if (policy.numericLocale) return policy.numericLocale;
   if (policy.localeOverride === "de") return "de-DE";
@@ -14640,6 +14885,7 @@ function renderColumnMappingAssistant() {
   const inputTrustAssessment = inputTrustAssessmentForContext(pendingUploadContext, initialValidation.mapping);
   const reviewedMapping = inputTrustAssessment?.reviewedMapping || initialValidation.mapping;
   const validation = validateColumnMapping(reviewedMapping, validationOptions);
+  const historyInterpretation = historyInterpretationForContext(pendingUploadContext, validation.mapping);
   validation.mapping = mergeTrustEvidenceIntoMapping(validation.mapping, reviewedMapping);
   pendingUploadContext.approvedMapping = validation.mapping;
   if (inputTrustAssessment) {
@@ -14652,19 +14898,26 @@ function renderColumnMappingAssistant() {
   if (inputTrustAssessment?.trustState === "trusted" && !effectivePolicy?.sourceIdentityChangedCount) {
     pendingUploadContext.inputTrustReviewConfirmed = true;
   }
+  if (historyInterpretation) {
+    pendingUploadContext.historyInterpretationResult = historyInterpretation;
+    pendingUploadContext.historySemanticPolicy = historyInterpretation.effectivePolicy;
+  }
   const summary = $("mappingSummary");
   const required = $("mappingRequiredSummary");
   const issues = $("mappingIssues");
   const table = $("mappingTable");
   const applyButton = $("mappingApplyButton");
-  if (summary) summary.innerHTML = `${renderMappingSummaryBadges(pendingUploadContext, validation)}${renderInputTrustSummaryBadges(pendingUploadContext, inputTrustAssessment)}`;
+  if (summary) summary.innerHTML = `${renderMappingSummaryBadges(pendingUploadContext, validation)}${renderInputTrustSummaryBadges(pendingUploadContext, inputTrustAssessment)}${renderHistoryInterpretationSummaryBadges(historyInterpretation)}`;
   if (required) required.innerHTML = renderMappingRequiredSummary(pendingUploadContext, validation.mapping);
-  if (issues) issues.innerHTML = `${renderMappingIssues(validation)}${renderInputTrustIssues(inputTrustAssessment, pendingUploadContext)}`;
+  if (issues) issues.innerHTML = `${renderMappingIssues(validation)}${renderInputTrustIssues(inputTrustAssessment, pendingUploadContext)}${renderHistoryInterpretationIssues(historyInterpretation, pendingUploadContext)}`;
   if (table) table.innerHTML = renderMappingTable(validation.mapping);
   const trustBlocked = inputTrustAssessment?.trustState === "blocked"
     || (inputTrustAssessment?.blockingDiagnostics || []).length > 0;
   const trustReviewOpen = inputTrustAssessment?.trustState === "review_required" && !pendingUploadContext.inputTrustReviewConfirmed;
-  if (applyButton) applyButton.disabled = !validation.valid || trustBlocked || trustReviewOpen;
+  const historyBlocked = historyInterpretation?.trustState === "blocked"
+    || (historyInterpretation?.blockingDiagnostics || []).length > 0;
+  const historyReviewOpen = historyInterpretation?.trustState === "review_required" && !pendingUploadContext.historyInterpretationReviewConfirmed;
+  if (applyButton) applyButton.disabled = !validation.valid || trustBlocked || trustReviewOpen || historyBlocked || historyReviewOpen;
 }
 
 function mappingProblemSourceIndex(validation) {
@@ -14793,12 +15046,16 @@ function restoreAutomaticColumnMapping() {
   pendingUploadContext.normalizationPolicy = null;
   pendingUploadContext.normalizationPolicyOverrides = null;
   pendingUploadContext.inputTrustReviewConfirmed = false;
+  pendingUploadContext.historySemanticPolicyOverrides = null;
+  pendingUploadContext.historyInterpretationReviewConfirmed = false;
   mappingAssistantDirty = false;
   renderColumnMappingAssistant();
 }
 
 function updateColumnMappingSelection(sourceIndex, selectedCanonicalField) {
   if (!pendingUploadContext) return;
+  const previousEntry = pendingUploadContext.approvedMapping.find(entry => String(entry.sourceIndex) === String(sourceIndex));
+  const previousField = previousEntry?.selectedCanonicalField || "";
   pendingUploadContext.approvedMapping = pendingUploadContext.approvedMapping.map(entry => {
     if (String(entry.sourceIndex) !== String(sourceIndex)) return entry;
     return {
@@ -14808,6 +15065,77 @@ function updateColumnMappingSelection(sourceIndex, selectedCanonicalField) {
     };
   });
   pendingUploadContext.inputTrustReviewConfirmed = false;
+  pendingUploadContext.historyInterpretationReviewConfirmed = false;
+  const historySourceFields = ["consumption_quantity", "posting_date", "period"];
+  if ((pendingUploadContext.packageType || INVENTORY_PACKAGE_TYPE) === CONSUMPTION_HISTORY_PACKAGE_TYPE
+    && (historySourceFields.includes(previousField) || historySourceFields.includes(selectedCanonicalField))) {
+    pendingUploadContext.historySemanticPolicyOverrides = null;
+    pendingUploadContext.historySemanticPolicy = null;
+    pendingUploadContext.historyInterpretationResult = null;
+  }
+  mappingAssistantDirty = true;
+  renderColumnMappingAssistant();
+}
+
+function updateHistorySemanticPolicy(section, key, value) {
+  if (!pendingUploadContext) return;
+  const current = pendingUploadContext.historySemanticPolicy || {};
+  const numericValue = key === "sourceScaleFactor" ? Number(value) : value;
+  pendingUploadContext.historySemanticPolicyOverrides = {
+    ...current,
+    ...(pendingUploadContext.historySemanticPolicyOverrides || {}),
+    [section]: {
+      ...(current[section] || {}),
+      ...((pendingUploadContext.historySemanticPolicyOverrides || {})[section] || {}),
+      [key]: key === "sourceScaleFactor" ? numericValue : value,
+      userConfirmed: false,
+      confirmedAt: "",
+      confirmationReason: ""
+    },
+    reviewConfirmed: false,
+    confirmedAt: ""
+  };
+  pendingUploadContext.historyInterpretationReviewConfirmed = false;
+  mappingAssistantDirty = true;
+  renderColumnMappingAssistant();
+}
+
+function updateHistoryAnalysisAsOfDate(value) {
+  if (!pendingUploadContext) return;
+  const current = pendingUploadContext.historySemanticPolicy || {};
+  pendingUploadContext.historySemanticPolicyOverrides = {
+    ...current,
+    ...(pendingUploadContext.historySemanticPolicyOverrides || {}),
+    analysisAsOf: {
+      ...(current.analysisAsOf || {}),
+      ...((pendingUploadContext.historySemanticPolicyOverrides || {}).analysisAsOf || {}),
+      date: value || "",
+      source: value ? "user_confirmed" : "unavailable",
+      userConfirmed: Boolean(value),
+      confirmedAt: value ? new Date().toISOString() : ""
+    },
+    reviewConfirmed: false,
+    confirmedAt: ""
+  };
+  pendingUploadContext.historyInterpretationReviewConfirmed = false;
+  mappingAssistantDirty = true;
+  renderColumnMappingAssistant();
+}
+
+function confirmHistoryInterpretationReview(confirmed) {
+  if (!pendingUploadContext) return;
+  const confirmedAt = confirmed ? new Date().toISOString() : "";
+  const current = pendingUploadContext.historySemanticPolicy || {};
+  pendingUploadContext.historyInterpretationReviewConfirmed = Boolean(confirmed);
+  pendingUploadContext.historySemanticPolicyOverrides = {
+    ...current,
+    ...(pendingUploadContext.historySemanticPolicyOverrides || {}),
+    reviewConfirmed: Boolean(confirmed),
+    confirmedAt,
+    quantity: { ...(current.quantity || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).quantity || {}), userConfirmed: Boolean(confirmed), confirmedAt, confirmationReason: confirmed ? "user_review" : "" },
+    postingDate: { ...(current.postingDate || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).postingDate || {}), userConfirmed: Boolean(confirmed), confirmedAt, confirmationReason: confirmed ? "user_review" : "" },
+    period: { ...(current.period || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).period || {}), userConfirmed: Boolean(confirmed), confirmedAt, confirmationReason: confirmed ? "user_review" : "" }
+  };
   mappingAssistantDirty = true;
   renderColumnMappingAssistant();
 }
@@ -14982,28 +15310,51 @@ function packageImportFeedbackKey(packageType, event) {
   return "materialMasterImportFailed";
 }
 
+function packageSourceDescriptorForImport(packageType, sourceLabel, options = {}) {
+  const descriptor = {
+    sourceLabel,
+    sourceType: options.sourceType || "upload"
+  };
+  if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+    const inventoryPackage = currentInventoryPackage();
+    const asOfDate = inventoryPackage?.freshness?.asOfDate || "";
+    descriptor.analysisAsOf = asOfDate && inventoryPackage?.packageId && Number.isInteger(inventoryPackage.revision) && inventoryPackage.revision > 0
+      ? {
+        date: asOfDate,
+        source: "inventory_snapshot",
+        sourcePackageId: inventoryPackage.packageId,
+        sourcePackageRevision: inventoryPackage.revision
+      }
+      : { date: "", source: "unavailable" };
+  }
+  return descriptor;
+}
+
 function beginPackageImportWithParsedData(parsed, sourceLabel, options = {}) {
   const packageType = options.packageType || MATERIAL_MASTER_PACKAGE_TYPE;
   try {
+    const sourceDescriptor = packageSourceDescriptorForImport(packageType, sourceLabel, options);
     const prepared = packageImportService.prepareImport({
       packageType,
       parsedSource: parsed,
-      sourceDescriptor: {
-        sourceLabel,
-        sourceType: options.sourceType || "upload"
-      }
+      sourceDescriptor
     });
     const mappingState = prepared.mappingState;
     const context = {
       packageType,
       fileName: sourceLabel,
       sourceLabel,
-      sourceType: options.sourceType || "upload",
+      sourceType: sourceDescriptor.sourceType,
+      sourceDescriptor,
       headers: prepared.parsedSource.headers,
       rows: prepared.parsedSource.rows,
       sourceColumnMetadata: prepared.parsedSource.sourceColumnMetadata,
       automaticMapping: cloneColumnMapping(prepared.automaticMapping),
       approvedMapping: cloneColumnMapping(prepared.approvedMapping),
+      historyInterpretationResult: prepared.interpretationResult || null,
+      historySemanticPolicy: prepared.interpretationResult?.effectivePolicy || null,
+      historySemanticPolicyOverrides: options.semanticPolicy || null,
+      historyInterpretationReviewConfirmed: Boolean(options.semanticPolicy?.reviewConfirmed) || prepared.interpretationResult?.trustState === "trusted",
       forceBuildErrorForTest: options.forceBuildErrorForTest,
       forceCommitFailureForTest: options.forceCommitFailureForTest,
       forceInventoryEnrichmentFailureForTest: options.forceInventoryEnrichmentFailureForTest,
@@ -15120,9 +15471,17 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       rows: context.rows,
       sourceColumnMetadata: context.sourceColumnMetadata
     },
-    mapping
+    mapping,
+    semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null,
+    sourceDescriptor: {
+      ...(context.sourceDescriptor || packageSourceDescriptorForImport(context.packageType, context.sourceLabel, context)),
+      sourceLabel: context.sourceLabel,
+      sourceType: context.sourceType || "upload"
+    }
   });
   context.approvedMapping = validation.mappingValidation.mapping;
+  context.historyInterpretationResult = validation.interpretationResult || context.historyInterpretationResult || null;
+  context.historySemanticPolicy = validation.interpretationResult?.effectivePolicy || context.historySemanticPolicy || null;
   if (!validation.mappingValidation.valid) {
     pendingUploadContext = context;
     renderColumnMappingAssistant();
@@ -15133,6 +15492,16 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
   const previousUiState = snapshotDatasetUiState();
   let result = null;
   try {
+    if (validation.interpretationResult?.trustState === "blocked" || (validation.interpretationResult?.blockingDiagnostics || []).length) {
+      renderColumnMappingAssistant();
+      setFeedback(t("historyBlocked"), "error", { autoReset: true });
+      return false;
+    }
+    if (validation.interpretationResult?.trustState === "review_required" && !context.historyInterpretationReviewConfirmed) {
+      renderColumnMappingAssistant();
+      setFeedback(t("historyReviewRequired"), "error", { autoReset: true });
+      return false;
+    }
     result = packageImportService.importPackage({
       packageType: context.packageType,
       parsedSource: {
@@ -15141,7 +15510,9 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
         sourceColumnMetadata: context.sourceColumnMetadata
       },
       approvedMapping: validation.mappingValidation.mapping,
+      semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null,
       sourceDescriptor: {
+        ...(context.sourceDescriptor || packageSourceDescriptorForImport(context.packageType, context.sourceLabel, context)),
         sourceLabel: context.sourceLabel,
         sourceType: context.sourceType || "upload"
       },
@@ -16515,6 +16886,19 @@ if (navToggleButton) {
   navToggleButton.addEventListener("click", handleNavigationControl);
 }
 document.addEventListener("change", event => {
+  const historyPolicySelect = event.target.closest?.("[data-history-policy]");
+  if (historyPolicySelect) {
+    updateHistorySemanticPolicy(historyPolicySelect.dataset.policySection, historyPolicySelect.dataset.policyKey, historyPolicySelect.value);
+    return;
+  }
+  if (event.target.matches?.("[data-history-as-of-date]")) {
+    updateHistoryAnalysisAsOfDate(event.target.value);
+    return;
+  }
+  if (event.target.matches?.("[data-history-interpretation-confirm]")) {
+    confirmHistoryInterpretationReview(event.target.checked);
+    return;
+  }
   const trustPolicySelect = event.target.closest?.("[data-input-trust-policy]");
   if (trustPolicySelect) {
     updateInputTrustPolicy(trustPolicySelect.dataset.sourceIndex, trustPolicySelect.dataset.policyKey, trustPolicySelect.value);
@@ -16580,6 +16964,8 @@ function createObsoliqTestBridge() {
     schemaProfilerForTest: ObsoliQModules.data.schemaProfiler,
     inputNormalizationEngineForTest: ObsoliQModules.data.inputNormalizationEngine,
     valueUtilsForTest: ObsoliQModules.core.valueUtils,
+    consumptionHistorySemanticsEngineForTest: ObsoliQModules.data.consumptionHistorySemanticsEngine,
+    consumptionHistoryInterpretationServiceForTest: consumptionHistoryInterpretationService,
     consumptionHistoryBuilderForTest: ObsoliQModules.data.consumptionHistoryBuilder,
     getRegistrySnapshot: () => clonePlainRecord(dataPackageRegistry.snapshot()),
     getRegistryStats: () => clonePlainRecord(dataPackageRegistry.getStats()),
@@ -16849,6 +17235,14 @@ function createObsoliqTestBridge() {
         headers: [...(pendingUploadContext.headers || [])],
         approvedMapping: cloneColumnMapping(pendingUploadContext.approvedMapping || []),
         inputTrustReviewConfirmed: Boolean(pendingUploadContext.inputTrustReviewConfirmed),
+        historyInterpretationReviewConfirmed: Boolean(pendingUploadContext.historyInterpretationReviewConfirmed),
+        historyInterpretationResult: pendingUploadContext.historyInterpretationResult ? {
+          trustState: pendingUploadContext.historyInterpretationResult.trustState,
+          blockingDiagnosticCount: (pendingUploadContext.historyInterpretationResult.blockingDiagnostics || []).length,
+          reviewDiagnosticCount: (pendingUploadContext.historyInterpretationResult.reviewDiagnostics || []).length
+        } : null,
+        historySemanticPolicy: clonePlainRecord(pendingUploadContext.historySemanticPolicy || {}),
+        historySemanticPolicyOverrides: clonePlainRecord(pendingUploadContext.historySemanticPolicyOverrides || {}),
         inputTrustAssessment: pendingUploadContext.inputTrustAssessment ? {
           trustState: pendingUploadContext.inputTrustAssessment.trustState,
           blockingDiagnosticCount: (pendingUploadContext.inputTrustAssessment.blockingDiagnostics || []).length,

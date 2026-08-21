@@ -68,7 +68,7 @@
       },
       description: "Historical consumption signals for later slow-moving and dead-stock intelligence.",
       requiredRelationshipKeys: ["material_id"],
-      recommendedRelationshipKeys: ["material_id", "plant", "period"]
+      recommendedRelationshipKeys: ["material_id", "plant"]
     },
     demand_forecast: {
       packageType: "demand_forecast",
@@ -225,7 +225,9 @@
       asOfDate: value.asOfDate || null,
       periodStart: value.periodStart || null,
       periodEnd: value.periodEnd || null,
-      temporalCoverage: value.temporalCoverage || "unknown"
+      temporalCoverage: value.temporalCoverage || "unknown",
+      analysisAsOf: value.analysisAsOf || null,
+      historyCoverageEnd: value.historyCoverageEnd || null
     };
   }
 
@@ -284,6 +286,7 @@
       qualitySummary: cloneData(input.qualitySummary || previousRecord?.qualitySummary || {}),
       packageValidation: cloneData(input.packageValidation || previousRecord?.packageValidation || {}),
       inputTrustMetadata: cloneData(input.inputTrustMetadata || previousRecord?.inputTrustMetadata || {}),
+      interpretationMetadata: cloneData(input.interpretationMetadata || previousRecord?.interpretationMetadata || {}),
       freshness: normalizeFreshness(input.freshness || previousRecord?.freshness || {}),
       relationshipKeys: normalizeRelationshipKeys(input.relationshipKeys || previousRecord?.relationshipKeys || {}),
       createdAt,

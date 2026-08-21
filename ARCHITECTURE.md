@@ -17,6 +17,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/dataset-builder.js` builds normalized and analytical inventory rows.
 - `js/data/data-package-registry.js` owns session-level Data Package records.
 - `js/data/material-master-builder.js` validates and builds Material Master package payloads.
+- `js/data/consumption-history-semantics-engine.js` owns deterministic Consumption History temporal, movement, unit, event and readiness semantics.
 - `js/data/consumption-history-builder.js` validates and builds optional Consumption History package payloads without touching UI or analytical state.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
@@ -27,6 +28,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/excess/excess-scenario-engine.js` builds deterministic Excess scenario estimates and unavailable-state explanations.
 - `js/application/package-import-service.js` prepares, validates, builds and transactionally commits non-Inventory Data Packages.
 - `js/application/input-trust-service.js` orchestrates source profiling, mapping evidence, normalization policy and trust-state decisions.
+- `js/application/consumption-history-interpretation-service.js` prepares and revalidates package-specific Consumption History interpretation policy and diagnostics.
 - `js/application/inventory-enrichment-service.js` orchestrates Inventory-to-Material-Master matching and enrichment outside the UI layer.
 - `js/application/excess-analysis-service.js` composes Excess cases, owner context, relationship quality, scoring and scenarios for the UI.
 - `js/application/excess-pilot-review-service.js` owns session-only Excess Pilot Review records, case fingerprints, lifecycle reconciliation, summaries, export rows and snapshot/restore behavior.
@@ -41,6 +43,20 @@ Consumption History enters the MVP through the existing non-Inventory Package Im
 The builder is a pure data module. It does not read DOM state, UI filters, runtime inventory arrays, translations or rendering helpers. It receives source rows, headers, source column metadata, mapping and source metadata, then returns a package payload with normalized rows, diagnostics, relationship keys and freshness metadata.
 
 The package is stored as `consumption_history` with schema version `consumption-history-v1`. It is visible in Data Foundation as an optional intelligence source. AP 16.4a deliberately does not join Consumption History into Inventory Snapshot, Material Master, Recovery, Data Quality, Action Cockpit, Opportunity Score, scenario or Pilot Review calculations.
+
+## AP 16.4b Temporal, Movement And Unit Semantics
+
+AP 16.4b adds one interpretation boundary before the existing Consumption History Builder. After the AP 16.4b.1 closure, the full flow is:
+
+Source Mapping -> Physical History Source Identity -> Applied/Proposed History Policy -> Policy Reconciliation -> History Interpretation -> Explicit Review -> Effective Source-Bound Semantic Policy -> Signature Invariant -> Semantics Engine -> Builder -> Package Validation -> Registry Commit -> History Readiness -> Data Foundation.
+
+The Semantics Engine owns date parsing, period parsing, Posting Date / Period consistency, explicit analysis-as-of evaluation, Movement Type semantics, signed/absolute/net quantity separation, unit context, event identity, duplicate semantics and History Readiness.
+
+The Interpretation Service owns source-bound Quantity, Posting Date and Period policies, physical source identity reconciliation, review state, stale-policy diagnostics and semantic-policy signature construction. It is DOM-independent and does not mutate Registry or Inventory state.
+
+The Builder remains responsible for package rows, package validation and build metadata. It reuses the effective source-bound semantic policy and exposes the Builder-side semantic-policy signature for the Package Import Service invariant. The Registry remains responsible for immutable package identity, revision, committed metadata and active package state. Data Foundation is presentation-only for Consumption History availability and History Readiness; it does not calculate readiness.
+
+AP 16.4b explicitly does not create an Inventory relationship, historical metrics, rolling buckets, coverage, run-out, Slow / Dead classification or current KPI impact.
 
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 

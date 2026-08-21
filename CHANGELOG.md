@@ -1,5 +1,77 @@
 # Changelog
 
+## 2026-08-21 - AP 16.4b.1:
+Source-Bound Interpretation & History Readiness Closure
+
+### Fixed
+
+- Bound Consumption Quantity, Posting Date and Period interpretation policies to canonical field, source index, source key and source column.
+- Preserved applied History policies only when the physical source identity remained unchanged.
+- Invalidated stale Quantity, Posting Date and Period policies after remapping.
+- Reset section and top-level History confirmation after physical source changes.
+- Generated new interpretation proposals for newly mapped physical sources.
+- Added physical source identities to the semantic-policy signature.
+- Added blocking source-policy invariants before Builder and Registry commit.
+- Completed the explicit Quantity Scale workflow with visible scale-factor selection.
+- Required valid explicit scale factors and review confirmation.
+- Separated Interpretation Trust from History Readiness in the Mapping Assistant.
+- Used Engine-produced History Readiness instead of deriving readiness from Trust State.
+- Separated Consumption History Package availability from analytical readiness in Data Foundation.
+- Added Analysis-as-of Package provenance.
+- Prevented History Coverage End from becoming Analysis-as-of automatically.
+- Added explicit Excel 1900 and 1904 date-system handling.
+- Added source-policy, remapping, readiness, Data Foundation, scale, as-of, Excel-date-system and rollback tests.
+- Preserved Inventory KPIs, Recovery, Data Quality, Actions, Excess, Opportunity Scores, scenarios and Pilot Reviews.
+
+### Known Limitations
+
+- no Inventory-to-History relationship
+- no rolling historical metrics
+- no last-consumption metric on Inventory
+- no Slow/Dead classification
+- no unit conversion
+- no customer-specific Movement Type rule configuration
+- no Snapshot History
+- no Predictive Analytics
+
+## 2026-08-21 - AP 16.4b:
+Temporal, Movement & Unit Semantics
+
+### Changed
+
+- Added a DOM-independent Consumption History Semantics Engine.
+- Added a package-specific Consumption History Interpretation Service.
+- Added controlled quantity Locale and Scale review for Consumption History.
+- Added controlled Posting Date and Period format review.
+- Added explicit analysis-as-of date ownership without browser-date fallback.
+- Added deterministic date and period normalization without time-zone shifting.
+- Added Posting Date / Period consistency diagnostics.
+- Added future-movement diagnostics against an explicit as-of date.
+- Added versioned Movement Type semantics for the MVP rule set.
+- Preserved negative source quantities without sign-only semantic assumptions.
+- Added signed, absolute and net-consumption quantity fields.
+- Added conservative unit-token normalization without unit conversion.
+- Added entity-level missing and multiple-unit diagnostics.
+- Added separate Entity, Temporal, Event and Unit identities.
+- Added exact-source duplicate, business-duplicate-candidate and legitimate-repeat semantics without automatic deletion.
+- Clarified `package_row_key` as revision-scoped technical identity only.
+- Added deterministic History Readiness metadata and Data Foundation visibility.
+- Added semantic policy signatures and package commit metadata.
+- Added Temporal, Movement, Unit, Duplicate, Readiness, transaction, UI and performance tests.
+- Preserved Inventory KPIs, Recovery, Data Quality, Actions, Excess, Opportunity Scores, scenarios and Pilot Reviews.
+
+### Known Limitations
+
+- no Inventory-to-History relationship
+- no 3M / 6M / 12M metrics
+- no last-consumption date on Inventory
+- no Slow / Dead classification
+- no coverage or run-out
+- no unit conversion
+- no customer-specific Movement Type rule configuration
+- no Snapshot History
+- no Predictive Analytics
+
 ## 2026-08-21 - AP 16.4a:
 Consumption History Contract & Builder
 
