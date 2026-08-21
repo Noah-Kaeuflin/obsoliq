@@ -19,7 +19,8 @@
     "evidence_changed",
     "scenario_changed",
     "relationship_changed",
-    "case_metrics_changed"
+    "case_metrics_changed",
+    "legacy_record_unverified"
   ]);
   const ORPHANED_REASON_CODE = "case_no_longer_present";
   const MISSING_EVIDENCE_OPTIONS = Object.freeze([
@@ -109,10 +110,65 @@
     return allowed.includes(normalized) ? normalized : fallback;
   }
 
+  function isPlainObject(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    if (Object.prototype.toString.call(value) !== "[object Object]") return false;
+    const prototype = Object.getPrototypeOf(value);
+    return prototype === Object.prototype
+      || prototype === null
+      || prototype?.constructor?.name === "Object";
+  }
+
+  function strictNonEmptyString(value, field) {
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(`Invalid Pilot Review input: ${field} must be a non-empty string.`);
+    }
+    return value.trim();
+  }
+
+  function strictPositiveInteger(value, field) {
+    if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+      throw new Error(`Invalid Pilot Review input: ${field} must be a positive integer number.`);
+    }
+    return value;
+  }
+
+  function strictFiniteNumber(value, field) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(`Invalid Pilot Review input: ${field} must be a finite number.`);
+    }
+    return value;
+  }
+
+  function validateNewPilotReviewInput(input = {}) {
+    if (!isPlainObject(input)) {
+      throw new Error("Invalid Pilot Review input: input must be a plain object.");
+    }
+    const identity = {
+      datasetId: strictNonEmptyString(input.datasetId, "datasetId"),
+      caseId: strictNonEmptyString(input.caseId, "caseId"),
+      inventoryRowKey: strictNonEmptyString(input.inventoryRowKey, "inventoryRowKey"),
+      packageId: strictNonEmptyString(input.packageId, "packageId"),
+      packageRevision: strictPositiveInteger(input.packageRevision, "packageRevision"),
+      caseFingerprint: strictNonEmptyString(input.caseFingerprint, "caseFingerprint"),
+      fingerprintVersion: strictNonEmptyString(input.fingerprintVersion, "fingerprintVersion"),
+      caseFingerprintPayload: input.caseFingerprintPayload,
+      opportunityScoreModelVersion: strictNonEmptyString(input.opportunityScoreModelVersion, "opportunityScoreModelVersion"),
+      opportunityScore: strictFiniteNumber(input.opportunityScore, "opportunityScore")
+    };
+    if (!isPlainObject(identity.caseFingerprintPayload)) {
+      throw new Error("Invalid Pilot Review input: caseFingerprintPayload must be a plain object.");
+    }
+    if (identity.caseFingerprint === LEGACY_FINGERPRINT || identity.fingerprintVersion === "legacy") {
+      throw new Error("Invalid Pilot Review input: legacy fingerprints are not valid for new reviews.");
+    }
+    return identity;
+  }
+
   function reviewKey(input = {}) {
     const datasetId = String(input.datasetId || "");
     const caseKey = String(input.caseId || input.inventoryRowKey || "");
-    const fingerprint = String(input.caseFingerprint || LEGACY_FINGERPRINT);
+    const fingerprint = String(input.caseFingerprint || "");
     return `${datasetId}::${caseKey}::${fingerprint}`;
   }
 
@@ -290,38 +346,77 @@
   function createExcessPilotReviewService(options = {}) {
     const clock = typeof options.clock === "function" ? options.clock : () => new Date().toISOString();
     const reviewsByKey = new Map();
+    let reviewSequence = 0;
 
-    function normalizedRecordInput(input = {}, existing = {}) {
-      const datasetId = String(input.datasetId || existing.datasetId || "");
-      const caseId = String(input.caseId || existing.caseId || "");
-      const inventoryRowKey = String(input.inventoryRowKey || existing.inventoryRowKey || "");
-      const caseFingerprint = String(input.caseFingerprint || existing.caseFingerprint || LEGACY_FINGERPRINT);
-      return { datasetId, caseId, inventoryRowKey, caseFingerprint };
+    function nextReviewId() {
+      reviewSequence += 1;
+      return `PILOT-REVIEW-${String(reviewSequence).padStart(6, "0")}`;
+    }
+
+    function reviewIdSuffix(reviewId) {
+      const match = String(reviewId || "").match(/PILOT-REVIEW-(\d+)$/);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function syncReviewSequenceFromRecords(records = [], storedSequence = 0) {
+      const maxExistingSuffix = records.reduce((maximum, review) => Math.max(maximum, reviewIdSuffix(review.reviewId)), 0);
+      reviewSequence = Math.max(reviewSequence, Number.isInteger(storedSequence) && storedSequence > 0 ? storedSequence : 0, maxExistingSuffix);
+      return reviewSequence;
+    }
+
+    function restorePackageRevision(value) {
+      if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+      if (typeof value === "string" && /^\d+$/.test(value.trim()) && Number(value) > 0) return Number(value);
+      return null;
+    }
+
+    function normalizeRestoredReview(review = {}) {
+      if (!review?.datasetId || (!review.caseId && !review.inventoryRowKey)) return null;
+      const hasCurrentFingerprint = Boolean(String(review.caseFingerprint || "").trim())
+        && String(review.caseFingerprint || "") !== LEGACY_FINGERPRINT
+        && String(review.fingerprintVersion || "") !== "legacy";
+      const legacy = !hasCurrentFingerprint;
+      const packageRevision = restorePackageRevision(review.packageRevision);
+      return {
+        ...review,
+        reviewId: String(review.reviewId || ""),
+        datasetId: String(review.datasetId || ""),
+        packageId: String(review.packageId || ""),
+        packageRevision,
+        caseId: String(review.caseId || ""),
+        inventoryRowKey: String(review.inventoryRowKey || ""),
+        caseFingerprint: hasCurrentFingerprint ? String(review.caseFingerprint || "") : LEGACY_FINGERPRINT,
+        fingerprintVersion: hasCurrentFingerprint ? String(review.fingerprintVersion || FINGERPRINT_VERSION) : "legacy",
+        caseFingerprintPayload: isPlainObject(review.caseFingerprintPayload) ? cloneData(review.caseFingerprintPayload) : {},
+        reviewLifecycleStatus: legacy ? "stale" : LIFECYCLE_STATES.includes(review.reviewLifecycleStatus) ? review.reviewLifecycleStatus : "current",
+        reviewLifecycleReasonCodes: legacy
+          ? uniqueList([...(review.reviewLifecycleReasonCodes || []), "legacy_record_unverified"])
+          : uniqueList(review.reviewLifecycleReasonCodes || []),
+        opportunityScore: typeof review.opportunityScore === "number" && Number.isFinite(review.opportunityScore) ? review.opportunityScore : 0,
+        opportunityScoreModelVersion: String(review.opportunityScoreModelVersion || "")
+      };
     }
 
     function recordReview(input = {}) {
-      const identity = normalizedRecordInput(input);
-      if (!identity.datasetId || (!identity.caseId && !identity.inventoryRowKey)) {
-        throw new Error("Pilot Review requires datasetId and caseId or inventoryRowKey.");
-      }
+      const identity = validateNewPilotReviewInput(input);
       const key = reviewKey(identity);
       const existing = reviewsByKey.get(key) || {};
       const timestamp = clock();
       const hasInput = field => Object.prototype.hasOwnProperty.call(input, field);
       const review = {
-        reviewId: existing.reviewId || `PILOT-REVIEW-${String(reviewsByKey.size + 1).padStart(4, "0")}`,
+        reviewId: existing.reviewId || nextReviewId(),
         datasetId: identity.datasetId,
-        packageId: String(input.packageId || existing.packageId || ""),
-        packageRevision: String(input.packageRevision ?? existing.packageRevision ?? ""),
+        packageId: identity.packageId,
+        packageRevision: identity.packageRevision,
         caseId: identity.caseId,
         inventoryRowKey: identity.inventoryRowKey,
         caseFingerprint: identity.caseFingerprint,
-        fingerprintVersion: String(input.fingerprintVersion || existing.fingerprintVersion || (identity.caseFingerprint === LEGACY_FINGERPRINT ? "legacy" : FINGERPRINT_VERSION)),
-        caseFingerprintPayload: cloneData(input.caseFingerprintPayload || existing.caseFingerprintPayload || {}),
+        fingerprintVersion: identity.fingerprintVersion,
+        caseFingerprintPayload: cloneData(identity.caseFingerprintPayload),
         reviewLifecycleStatus: "current",
         reviewLifecycleReasonCodes: [],
-        opportunityScore: Number.isFinite(Number(input.opportunityScore)) ? Number(input.opportunityScore) : Number(existing.opportunityScore || 0),
-        opportunityScoreModelVersion: String(input.opportunityScoreModelVersion || existing.opportunityScoreModelVersion || ""),
+        opportunityScore: identity.opportunityScore,
+        opportunityScoreModelVersion: identity.opportunityScoreModelVersion,
         reviewDisposition: hasInput("reviewDisposition")
           ? enumValue(input.reviewDisposition, REVIEW_DISPOSITIONS, "not_reviewed")
           : existing.reviewDisposition || "not_reviewed",
@@ -554,24 +649,26 @@
     }
 
     function snapshot() {
-      return { serviceVersion: SERVICE_VERSION, reviews: listReviews() };
+      return { serviceVersion: SERVICE_VERSION, snapshotVersion: SERVICE_VERSION, reviewSequence, reviews: listReviews() };
     }
 
-    function restore(snapshotValue = {}) {
+    function restore(snapshotValue = {}, options = {}) {
       reviewsByKey.clear();
-      (Array.isArray(snapshotValue.reviews) ? snapshotValue.reviews : []).forEach(review => {
-        if (!review?.datasetId || (!review.caseId && !review.inventoryRowKey)) return;
-        const normalized = {
-          ...review,
-          caseFingerprint: String(review.caseFingerprint || LEGACY_FINGERPRINT),
-          fingerprintVersion: String(review.fingerprintVersion || (review.caseFingerprint ? FINGERPRINT_VERSION : "legacy")),
-          caseFingerprintPayload: cloneData(review.caseFingerprintPayload || {}),
-          reviewLifecycleStatus: LIFECYCLE_STATES.includes(review.reviewLifecycleStatus) ? review.reviewLifecycleStatus : "current",
-          reviewLifecycleReasonCodes: uniqueList(review.reviewLifecycleReasonCodes || [])
-        };
+      const restored = (Array.isArray(snapshotValue.reviews) ? snapshotValue.reviews : [])
+        .map(normalizeRestoredReview)
+        .filter(Boolean);
+      reviewSequence = 0;
+      syncReviewSequenceFromRecords(restored, snapshotValue.reviewSequence);
+      const usedReviewIds = new Set();
+      restored.forEach(review => {
+        const normalized = { ...review };
+        if (!normalized.reviewId || usedReviewIds.has(normalized.reviewId)) {
+          normalized.reviewId = nextReviewId();
+        }
+        usedReviewIds.add(normalized.reviewId);
         reviewsByKey.set(reviewKey(normalized), cloneData(normalized));
       });
-      return { restored: reviewsByKey.size };
+      return { restored: reviewsByKey.size, reviewSequence, legacyMigrationAllowed: options.allowLegacyMigration !== false };
     }
 
     return Object.freeze({
@@ -583,7 +680,8 @@
       exportRows,
       resetDatasetReviews,
       snapshot,
-      restore
+      restore,
+      validateNewPilotReviewInput
     });
   }
 
@@ -601,6 +699,7 @@
     requiredDataPackageOptions: REQUIRED_PACKAGE_OPTIONS,
     requiredSapFieldOptions: REQUIRED_SAP_FIELD_OPTIONS,
     buildExcessPilotCaseFingerprint,
+    validateNewPilotReviewInput,
     createExcessPilotReviewService
   });
 })(window);

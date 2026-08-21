@@ -6,6 +6,28 @@ The canonical inventory model describes SAP-like inventory rows after source par
 
 The current MVP keeps original source columns visible in the Inventory Explorer while analytical calculations use canonical fields.
 
+## AP 16.3b.1.1 Pilot Review Record Contract
+
+New Pilot Review records require the following identity fields before any Service mutation:
+
+- `datasetId`
+- `caseId`
+- `inventoryRowKey`
+- `packageId`
+- `packageRevision`
+- `caseFingerprint`
+- `fingerprintVersion`
+- `caseFingerprintPayload`
+- `opportunityScoreModelVersion`
+
+`packageRevision` is a strict positive integer. `caseFingerprintPayload` is a non-null plain object. `legacy-review-subject` is invalid for new Review creation, and legacy-shaped records can enter only through explicit restore or migration behavior.
+
+Review IDs are allocated by a Service-owned `reviewSequence`. The sequence is included in snapshot output and restored collision-safely. Older snapshots without a stored sequence derive the sequence from the maximum numeric Review-ID suffix. Dataset-specific Review deletion never permits Review-ID reuse.
+
+Current Review scope is based on the current Dataset, Case identity and Case fingerprint. Historical stale Review existence does not invalidate a current Review. A stale reassessment notice is shown only when no current Review exists; current-plus-history is presented as neutral history.
+
+Relationship navigation reveal behavior is excluded from filtered Summary and Export semantics. Revealing a hidden Excess Case may adjust the visible Excess-only filter controls to show the target, but it is not a persistent analytical override.
+
 ## Source-Data Contract
 
 A parsed source dataset contains:

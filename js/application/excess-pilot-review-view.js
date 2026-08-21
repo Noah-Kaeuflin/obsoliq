@@ -57,9 +57,39 @@
       return reasons.length ? `<small>${html(reasons.join(" · "))}</small>` : "";
     }
 
-    function renderStaleNotice(context = {}) {
+    function sortReviewsNewestFirst(reviews = []) {
+      return [...reviews].sort((a, b) => String(b.updatedAt || b.createdAt || "").localeCompare(String(a.updatedAt || a.createdAt || "")));
+    }
+
+    function renderHistoryNotice(reviews = []) {
+      const history = sortReviewsNewestFirst(reviews);
+      if (!history.length) return "";
+      const count = history.length;
+      const bodyTemplate = count === 1 ? t("pilotHistoryOne") : t("pilotHistoryMany");
+      const body = String(bodyTemplate || "").replace("{count}", String(count));
+      const historyList = count > 1
+        ? `
+          <details class="pilot-review-history-details">
+            <summary>${html(t("pilotHistoricalReview"))}</summary>
+            <ul>
+              ${history.map(review => `<li>${html(review.updatedAt || review.createdAt || t("notAvailable"))} · ${html(review.reviewId || "")}</li>`).join("")}
+            </ul>
+          </details>
+        `
+        : `<small>${html(t("pilotHistoricalReview"))}: ${html(history[0].updatedAt || history[0].createdAt || t("notAvailable"))}</small>`;
+      return `
+        <div class="pilot-review-lifecycle-note history">
+          <strong>${html(t("pilotCurrentHistoryTitle"))}</strong>
+          <span>${html(body)}</span>
+          ${historyList}
+        </div>
+      `;
+    }
+
+    function renderStaleNotice(context = {}, hasCurrentReview = false) {
       const staleReviews = context.staleReviews || [];
       const orphanedReviews = context.orphanedReviews || [];
+      if (hasCurrentReview) return renderHistoryNotice([...staleReviews, ...orphanedReviews]);
       if (!staleReviews.length && !orphanedReviews.length) return "";
       const review = staleReviews[0] || orphanedReviews[0] || {};
       const statusKey = staleReviews.length ? "pilotLifecycleStale" : "pilotLifecycleOrphaned";
@@ -80,11 +110,12 @@
       const item = input.item || {};
       const review = input.review || {};
       const fingerprint = input.fingerprint || {};
+      const hasCurrentReview = Boolean(review.reviewId);
       return `
         <section class="excess-detail-section pilot-review-card" data-pilot-case-id="${html(item.case_id || "")}" data-pilot-row-key="${html(item.inventory_row_key || "")}" data-pilot-fingerprint="${html(fingerprint.fingerprint || "")}">
           <h4>${html(t("pilotReviewTitle"))}</h4>
           <p class="excess-detail-note">${html(t("pilotReviewSubtitle"))}</p>
-          ${renderStaleNotice(input.lifecycle || {})}
+          ${renderStaleNotice(input.lifecycle || {}, hasCurrentReview)}
           <div class="pilot-review-grid">
             ${renderSelect("reviewDisposition", "reviewDisposition", module.reviewDispositions, review.reviewDisposition || "not_reviewed")}
             ${renderSelect("scoreAssessment", "scoreAssessment", module.scoreAssessments, review.scoreAssessment || "not_assessed")}

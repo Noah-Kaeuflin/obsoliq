@@ -60,6 +60,70 @@
     };
   }
 
+  function createView(app, language = "en") {
+    const labels = {
+      en: {
+        pilotReviewTitle: "Pilot Review",
+        pilotReviewSubtitle: "Business feedback",
+        pilotReviewSave: "Save Pilot Review",
+        pilotStaleNoticeTitle: "Previous Pilot Review is outdated",
+        pilotStaleNoticeBody: "The case has changed since the last review. Reassess and save the current state.",
+        pilotOrphanNoticeTitle: "Review without current case",
+        pilotOrphanNoticeBody: "The reviewed excess case no longer exists in the current model.",
+        pilotHistoricalReview: "Historical review",
+        pilotCurrentHistoryTitle: "Current Review available",
+        pilotHistoryOne: "1 previous Review is retained as history.",
+        pilotHistoryMany: "{count} previous Reviews are retained as history.",
+        pilotLifecycleStale: "Stale",
+        pilotLifecycleOrphaned: "Orphaned",
+        notAvailable: "n/a",
+        reviewDisposition: "Review disposition",
+        scoreAssessment: "Score assessment",
+        recommendationAssessment: "Recommendation assessment",
+        scenarioAssessment: "Scenario assessment",
+        missingEvidenceCodes: "Missing evidence",
+        requiredDataPackages: "Required data packages",
+        requiredSapFields: "Required SAP fields",
+        notes: "Notes"
+      },
+      de: {
+        pilotReviewTitle: "Pilotbewertung",
+        pilotReviewSubtitle: "Business-Feedback",
+        pilotReviewSave: "Pilotbewertung speichern",
+        pilotStaleNoticeTitle: "Frühere Pilotbewertung ist veraltet",
+        pilotStaleNoticeBody: "Der Fall hat sich seit der letzten Bewertung geändert. Bitte den aktuellen Stand erneut prüfen und speichern.",
+        pilotOrphanNoticeTitle: "Bewertung ohne aktuellen Case",
+        pilotOrphanNoticeBody: "Der bewertete Excess-Fall existiert im aktuellen Modell nicht mehr.",
+        pilotHistoricalReview: "Historische Bewertung",
+        pilotCurrentHistoryTitle: "Aktuelle Bewertung vorhanden",
+        pilotHistoryOne: "1 frühere Bewertung ist als Historie gespeichert.",
+        pilotHistoryMany: "{count} frühere Bewertungen sind als Historie gespeichert.",
+        pilotLifecycleStale: "Veraltet",
+        pilotLifecycleOrphaned: "Verwaist",
+        notAvailable: "n/v",
+        reviewDisposition: "Review-Ergebnis",
+        scoreAssessment: "Score-Einschätzung",
+        recommendationAssessment: "Empfehlung",
+        scenarioAssessment: "Szenario",
+        missingEvidenceCodes: "Fehlende Evidenz",
+        requiredDataPackages: "Benötigte Datenpakete",
+        requiredSapFields: "Benötigte SAP-Felder",
+        notes: "Notizen"
+      }
+    };
+    return app.ObsoliQ.application.excessPilotReviewView.createExcessPilotReviewView({
+      html: value => String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      })[char]),
+      t: key => labels[language][key] || key,
+      module: app.ObsoliQ.application.excessPilotReviewService
+    });
+  }
+
   test("AP 16.3b.1 Pilot Review service binds reviews to case fingerprints and reconciles lifecycle states", async assert => {
     const app = await helpers.loadProductionApp();
     const module = app.ObsoliQ.application.excessPilotReviewService;
@@ -203,5 +267,50 @@
     });
     assert.equal(orphaned.orphanedCount, 2, "Missing cases should become orphaned");
     assert.ok(orphaned.orphanedReviews[0].reviewLifecycleReasonCodes.includes("case_no_longer_present"), "Orphaned reviews should expose the orphan reason");
+  });
+
+  test("AP 16.3b.1.1 Pilot Review View separates current Reviews from stale history", async assert => {
+    const app = await helpers.loadProductionApp();
+    const view = createView(app, "en");
+    const item = { case_id: "CASE-VIEW", inventory_row_key: "INV-VIEW" };
+    const staleReview = {
+      reviewId: "PILOT-REVIEW-000001",
+      reviewLifecycleStatus: "stale",
+      reviewLifecycleReasonCodes: ["score_changed"],
+      updatedAt: "2026-08-21T09:00:00.000Z"
+    };
+    const olderStaleReview = {
+      reviewId: "PILOT-REVIEW-000002",
+      reviewLifecycleStatus: "stale",
+      reviewLifecycleReasonCodes: ["recommendation_changed"],
+      updatedAt: "2026-08-20T09:00:00.000Z"
+    };
+
+    const emptyHtml = view.renderReviewForm({ item, review: {}, fingerprint: { fingerprint: "fp:view" }, lifecycle: { staleReviews: [] } });
+    assert.equal(emptyHtml.includes("Previous Pilot Review is outdated"), false, "No-review state should not show stale CTA");
+
+    const staleOnlyHtml = view.renderReviewForm({ item, review: {}, fingerprint: { fingerprint: "fp:view" }, lifecycle: { staleReviews: [staleReview] } });
+    assert.ok(staleOnlyHtml.includes("Previous Pilot Review is outdated"), "Stale-without-current should show reassessment CTA");
+
+    const currentPlusHistoryHtml = view.renderReviewForm({
+      item,
+      review: { reviewId: "PILOT-REVIEW-000003", reviewDisposition: "validated" },
+      fingerprint: { fingerprint: "fp:view-current" },
+      lifecycle: { staleReviews: [olderStaleReview, staleReview] }
+    });
+    assert.equal(currentPlusHistoryHtml.includes("Previous Pilot Review is outdated"), false, "Current plus stale history should hide stale CTA");
+    assert.ok(currentPlusHistoryHtml.includes("Current Review available"), "Current plus stale history should show neutral history");
+    assert.ok(currentPlusHistoryHtml.includes("2 previous Reviews are retained as history."), "History count should be pluralized");
+    assert.ok(currentPlusHistoryHtml.indexOf("PILOT-REVIEW-000001") < currentPlusHistoryHtml.indexOf("PILOT-REVIEW-000002"), "Historical Reviews should be ordered newest first");
+
+    const germanView = createView(app, "de");
+    const germanHtml = germanView.renderReviewForm({
+      item,
+      review: { reviewId: "PILOT-REVIEW-000004", reviewDisposition: "validated" },
+      fingerprint: { fingerprint: "fp:view-current-de" },
+      lifecycle: { staleReviews: [staleReview] }
+    });
+    assert.ok(germanHtml.includes("Aktuelle Bewertung vorhanden"), "German neutral history title should render");
+    assert.equal(germanHtml.includes("score_changed"), false, "Raw lifecycle codes should not be visible in localized view copy");
   });
 })();
