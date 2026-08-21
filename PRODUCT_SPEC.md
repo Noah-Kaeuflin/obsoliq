@@ -6,6 +6,22 @@ ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. 
 
 The product helps users move from SAP or Excel inventory data to classification, recovery potential, root cause, recommended action, owner, status tracking and exportable management reporting.
 
+### AP 16.4b.1 — Source-Bound Interpretation & History Readiness Closure
+
+Consumption History interpretation policies are now bound to the exact physical source columns that were reviewed. Quantity, Posting Date and Period policies store `canonicalField`, `sourceIndex`, `sourceKey` and `sourceColumn`, so duplicate visible headers remain distinct and a confirmed policy cannot silently move to another uploaded column.
+
+Policy reconciliation preserves reviewed Quantity, Date and Period settings only when the current mapping still points to the same physical source identity. Remapping invalidates stale section policies, clears section and top-level confirmation and creates a new interpretation proposal. Stale source-bound policies block Builder and Registry commit before a Package or revision is created.
+
+The semantic-policy signature includes source identities, locale/scale choices, date and period formats, explicit scale factors and review-relevant confirmation state. The Package Import Service verifies that the Interpretation Service signature and Builder signature match before commit.
+
+Explicit Quantity Scale is reviewable through a visible scale-factor control. Valid factors are restricted to the supported factors and invalid explicit factors block Apply. Excel serial dates require an explicit `1900` or `1904` date system; the unknown system is review-blocking, and the 1900 phantom leap day is rejected.
+
+Interpretation Trust and History Readiness are separate. Trust describes whether the source interpretation can be applied; History Readiness is produced by the Semantics Engine from temporal, movement, unit and event evidence. Data Foundation therefore shows Consumption History availability separately from analytical readiness.
+
+Analysis-as-of provenance is auditable. Inventory-snapshot-derived as-of dates require Inventory Package ID and Package Revision. `historyCoverageEnd` remains coverage evidence only and is never promoted to analysis-as-of automatically.
+
+AP 16.4b.1 remains analytically isolated. It does not join Consumption History to Inventory, does not calculate rolling historical metrics, does not classify Slow / Dead Stock and does not change Recovery, Data Quality, Actions, Opportunity Score, scenarios or Pilot Reviews.
+
 ### AP 16.4b — Temporal, Movement & Unit Semantics
 
 Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.
@@ -1464,9 +1480,8 @@ These decisions may change what the app shows or how issues are classified, but 
 
 ## Recommended Next Work Block
 
-AP 16.4b: Temporal, Movement & Unit Semantics. This next block should make Consumption History dates, periods, movement types and units deterministic and reviewable before any historical aggregation.
+AP 16.4c: Inventory Relationship & Historical Metrics. This next block should connect accepted Consumption History Packages to Inventory entities and calculate controlled historical metrics after source-bound interpretation is accepted.
 
 Subsequent roadmap:
 
-- AP 16.4c: Inventory Relationship & Historical Metrics
 - AP 16.4d: Slow / Dead Stock Intelligence

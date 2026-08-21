@@ -291,6 +291,23 @@ const translations = {
     historyInterpretation: "History Interpretation",
     historyInterpretationStatus: "Interpretationsstatus",
     historyReadiness: "History Readiness",
+    historyReadinessPreview: "History Readiness Vorschau",
+    historyReady: "Bereit",
+    historyLimited: "Eingeschränkt",
+    historyNotReady: "Nicht bereit",
+    historyUnavailable: "Nicht verfügbar",
+    historyRowsSemantic: "Semantische Zeilen",
+    historyRowsEligible: "Aggregationsfähige Zeilen",
+    temporalCoverage: "Zeitabdeckung",
+    movementCoverage: "Bewegungsabdeckung",
+    unitCoverage: "Einheitenabdeckung",
+    eventIdentityCoverage: "Event-ID-Abdeckung",
+    blockerCount: "Blocker",
+    limitationCount: "Einschränkungen",
+    explicitScaleFactor: "Expliziter Skalierungsfaktor",
+    excelDateSystem: "Excel-Datumssystem",
+    sourceIdentity: "Quellspalte",
+    packageAvailability: "Paketverfügbarkeit",
     historyReviewConfirmed: "Zeit-, Mengen-, Bewegungs- und Einheitensemantik geprüft",
     historyReviewRequired: "Prüfung erforderlich",
     historyBlocked: "Blockiert",
@@ -314,6 +331,13 @@ const translations = {
     historyExactSourceDuplicates: "Exakte Quell-Duplikate",
     historyLegitimateRepeatedMovements: "Wiederholte Bewegungen erkannt",
     historyAnalysisAsOfUnavailable: "Kein Analyse-Stichtag gesetzt",
+    historyAnalysisAsOfProvenanceMissing: "Analyse-Stichtag ohne Paket-Provenienz",
+    historyAnalysisAsOfConfirmationRequired: "Analyse-Stichtag benötigt Bestätigung",
+    historySourcePolicyStale: "Quellgebundene History-Policy ist veraltet",
+    historyExplicitScaleFactorInvalid: "Expliziter Skalierungsfaktor ungültig",
+    historyExplicitScaleFactorReviewRequired: "Expliziter Skalierungsfaktor benötigt Bestätigung",
+    historyExcelDateSystemReviewRequired: "Excel-Datumssystem auswählen",
+    historySemanticSignatureMismatch: "History-Signatur passt nicht zur Build-Policy",
     materialMasterMissingMaterialIdMapping: "Materialnummer-Zuordnung fehlt",
     materialMasterInvalidSourceIdentity: "Ungültige physische Quellspalte",
     materialMasterMissingMaterialIdValues: "Materialnummer fehlt in Zeilen",
@@ -1455,6 +1479,23 @@ const translations = {
     historyInterpretation: "History Interpretation",
     historyInterpretationStatus: "Interpretation Status",
     historyReadiness: "History Readiness",
+    historyReadinessPreview: "History Readiness Preview",
+    historyReady: "Ready",
+    historyLimited: "Limited",
+    historyNotReady: "Not ready",
+    historyUnavailable: "Unavailable",
+    historyRowsSemantic: "Semantic rows",
+    historyRowsEligible: "Aggregation-eligible rows",
+    temporalCoverage: "Temporal coverage",
+    movementCoverage: "Movement coverage",
+    unitCoverage: "Unit coverage",
+    eventIdentityCoverage: "Event identity coverage",
+    blockerCount: "Blockers",
+    limitationCount: "Limitations",
+    explicitScaleFactor: "Explicit Scale Factor",
+    excelDateSystem: "Excel Date System",
+    sourceIdentity: "Source column",
+    packageAvailability: "Package availability",
     historyReviewConfirmed: "Time, quantity, movement and unit semantics reviewed",
     historyReviewRequired: "Review required",
     historyBlocked: "Blocked",
@@ -1478,6 +1519,13 @@ const translations = {
     historyExactSourceDuplicates: "Exact source duplicates",
     historyLegitimateRepeatedMovements: "Repeated movements detected",
     historyAnalysisAsOfUnavailable: "No analysis as-of date set",
+    historyAnalysisAsOfProvenanceMissing: "Analysis as-of date is missing Package provenance",
+    historyAnalysisAsOfConfirmationRequired: "Analysis as-of date requires confirmation",
+    historySourcePolicyStale: "Source-bound History policy is stale",
+    historyExplicitScaleFactorInvalid: "Explicit scale factor is invalid",
+    historyExplicitScaleFactorReviewRequired: "Explicit scale factor requires confirmation",
+    historyExcelDateSystemReviewRequired: "Select Excel date system",
+    historySemanticSignatureMismatch: "History signature does not match build policy",
     materialMasterMissingMaterialIdMapping: "Material number mapping is missing",
     materialMasterInvalidSourceIdentity: "Invalid physical source column",
     materialMasterMissingMaterialIdValues: "Material number missing in rows",
@@ -12800,6 +12848,13 @@ function dataFoundationSourceState(packageRecord) {
   return { className: "available", label: t("packageAvailable") };
 }
 
+function consumptionHistoryReadiness(packageRecord) {
+  return packageRecord?.buildData?.buildMetadata?.historyReadiness
+    || packageRecord?.interpretationMetadata?.historyReadiness
+    || packageRecord?.packageValidation?.historyReadiness
+    || null;
+}
+
 function relationshipCompatibilityState(readiness) {
   const statusKey = readiness?.statusKey || "missing";
   if (currentInventoryMaterialMasterRelationship?.status === "executed") {
@@ -12821,8 +12876,10 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
     meta.push(packageRowsText(packageRecord));
     if (packageRecord.freshness?.importedAt) meta.push(`${t("packageImportedAt")}: ${formatDateTime(packageRecord.freshness.importedAt)}`);
     if (options.showGranularity) meta.push(`${t("packageGranularity")}: ${packageGranularityLabel(packageRecord)}`);
-    if (packageRecord.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE && packageRecord.buildData?.buildMetadata?.historyReadiness?.status) {
-      meta.push(`${t("historyReadiness")}: ${packageRecord.buildData.buildMetadata.historyReadiness.status}`);
+    if (packageRecord.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+      const readiness = consumptionHistoryReadiness(packageRecord);
+      if (readiness?.status) meta.push(`${t("historyReadiness")}: ${historyReadinessStatusLabel(readiness.status)}`);
+      if (Number.isFinite(Number(readiness?.readyRowCount))) meta.push(`${t("historyRowsEligible")}: ${formatCount(readiness.readyRowCount)}`);
     }
   }
   const actionKey = options.importActionType === CONSUMPTION_HISTORY_PACKAGE_TYPE
@@ -14493,6 +14550,7 @@ function historyInterpretationForContext(context, mapping) {
     sourceColumnMetadata: context.sourceColumnMetadata,
     mapping,
     sourceDescriptor: {
+      ...(context.sourceDescriptor || {}),
       sourceLabel: context.sourceLabel,
       sourceType: context.sourceType || "upload"
     },
@@ -14506,12 +14564,31 @@ function historyInterpretationStatusLabel(state) {
   return t("historyTrusted");
 }
 
+function historyReadinessStatusLabel(state) {
+  if (state === "ready") return t("historyReady");
+  if (state === "limited") return t("historyLimited");
+  if (state === "not_ready" || state === "critical") return t("historyNotReady");
+  return t("historyUnavailable");
+}
+
+function formatReadinessRatio(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return t("notAvailable");
+  return formatQualityPercent(numeric * 100);
+}
+
+function renderHistorySourceIdentity(section = {}) {
+  if (!section.sourceColumn && section.sourceIndex === null) return "";
+  return `<small>${html(t("sourceIdentity"))}: ${html(section.sourceColumn || section.sourceKey || "-")} · #${html(String(section.sourceIndex ?? "-"))}</small>`;
+}
+
 function renderHistoryInterpretationSummaryBadges(result) {
   if (!result) return "";
   const issueCount = (result.diagnostics || []).length;
+  const readiness = result.historyReadiness || {};
   return `
     <span class="${result.trustState === "trusted" ? "" : "warning"}"><span>${html(t("historyInterpretationStatus"))}</span><strong>${html(historyInterpretationStatusLabel(result.trustState))}</strong></span>
-    <span><span>${html(t("historyReadiness"))}</span><strong>${html(result.trustState === "trusted" ? t("ok") : t("warning"))}</strong></span>
+    <span class="${readiness.status === "ready" ? "" : "warning"}"><span>${html(result.readinessPreview ? t("historyReadinessPreview") : t("historyReadiness"))}</span><strong>${html(historyReadinessStatusLabel(readiness.status))}</strong></span>
     <span class="${issueCount ? "warning" : ""}"><span>${html(t("warningCount"))}</span><strong>${html(formatCount(issueCount))}</strong></span>
   `;
 }
@@ -14527,22 +14604,51 @@ function renderHistoryPolicySelect(section, key, selected, options) {
 function renderHistoryInterpretationIssues(result = {}, context = {}) {
   if (!result || (context.packageType || INVENTORY_PACKAGE_TYPE) !== CONSUMPTION_HISTORY_PACKAGE_TYPE) return "";
   const policy = result.effectivePolicy || {};
+  const readiness = result.historyReadiness || {};
   const diagnostics = [
     ...(result.blockingDiagnostics || []).map(diagnostic => ({ ...diagnostic, type: "error" })),
     ...(result.reviewDiagnostics || []).map(diagnostic => ({ ...diagnostic, type: "warning" }))
   ].slice(0, 8);
+  const explicitScaleControl = policy.quantity?.scaleSource === "explicit" ? `
+    <label>${html(t("explicitScaleFactor"))}
+      ${renderHistoryPolicySelect("quantity", "sourceScaleFactor", policy.quantity?.sourceScaleFactor || 1, [[1, "1"], [1000, "1.000"], [1000000, "1.000.000"], [1000000000, "1.000.000.000"]])}
+    </label>
+  ` : "";
+  const excelDateSystemControl = policy.postingDate?.dateFormat === "excel-serial" ? `
+    <label>${html(t("excelDateSystem"))}
+      ${renderHistoryPolicySelect("postingDate", "excelDateSystem", policy.postingDate?.excelDateSystem || "", [["", t("historyReviewRequired")], ["1900", "1900"], ["1904", "1904"]])}
+    </label>
+  ` : "";
+  const readinessEvidence = `
+    <div class="input-trust-controls history-readiness-evidence">
+      <span>${html(t("historyRowsSemantic"))}: <strong>${html(formatCount(readiness.rowCount || 0))}</strong></span>
+      <span>${html(t("historyRowsEligible"))}: <strong>${html(formatCount(readiness.readyRowCount || 0))}</strong></span>
+      <span>${html(t("temporalCoverage"))}: <strong>${html(formatReadinessRatio(readiness.temporalCoverageRatio))}</strong></span>
+      <span>${html(t("movementCoverage"))}: <strong>${html(formatReadinessRatio(readiness.movementSemanticsCoverageRatio))}</strong></span>
+      <span>${html(t("unitCoverage"))}: <strong>${html(formatReadinessRatio(readiness.unitCoverageRatio))}</strong></span>
+      <span>${html(t("eventIdentityCoverage"))}: <strong>${html(formatReadinessRatio(readiness.eventIdentityCoverageRatio))}</strong></span>
+      <span>${html(t("blockerCount"))}: <strong>${html(formatCount(readiness.blockerCount || 0))}</strong></span>
+      <span>${html(t("limitationCount"))}: <strong>${html(formatCount(readiness.limitationCount || 0))}</strong></span>
+    </div>
+  `;
   return `
     <div class="mapping-issues input-trust-issues history-interpretation-issues">
       <div class="mapping-issue ${html(result.trustState === "trusted" ? "ok" : "warning")}">
         <strong>${html(t("historyInterpretation"))}</strong>
-        <span>${html(historyInterpretationStatusLabel(result.trustState))}</span>
+        <span>${html(`${t("historyInterpretationStatus")}: ${historyInterpretationStatusLabel(result.trustState)} · ${result.readinessPreview ? t("historyReadinessPreview") : t("historyReadiness")}: ${historyReadinessStatusLabel(readiness.status)}`)}</span>
         <div class="input-trust-controls">
           ${renderHistoryPolicySelect("quantity", "numericLocale", policy.quantity?.numericLocale || "auto", [["auto", t("auto")], ["de-DE", "de-DE"], ["en-US", "en-US"], ["de-CH", "de-CH"]])}
           ${renderHistoryPolicySelect("quantity", "scaleSource", policy.quantity?.scaleSource || "auto", [["auto", t("auto")], ["header", t("header")], ["cell", t("cell")], ["none", t("none")], ["explicit", t("explicit")]])}
+          ${explicitScaleControl}
           ${renderHistoryPolicySelect("postingDate", "dateFormat", policy.postingDate?.dateFormat || "auto", [["auto", t("auto")], ["yyyy-mm-dd", "YYYY-MM-DD"], ["dd.mm.yyyy", "DD.MM.YYYY"], ["mm/dd/yyyy", "MM/DD/YYYY"], ["yyyymmdd", "YYYYMMDD"], ["excel-serial", "Excel Serial"]])}
+          ${excelDateSystemControl}
           ${renderHistoryPolicySelect("period", "periodFormat", policy.period?.periodFormat || "auto", [["auto", t("auto")], ["yyyy-mm", "YYYY-MM"], ["yyyymm", "YYYYMM"], ["mm/yyyy", "MM/YYYY"]])}
           <label>${html(t("analysisAsOfDate"))}<input class="input-trust-policy-select" type="date" data-history-as-of-date value="${html(policy.analysisAsOf?.date || "")}"></label>
         </div>
+        ${renderHistorySourceIdentity(policy.quantity)}
+        ${renderHistorySourceIdentity(policy.postingDate)}
+        ${renderHistorySourceIdentity(policy.period)}
+        ${readinessEvidence}
       </div>
       ${diagnostics.map(diagnostic => `
         <div class="mapping-issue ${html(diagnostic.type)}">
@@ -14948,6 +15054,8 @@ function restoreAutomaticColumnMapping() {
 
 function updateColumnMappingSelection(sourceIndex, selectedCanonicalField) {
   if (!pendingUploadContext) return;
+  const previousEntry = pendingUploadContext.approvedMapping.find(entry => String(entry.sourceIndex) === String(sourceIndex));
+  const previousField = previousEntry?.selectedCanonicalField || "";
   pendingUploadContext.approvedMapping = pendingUploadContext.approvedMapping.map(entry => {
     if (String(entry.sourceIndex) !== String(sourceIndex)) return entry;
     return {
@@ -14958,6 +15066,13 @@ function updateColumnMappingSelection(sourceIndex, selectedCanonicalField) {
   });
   pendingUploadContext.inputTrustReviewConfirmed = false;
   pendingUploadContext.historyInterpretationReviewConfirmed = false;
+  const historySourceFields = ["consumption_quantity", "posting_date", "period"];
+  if ((pendingUploadContext.packageType || INVENTORY_PACKAGE_TYPE) === CONSUMPTION_HISTORY_PACKAGE_TYPE
+    && (historySourceFields.includes(previousField) || historySourceFields.includes(selectedCanonicalField))) {
+    pendingUploadContext.historySemanticPolicyOverrides = null;
+    pendingUploadContext.historySemanticPolicy = null;
+    pendingUploadContext.historyInterpretationResult = null;
+  }
   mappingAssistantDirty = true;
   renderColumnMappingAssistant();
 }
@@ -14965,13 +15080,17 @@ function updateColumnMappingSelection(sourceIndex, selectedCanonicalField) {
 function updateHistorySemanticPolicy(section, key, value) {
   if (!pendingUploadContext) return;
   const current = pendingUploadContext.historySemanticPolicy || {};
+  const numericValue = key === "sourceScaleFactor" ? Number(value) : value;
   pendingUploadContext.historySemanticPolicyOverrides = {
     ...current,
     ...(pendingUploadContext.historySemanticPolicyOverrides || {}),
     [section]: {
       ...(current[section] || {}),
       ...((pendingUploadContext.historySemanticPolicyOverrides || {})[section] || {}),
-      [key]: key === "sourceScaleFactor" ? Number(value || 1) || 1 : value
+      [key]: key === "sourceScaleFactor" ? numericValue : value,
+      userConfirmed: false,
+      confirmedAt: "",
+      confirmationReason: ""
     },
     reviewConfirmed: false,
     confirmedAt: ""
@@ -14992,7 +15111,8 @@ function updateHistoryAnalysisAsOfDate(value) {
       ...((pendingUploadContext.historySemanticPolicyOverrides || {}).analysisAsOf || {}),
       date: value || "",
       source: value ? "user_confirmed" : "unavailable",
-      userConfirmed: Boolean(value)
+      userConfirmed: Boolean(value),
+      confirmedAt: value ? new Date().toISOString() : ""
     },
     reviewConfirmed: false,
     confirmedAt: ""
@@ -15012,9 +15132,9 @@ function confirmHistoryInterpretationReview(confirmed) {
     ...(pendingUploadContext.historySemanticPolicyOverrides || {}),
     reviewConfirmed: Boolean(confirmed),
     confirmedAt,
-    quantity: { ...(current.quantity || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).quantity || {}), userConfirmed: Boolean(confirmed), confirmedAt },
-    postingDate: { ...(current.postingDate || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).postingDate || {}), userConfirmed: Boolean(confirmed), confirmedAt },
-    period: { ...(current.period || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).period || {}), userConfirmed: Boolean(confirmed), confirmedAt }
+    quantity: { ...(current.quantity || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).quantity || {}), userConfirmed: Boolean(confirmed), confirmedAt, confirmationReason: confirmed ? "user_review" : "" },
+    postingDate: { ...(current.postingDate || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).postingDate || {}), userConfirmed: Boolean(confirmed), confirmedAt, confirmationReason: confirmed ? "user_review" : "" },
+    period: { ...(current.period || {}), ...((pendingUploadContext.historySemanticPolicyOverrides || {}).period || {}), userConfirmed: Boolean(confirmed), confirmedAt, confirmationReason: confirmed ? "user_review" : "" }
   };
   mappingAssistantDirty = true;
   renderColumnMappingAssistant();
@@ -15190,23 +15310,42 @@ function packageImportFeedbackKey(packageType, event) {
   return "materialMasterImportFailed";
 }
 
+function packageSourceDescriptorForImport(packageType, sourceLabel, options = {}) {
+  const descriptor = {
+    sourceLabel,
+    sourceType: options.sourceType || "upload"
+  };
+  if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+    const inventoryPackage = currentInventoryPackage();
+    const asOfDate = inventoryPackage?.freshness?.asOfDate || "";
+    descriptor.analysisAsOf = asOfDate && inventoryPackage?.packageId && Number.isInteger(inventoryPackage.revision) && inventoryPackage.revision > 0
+      ? {
+        date: asOfDate,
+        source: "inventory_snapshot",
+        sourcePackageId: inventoryPackage.packageId,
+        sourcePackageRevision: inventoryPackage.revision
+      }
+      : { date: "", source: "unavailable" };
+  }
+  return descriptor;
+}
+
 function beginPackageImportWithParsedData(parsed, sourceLabel, options = {}) {
   const packageType = options.packageType || MATERIAL_MASTER_PACKAGE_TYPE;
   try {
+    const sourceDescriptor = packageSourceDescriptorForImport(packageType, sourceLabel, options);
     const prepared = packageImportService.prepareImport({
       packageType,
       parsedSource: parsed,
-      sourceDescriptor: {
-        sourceLabel,
-        sourceType: options.sourceType || "upload"
-      }
+      sourceDescriptor
     });
     const mappingState = prepared.mappingState;
     const context = {
       packageType,
       fileName: sourceLabel,
       sourceLabel,
-      sourceType: options.sourceType || "upload",
+      sourceType: sourceDescriptor.sourceType,
+      sourceDescriptor,
       headers: prepared.parsedSource.headers,
       rows: prepared.parsedSource.rows,
       sourceColumnMetadata: prepared.parsedSource.sourceColumnMetadata,
@@ -15335,6 +15474,7 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
     mapping,
     semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null,
     sourceDescriptor: {
+      ...(context.sourceDescriptor || packageSourceDescriptorForImport(context.packageType, context.sourceLabel, context)),
       sourceLabel: context.sourceLabel,
       sourceType: context.sourceType || "upload"
     }
@@ -15372,6 +15512,7 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       approvedMapping: validation.mappingValidation.mapping,
       semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null,
       sourceDescriptor: {
+        ...(context.sourceDescriptor || packageSourceDescriptorForImport(context.packageType, context.sourceLabel, context)),
         sourceLabel: context.sourceLabel,
         sourceType: context.sourceType || "upload"
       },

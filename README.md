@@ -17,6 +17,9 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - Consumption History Package import
 - package-specific Consumption History Mapping
 - package-scoped Consumption History validation and diagnostics
+- deterministic Consumption History temporal, movement and unit interpretation
+- source-bound Consumption History interpretation policies
+- package-scoped History Readiness
 - Input Trust
 - Data Quality and Remediation
 - Recovery calculation
@@ -109,7 +112,10 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - no persistent workflow or multi-user action tracking
 - no enterprise security layer
 - Consumption History is currently stored as an optional Data Package only
-- no Consumption History temporal interpretation, historical aggregation, Inventory relationship or Slow / Dead intelligence yet
+- no Inventory-to-History relationship
+- no Consumption History historical aggregation
+- no 3M / 6M / 12M historical metrics
+- no Slow / Dead classification from Consumption History yet
 - no predictive analytics
 
 See `PRODUCT_SPEC.md` and `CHANGELOG.md` for current scope and accepted limitations.

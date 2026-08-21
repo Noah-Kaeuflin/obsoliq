@@ -1,5 +1,39 @@
 # Changelog
 
+## 2026-08-21 - AP 16.4b.1:
+Source-Bound Interpretation & History Readiness Closure
+
+### Fixed
+
+- Bound Consumption Quantity, Posting Date and Period interpretation policies to canonical field, source index, source key and source column.
+- Preserved applied History policies only when the physical source identity remained unchanged.
+- Invalidated stale Quantity, Posting Date and Period policies after remapping.
+- Reset section and top-level History confirmation after physical source changes.
+- Generated new interpretation proposals for newly mapped physical sources.
+- Added physical source identities to the semantic-policy signature.
+- Added blocking source-policy invariants before Builder and Registry commit.
+- Completed the explicit Quantity Scale workflow with visible scale-factor selection.
+- Required valid explicit scale factors and review confirmation.
+- Separated Interpretation Trust from History Readiness in the Mapping Assistant.
+- Used Engine-produced History Readiness instead of deriving readiness from Trust State.
+- Separated Consumption History Package availability from analytical readiness in Data Foundation.
+- Added Analysis-as-of Package provenance.
+- Prevented History Coverage End from becoming Analysis-as-of automatically.
+- Added explicit Excel 1900 and 1904 date-system handling.
+- Added source-policy, remapping, readiness, Data Foundation, scale, as-of, Excel-date-system and rollback tests.
+- Preserved Inventory KPIs, Recovery, Data Quality, Actions, Excess, Opportunity Scores, scenarios and Pilot Reviews.
+
+### Known Limitations
+
+- no Inventory-to-History relationship
+- no rolling historical metrics
+- no last-consumption metric on Inventory
+- no Slow/Dead classification
+- no unit conversion
+- no customer-specific Movement Type rule configuration
+- no Snapshot History
+- no Predictive Analytics
+
 ## 2026-08-21 - AP 16.4b:
 Temporal, Movement & Unit Semantics
 

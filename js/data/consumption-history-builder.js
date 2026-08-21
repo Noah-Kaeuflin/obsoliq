@@ -234,14 +234,34 @@
     });
   }
 
-  function parseNumericField(rawValue, fieldKey) {
+  function localeOverrideForPolicy(policy = {}) {
+    if (policy.numericLocale === "de-DE") return "de";
+    if (policy.numericLocale === "en-US") return "en";
+    if (policy.numericLocale === "de-CH") return "swiss";
+    return "";
+  }
+
+  function numericPolicyForField(fieldKey, semanticPolicy = {}) {
+    if (fieldKey === "consumption_quantity") return semanticPolicy.quantity || {};
+    return {};
+  }
+
+  function parseNumericField(rawValue, fieldKey, entry = null, semanticPolicy = {}) {
+    const fieldPolicy = numericPolicyForField(fieldKey, semanticPolicy);
+    const headerHints = valueUtils.extractSourceHeaderHints(entry?.sourceColumn || entry?.originalHeader || "");
     return valueUtils.parseLocalizedNumericValue({
       rawValue,
       fieldDefinition: {
         ...(CONSUMPTION_HISTORY_FIELD_DEFINITIONS[fieldKey] || { type: "number" }),
         fieldKey
       },
-      normalizationPolicy: { allowAmbiguousFallback: true }
+      headerHints,
+      normalizationPolicy: {
+        allowAmbiguousFallback: true,
+        localeOverride: localeOverrideForPolicy(fieldPolicy),
+        scaleSource: fieldPolicy.scaleSource === "auto" ? "" : fieldPolicy.scaleSource || "",
+        sourceScaleFactor: fieldPolicy.sourceScaleFactor
+      }
     });
   }
 
@@ -249,13 +269,13 @@
     return String(value ?? "").trim();
   }
 
-  function normalizeMappedPreviewRow(row = {}, index = 0, entries = [], sourceColumnMetadata = []) {
+  function normalizeMappedPreviewRow(row = {}, index = 0, entries = [], sourceColumnMetadata = [], semanticPolicy = {}) {
     const item = { __sourceRowIndex: row?.__sourceRowIndex ?? index + 1 };
     entries.forEach(entry => {
       const fieldKey = entry.selectedCanonicalField;
       const rawValue = sourceValue(row, entry, sourceColumnMetadata);
       if (["consumption_quantity", "consumption_value", "movement_count"].includes(fieldKey)) {
-        const parseResult = parseNumericField(rawValue, fieldKey);
+        const parseResult = parseNumericField(rawValue, fieldKey, entry, semanticPolicy);
         item[fieldKey] = parseResult.status === "valid" && Number.isFinite(parseResult.normalizedValue)
           ? parseResult.normalizedValue
           : rawValue;
@@ -299,6 +319,7 @@
     const sourceRows = Array.isArray(input.sourceRows) ? input.sourceRows : [];
     const sourceColumnMetadata = Array.isArray(input.sourceColumnMetadata) ? input.sourceColumnMetadata : [];
     const columnMapping = Array.isArray(input.columnMapping) ? input.columnMapping : [];
+    const semanticPolicy = input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {};
     const mappingValidation = mappingEngine.validateColumnMapping(columnMapping, mappingOptions(sourceColumnMetadata));
     const approvedEntries = validMappingEntries(mappingValidation.mapping, sourceColumnMetadata);
     const invalidPhysicalMappings = (mappingValidation.mapping || []).filter(entry => (
@@ -312,7 +333,7 @@
     const plantEntry = approvedEntries.find(entry => entry.selectedCanonicalField === "plant") || null;
     const baseUnitEntry = approvedEntries.find(entry => entry.selectedCanonicalField === "base_unit") || null;
     const temporalFields = temporalFieldsFromEntries(approvedEntries);
-    const normalizedPreview = sourceRows.map((row, index) => normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata));
+    const normalizedPreview = sourceRows.map((row, index) => normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata, semanticPolicy));
     const missingMaterialIdCount = materialEntry
       ? normalizedPreview.filter(row => !normalizeText(row.material_id)).length
       : sourceRows.length;
@@ -324,7 +345,7 @@
     let zeroQuantityCount = 0;
     sourceRows.forEach(row => {
       const parseResult = quantityEntry
-        ? parseNumericField(sourceValue(row, quantityEntry, sourceColumnMetadata), "consumption_quantity")
+        ? parseNumericField(sourceValue(row, quantityEntry, sourceColumnMetadata), "consumption_quantity", quantityEntry, semanticPolicy)
         : { status: "missing", normalizedValue: null };
       if (parseResult.status !== "valid" || !Number.isFinite(parseResult.normalizedValue)) {
         invalidQuantityCount += 1;
@@ -405,12 +426,14 @@
       sourceRows,
       sourceColumnMetadata,
       columnMapping,
+      semanticInterpretation: input.semanticInterpretation,
+      semanticPolicy: input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {},
       evaluatedAt: buildTimestamp
     });
     const approvedEntries = sortedEntries(validMappingEntries(validation.mappingValidation.mapping, sourceColumnMetadata));
     const baseRows = sourceRows.map((row, index) => ({
       package_row_key: `CH-${String(index + 1).padStart(6, "0")}`,
-      ...normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata)
+      ...normalizeMappedPreviewRow(row, index, approvedEntries, sourceColumnMetadata, input.semanticInterpretation?.effectivePolicy || input.semanticPolicy || {})
     }));
     const semanticAnalysis = semanticsEngine.analyzeConsumptionHistorySemantics({
       sourceRows,

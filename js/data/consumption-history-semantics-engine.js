@@ -61,7 +61,25 @@
     });
   }
 
-  function parsePostingDate(rawValue, format = "auto") {
+  function excelSerialDate(rawValue, excelDateSystem = "1900") {
+    const raw = normalizeText(rawValue);
+    const serial = Number(raw);
+    const system = String(excelDateSystem || "1900");
+    if (!Number.isFinite(serial) || Math.floor(serial) !== serial) return dateResult("invalid", rawValue, { format: "excel-serial", excelDateSystem: system });
+    if (system === "1904") {
+      if (serial < 0) return dateResult("invalid", rawValue, { format: "excel-serial", excelDateSystem: system });
+      const date = new Date(Date.UTC(1904, 0, 1) + serial * 86400000);
+      return parsedDate(rawValue, date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(), "excel-serial");
+    }
+    if (system !== "1900" || serial < 1 || serial === 60) {
+      return dateResult("invalid", rawValue, { format: "excel-serial", excelDateSystem: system, reasonCode: serial === 60 ? "excel_1900_phantom_leap_day" : "invalid_excel_serial" });
+    }
+    const offset = serial < 60 ? serial : serial - 1;
+    const date = new Date(Date.UTC(1899, 11, 31) + offset * 86400000);
+    return parsedDate(rawValue, date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(), "excel-serial");
+  }
+
+  function parsePostingDate(rawValue, format = "auto", options = {}) {
     const raw = normalizeText(rawValue);
     if (!raw) return dateResult("missing", rawValue);
     const selected = format || "auto";
@@ -90,10 +108,7 @@
       return match ? parsedDate(rawValue, Number(match[1]), Number(match[2]), Number(match[3]), selected) : dateResult("invalid", rawValue, { format: selected });
     }
     if (selected === "excel-serial") {
-      const serial = Number(raw);
-      if (!Number.isFinite(serial) || serial < 1) return dateResult("invalid", rawValue, { format: selected });
-      const date = new Date(Date.UTC(1899, 11, 30) + Math.floor(serial) * 86400000);
-      return parsedDate(rawValue, date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(), selected);
+      return excelSerialDate(rawValue, options.excelDateSystem || "1900");
     }
     return dateResult("invalid", rawValue, { format: selected });
   }
@@ -145,26 +160,48 @@
     return {
       policyVersion: POLICY_VERSION,
       quantity: {
+        canonicalField: "consumption_quantity",
+        sourceIndex: null,
+        sourceKey: "",
+        sourceColumn: "",
         numericLocale: "auto",
         scaleSource: "auto",
         sourceScaleFactor: 1,
         userConfirmed: false,
+        confirmedAt: "",
+        confirmationReason: "",
         ...(policy.quantity || {})
       },
       postingDate: {
+        canonicalField: "posting_date",
+        sourceIndex: null,
+        sourceKey: "",
+        sourceColumn: "",
         dateFormat: "auto",
+        excelDateSystem: "",
         userConfirmed: false,
+        confirmedAt: "",
+        confirmationReason: "",
         ...(policy.postingDate || {})
       },
       period: {
+        canonicalField: "period",
+        sourceIndex: null,
+        sourceKey: "",
+        sourceColumn: "",
         periodFormat: "auto",
         userConfirmed: false,
+        confirmedAt: "",
+        confirmationReason: "",
         ...(policy.period || {})
       },
       analysisAsOf: {
         date: "",
         source: "unavailable",
+        sourcePackageId: "",
+        sourcePackageRevision: null,
         userConfirmed: false,
+        confirmedAt: "",
         ...(policy.analysisAsOf || {})
       },
       movementRuleSet: {
@@ -187,8 +224,28 @@
 
   function resolveAnalysisAsOf(policy) {
     const candidate = parsePostingDate(policy?.analysisAsOf?.date || "", "yyyy-mm-dd");
-    if (candidate.status === "valid" && ["inventory_snapshot", "user_confirmed"].includes(policy?.analysisAsOf?.source)) {
-      return { status: "available", date: candidate.normalizedDate, source: policy.analysisAsOf.source };
+    const source = policy?.analysisAsOf?.source;
+    if (candidate.status === "valid" && source === "inventory_snapshot") {
+      const revision = policy.analysisAsOf.sourcePackageRevision;
+      if (policy.analysisAsOf.sourcePackageId && Number.isInteger(revision) && revision > 0) {
+        return {
+          status: "available",
+          date: candidate.normalizedDate,
+          source,
+          sourcePackageId: policy.analysisAsOf.sourcePackageId,
+          sourcePackageRevision: revision
+        };
+      }
+      return { status: "unavailable", date: "", source: "unavailable", reasonCode: "missing_inventory_snapshot_provenance" };
+    }
+    if (candidate.status === "valid" && source === "user_confirmed") {
+      return {
+        status: "available",
+        date: candidate.normalizedDate,
+        source,
+        userConfirmed: Boolean(policy.analysisAsOf.userConfirmed),
+        confirmedAt: policy.analysisAsOf.confirmedAt || ""
+      };
     }
     return { status: "unavailable", date: "", source: "unavailable" };
   }
@@ -234,7 +291,7 @@
     const semanticRows = packageRows.map((row, index) => {
       const rawPostingDate = normalizeText(row.posting_date);
       const rawPeriod = normalizeText(row.period);
-      const posting = parsePostingDate(row.posting_date, policy.postingDate.dateFormat);
+      const posting = parsePostingDate(row.posting_date, policy.postingDate.dateFormat, { excelDateSystem: policy.postingDate.excelDateSystem });
       const period = parsePeriod(row.period, policy.period.periodFormat);
       const hasValidPosting = posting.status === "valid";
       const hasValidPeriod = period.status === "valid";
@@ -363,6 +420,12 @@
       .filter(Boolean)
       .sort()
       .at(-1) || "";
+    const rowCount = semanticRows.length;
+    const coverageRatio = count => rowCount ? count / rowCount : 0;
+    const temporalValidCount = semanticRows.filter(row => row.temporal_parse_status === "valid").length;
+    const movementKnownCount = semanticRows.filter(row => row.movement_semantic !== "unknown").length;
+    const unitUsableCount = semanticRows.filter(row => row.unit_status === "single").length;
+    const eventCompleteCount = semanticRows.filter(row => row.event_identity_status === "complete").length;
     const diagnostics = [
       ...(temporalInvalidCount ? [diagnostic("historyTemporalInvalid", temporalInvalidCount, "warning")] : []),
       ...(temporalReviewCount ? [diagnostic("historyTemporalReviewRequired", temporalReviewCount, "warning")] : []),
@@ -384,11 +447,17 @@
     const historyReadiness = {
       policyVersion: READINESS_POLICY_VERSION,
       status: readinessStatus,
-      rowCount: semanticRows.length,
+      rowCount,
       readyRowCount: semanticRows.filter(row => row.temporal_status === "valid" && row.aggregation_eligible).length,
       diagnosticCount: diagnostics.length,
       analysisAsOf,
-      historyCoverageEnd
+      historyCoverageEnd,
+      temporalCoverageRatio: coverageRatio(temporalValidCount),
+      movementSemanticsCoverageRatio: coverageRatio(movementKnownCount),
+      unitCoverageRatio: coverageRatio(unitUsableCount),
+      eventIdentityCoverageRatio: coverageRatio(eventCompleteCount),
+      blockerCount: diagnostics.filter(item => item.severity === "error").length,
+      limitationCount: diagnostics.filter(item => item.severity !== "error").length
     };
     return {
       semanticRows,

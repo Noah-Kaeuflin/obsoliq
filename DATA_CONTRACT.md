@@ -95,6 +95,29 @@ Duplicate semantics distinguish exact source duplicates, business duplicate cand
 
 History Readiness is deterministic and package-scoped. It summarizes semantic row count, ready row count, diagnostics, history coverage end and analysis-as-of state. `historyCoverageEnd` is descriptive coverage evidence only and is not an `analysisAsOf` date. It does not change Inventory Data Quality Score, Recovery, Actions, Opportunity Score, scenarios or Pilot Reviews.
 
+### AP 16.4b.1 Source-Bound Interpretation Contract
+
+Quantity, Posting Date and Period interpretation policies are source-bound. Header text alone is not physical identity. Each source-bound section must include:
+
+- `canonicalField`
+- `sourceIndex`
+- `sourceKey`
+- `sourceColumn`
+
+`sourceIndex` is a JavaScript number, must be an integer `>= 0` and is not coerced from text, boolean, `null` or empty string. `sourceKey` must match the current `sourceColumnMetadata[sourceIndex]`. Duplicate visible headers are distinguished by `sourceIndex` and `sourceKey`.
+
+Quantity policy includes `numericLocale`, `scaleSource`, `sourceScaleFactor`, `userConfirmed`, `confirmedAt` and `confirmationReason`. Posting Date policy includes `dateFormat`, `excelDateSystem`, `userConfirmed`, `confirmedAt` and `confirmationReason`. Period policy includes `periodFormat`, `userConfirmed`, `confirmedAt` and `confirmationReason`.
+
+Source-bound confirmation is valid only while the current reviewed Mapping still points to the same physical source identity. If a mapped physical source changes, the previous section policy is stale, confirmation is reset and the top-level History confirmation is invalidated. A stale Quantity, Posting Date or Period policy must block Builder and Registry commit, and failed interpretation or signature-invariant checks must not create a Package, consume a Package ID or create a revision.
+
+The semantic-policy signature includes the physical source identity and review-relevant policy values for Quantity, Posting Date and Period. Package Import verifies the Interpretation Service signature against the Builder signature before commit.
+
+Explicit Quantity Scale requires `scaleSource = "explicit"`, a valid finite `sourceScaleFactor` from the supported factor set and current review confirmation. Invalid explicit factors block Apply. Excel serial-date interpretation requires an explicit `excelDateSystem` of `1900` or `1904`; ObsoliQ does not guess the date system, and the Excel 1900 phantom leap date is invalid.
+
+`analysisAsOf.source = "inventory_snapshot"` requires an Inventory Package ID and positive Package Revision. `historyCoverageEnd` is coverage evidence only and cannot become `analysisAsOf` automatically. Browser date is not a valid analytical as-of source.
+
+Interpretation Trust and History Readiness are separate contracts. Trust describes whether the interpretation policy can be applied. History Readiness is produced by the Semantics Engine from temporal, movement, unit and event evidence. Data Foundation displays Consumption History Package availability separately from analytical History Readiness and does not calculate Readiness.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

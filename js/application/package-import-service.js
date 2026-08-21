@@ -216,7 +216,8 @@
         ok: mappingValidation.valid
           && packageValidation.status !== "invalid"
           && inputTrustResult?.trustState !== "blocked"
-          && interpretationResult?.trustState !== "blocked",
+          && interpretationResult?.trustState !== "blocked"
+          && interpretationResult?.trustState !== "review_required",
         mappingValidation,
         packageValidation,
         inputTrustResult,
@@ -271,6 +272,19 @@
           }
         });
       }
+      if (interpretationResult?.trustState === "review_required") {
+        return freezeResult({
+          ok: false,
+          errorCode: "HISTORY_INTERPRETATION_REVIEW_REQUIRED",
+          interpretationResult,
+          packageValidation: {
+            status: "invalid",
+            statusKey: "history_interpretation_review_required",
+            blockingErrors: interpretationResult.reviewDiagnostics || [],
+            warnings: []
+          }
+        });
+      }
       const buildResult = buildPackageWithBuilder(builder, {
         sourceRows: source.rows,
         headers: source.headers,
@@ -284,6 +298,21 @@
         buildTimestamp: timestamp
       });
       const packageValidation = buildResult.validation || buildResult.packageValidation || {};
+      if (interpretationResult
+        && buildResult.buildMetadata?.semanticPolicySignature
+        && interpretationResult.semanticPolicySignature !== buildResult.buildMetadata.semanticPolicySignature) {
+        return freezeResult({
+          ok: false,
+          errorCode: "HISTORY_SEMANTIC_SIGNATURE_MISMATCH",
+          interpretationResult,
+          packageValidation: {
+            status: "invalid",
+            statusKey: "history_semantic_signature_mismatch",
+            blockingErrors: [{ key: "historySemanticSignatureMismatch", code: "historySemanticSignatureMismatch", severity: "error", count: 1 }],
+            warnings: []
+          }
+        });
+      }
       if (packageValidation.status === "invalid") {
         return freezeResult({
           ok: false,
@@ -323,8 +352,12 @@
           },
           builtAt: timestamp,
           buildMetadata: buildResult.buildMetadata,
+          freshness: buildResult.freshness || null,
           inputTrustMetadata: inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null,
-          interpretationMetadata: interpretationResult?.inputTrustMetadata || buildResult.buildMetadata?.interpretationMetadata || null,
+          interpretationMetadata: {
+            ...(interpretationResult?.inputTrustMetadata || buildResult.buildMetadata?.interpretationMetadata || {}),
+            historyReadiness: buildResult.buildMetadata?.historyReadiness || interpretationResult?.historyReadiness || null
+          },
           normalizedRowCount: buildResult.normalizedRows.length,
           analyticalRowCount: 0,
           excludedSourceRows: [],
@@ -356,7 +389,10 @@
         },
         relationshipKeys: buildResult.relationshipKeys,
         inputTrustMetadata: inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null,
-        interpretationMetadata: interpretationResult?.inputTrustMetadata || null,
+        interpretationMetadata: {
+          ...(interpretationResult?.inputTrustMetadata || {}),
+          historyReadiness: buildResult.buildMetadata?.historyReadiness || interpretationResult?.historyReadiness || null
+        },
         createdAt: timestamp,
         updatedAt: timestamp
       };

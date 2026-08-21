@@ -46,15 +46,15 @@ The package is stored as `consumption_history` with schema version `consumption-
 
 ## AP 16.4b Temporal, Movement And Unit Semantics
 
-AP 16.4b adds one interpretation boundary before the existing Consumption History Builder:
+AP 16.4b adds one interpretation boundary before the existing Consumption History Builder. After the AP 16.4b.1 closure, the full flow is:
 
-Source File -> Mapping -> Consumption History Interpretation -> Effective Semantic Policy -> Semantics Engine -> Consumption History Builder -> Package Validation -> Registry Commit -> History Readiness -> Data Foundation.
+Source Mapping -> Physical History Source Identity -> Applied/Proposed History Policy -> Policy Reconciliation -> History Interpretation -> Explicit Review -> Effective Source-Bound Semantic Policy -> Signature Invariant -> Semantics Engine -> Builder -> Package Validation -> Registry Commit -> History Readiness -> Data Foundation.
 
 The Semantics Engine owns date parsing, period parsing, Posting Date / Period consistency, explicit analysis-as-of evaluation, Movement Type semantics, signed/absolute/net quantity separation, unit context, event identity, duplicate semantics and History Readiness.
 
-The Interpretation Service owns proposal, review state, revalidation and compact interpretation metadata. It is DOM-independent and does not mutate Registry or Inventory state.
+The Interpretation Service owns source-bound Quantity, Posting Date and Period policies, physical source identity reconciliation, review state, stale-policy diagnostics and semantic-policy signature construction. It is DOM-independent and does not mutate Registry or Inventory state.
 
-The Builder remains responsible for package rows, package validation and build metadata. The Registry remains responsible for immutable package identity, revision and active package state.
+The Builder remains responsible for package rows, package validation and build metadata. It reuses the effective source-bound semantic policy and exposes the Builder-side semantic-policy signature for the Package Import Service invariant. The Registry remains responsible for immutable package identity, revision, committed metadata and active package state. Data Foundation is presentation-only for Consumption History availability and History Readiness; it does not calculate readiness.
 
 AP 16.4b explicitly does not create an Inventory relationship, historical metrics, rolling buckets, coverage, run-out, Slow / Dead classification or current KPI impact.
 
