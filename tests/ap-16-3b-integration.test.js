@@ -28,13 +28,23 @@
     const stateBefore = bridge.getExcessPageStateForTest();
     const activeCase = stateBefore.activeCase;
     assert.ok(activeCase, "Sample data should expose an active Excess case");
+    const packageIdentity = bridge.activeInventoryPackageIdentityForTest();
+    const fingerprint = bridge.buildPilotCaseFingerprintForTest({
+      caseRecord: activeCase,
+      packageIdentity,
+      datasetId: bridge.getState().currentDatasetId,
+      scoreModelVersion: activeCase.opportunity_score_model_version
+    });
 
     bridge.recordPilotReviewForTest({
       datasetId: bridge.getState().currentDatasetId,
-      packageId: bridge.getState().activeInventoryPackageId,
-      packageRevision: bridge.getState().activeInventoryPackage?.revision,
+      packageId: packageIdentity.packageId,
+      packageRevision: packageIdentity.packageRevision,
       caseId: activeCase.case_id,
       inventoryRowKey: activeCase.inventory_row_key,
+      caseFingerprint: fingerprint.fingerprint,
+      fingerprintVersion: fingerprint.fingerprintVersion,
+      caseFingerprintPayload: fingerprint.payload,
       opportunityScore: activeCase.excess_opportunity_score,
       opportunityScoreModelVersion: activeCase.opportunity_score_model_version,
       reviewDisposition: "validated",

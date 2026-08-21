@@ -7172,6 +7172,21 @@ body.is-scrolled .main-nav {
   line-height: 1.35;
 }
 
+.pilot-review-lifecycle-note.history {
+  border-color: var(--border);
+  background: var(--panel-2);
+}
+
+.pilot-review-history-details {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pilot-review-history-details ul {
+  margin: 5px 0 0;
+  padding-left: 16px;
+}
+
 .pilot-review-lifecycle-chip {
   justify-self: start;
   padding: 3px 8px;

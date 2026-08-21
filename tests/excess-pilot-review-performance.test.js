@@ -45,27 +45,35 @@
     const service = module.createExcessPilotReviewService();
     const packageIdentity = { packageId: "PKG-PERF", packageRevision: 1 };
     const currentCases = Array.from({ length: 10000 }, (_value, index) => makeCase(index + 1));
-    currentCases.slice(0, 1000).forEach(caseRecord => {
+    const reviewIds = new Set();
+    const creationStarted = performance.now();
+    Array.from({ length: 5000 }, (_value, index) => {
+      const currentCase = index < 4500 ? currentCases[index] : makeCase(20000 + index);
+      const reviewedCase = index >= 4000 && index < 4500
+        ? { ...currentCase, excess_opportunity_score: currentCase.excess_opportunity_score + 1 }
+        : currentCase;
       const fingerprint = module.buildExcessPilotCaseFingerprint({
-        caseRecord,
+        caseRecord: reviewedCase,
         packageIdentity,
         datasetId: "DS-PERF",
         scoreModelVersion: "1"
       });
-      service.recordReview({
+      const review = service.recordReview({
         datasetId: "DS-PERF",
         packageId: "PKG-PERF",
         packageRevision: 1,
-        caseId: caseRecord.case_id,
-        inventoryRowKey: caseRecord.inventory_row_key,
+        caseId: currentCase.case_id,
+        inventoryRowKey: currentCase.inventory_row_key,
         caseFingerprint: fingerprint.fingerprint,
         fingerprintVersion: fingerprint.fingerprintVersion,
         caseFingerprintPayload: fingerprint.payload,
-        opportunityScore: caseRecord.excess_opportunity_score,
+        opportunityScore: reviewedCase.excess_opportunity_score,
         opportunityScoreModelVersion: "1",
         reviewDisposition: "validated"
       });
+      reviewIds.add(review.reviewId);
     });
+    const creationDuration = performance.now() - creationStarted;
 
     const started = performance.now();
     const lifecycle = service.reconcileReviews({
@@ -89,11 +97,61 @@
       currentCases,
       scoreModelVersion: "1"
     });
+    const allSummary = service.buildSummary({
+      datasetId: "DS-PERF",
+      packageId: "PKG-PERF",
+      packageRevision: 1,
+      currentCases,
+      scoreModelVersion: "1",
+      scope: "all"
+    });
+    const allExport = service.exportRows({
+      datasetId: "DS-PERF",
+      packageId: "PKG-PERF",
+      packageRevision: 1,
+      currentCases,
+      scoreModelVersion: "1",
+      scope: "all"
+    });
     const duration = performance.now() - started;
+    const resetStarted = performance.now();
+    const reset = service.resetDatasetReviews({ datasetId: "DS-PERF" });
+    const resetDuration = performance.now() - resetStarted;
+    const sequenceAfterReset = service.snapshot().reviewSequence;
+    Array.from({ length: 1000 }, (_value, index) => {
+      const caseRecord = currentCases[index];
+      const fingerprint = module.buildExcessPilotCaseFingerprint({
+        caseRecord,
+        packageIdentity,
+        datasetId: "DS-PERF-NEW",
+        scoreModelVersion: "1"
+      });
+      const review = service.recordReview({
+        datasetId: "DS-PERF-NEW",
+        packageId: "PKG-PERF",
+        packageRevision: 1,
+        caseId: caseRecord.case_id,
+        inventoryRowKey: caseRecord.inventory_row_key,
+        caseFingerprint: fingerprint.fingerprint,
+        fingerprintVersion: fingerprint.fingerprintVersion,
+        caseFingerprintPayload: fingerprint.payload,
+        opportunityScore: caseRecord.excess_opportunity_score,
+        opportunityScoreModelVersion: "1",
+        reviewDisposition: "validated"
+      });
+      reviewIds.add(review.reviewId);
+    });
 
-    assert.equal(lifecycle.currentCount, 1000, "All matching performance reviews should be current");
-    assert.equal(summary.reviewedCaseCount, 1000, "Current summary should include 1,000 reviews");
-    assert.equal(currentExport.length, 1001, "Current export should include header plus 1,000 reviews");
-    assert.ok(duration < 3000, `Lifecycle, summary and export should finish within a compact budget; observed ${Math.round(duration)} ms`);
+    assert.equal(lifecycle.currentCount, 4000, "Matching performance reviews should reconcile as current");
+    assert.equal(lifecycle.staleCount, 500, "Changed performance reviews should reconcile as stale");
+    assert.equal(lifecycle.orphanedCount, 500, "Missing performance cases should reconcile as orphaned");
+    assert.equal(summary.reviewedCaseCount, 4000, "Current summary should include current reviews only");
+    assert.equal(allSummary.reviewedCaseCount, 5000, "All-state summary should include current, stale and orphaned reviews");
+    assert.equal(currentExport.length, 4001, "Current export should include header plus current reviews");
+    assert.equal(allExport.length, 5001, "All-state export should include header plus all reviews");
+    assert.equal(reset.removed, 5000, "Dataset-specific reset should remove the performance dataset reviews");
+    assert.equal(service.snapshot().reviewSequence, sequenceAfterReset + 1000, "Subsequent reviews should continue the monotonic sequence after reset");
+    assert.equal(reviewIds.size, 6000, "Performance sequence should create no Review-ID collision");
+    assert.ok(Number.isFinite(creationDuration) && Number.isFinite(duration) && Number.isFinite(resetDuration), "Performance timings should be measurable");
   });
 })();

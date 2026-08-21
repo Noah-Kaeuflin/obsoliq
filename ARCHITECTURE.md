@@ -33,6 +33,18 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/excess-pilot-review-controller.js` owns scoped Pilot Review save/export click handling inside the Excess page.
 - `app.js` coordinates UI state, dataset transactions, remediation and rendering.
 
+## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
+
+The Pilot Review Service owns the complete Review contract and lifecycle boundary. It validates new Review identity, generates Review IDs, owns the monotonic `reviewSequence`, computes Case fingerprints, stores Review records, reconciles current/stale/orphaned lifecycle state, builds current and all-state summaries, exports Review rows, and snapshots/restores Review state.
+
+UI validation is only a convenience layer. It does not replace Service validation, and `recordReview()` rejects incomplete new records before any mutation. Normal Review creation cannot create legacy fallback fingerprints. Legacy Review handling is isolated to explicit restore or migration behavior.
+
+The Pilot Review View owns presentation of the current Review form, the stale reassessment notice and the neutral history disclosure. A current Review remains authoritative for the current Case fingerprint even when older stale Reviews exist.
+
+Relationship navigation uses the complete Excess Case model for target lookup, adjusts Excess-only filters only when necessary to reveal a hidden target, calculates the target page, and activates exactly the requested Case. Navigation reveal state is not persistent filter state and does not affect filtered Summary or Export scope.
+
+Pilot Review save operations never create or mutate Package revisions and never recalculate analytical Inventory, Recovery, Data Quality, Action, Opportunity Score or scenario values.
+
 ## Source To Registry Flow
 
 The current data flow is:

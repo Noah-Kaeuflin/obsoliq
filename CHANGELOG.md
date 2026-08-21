@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026-08-21 - AP 16.3b.1.1:
+Pilot Review Contract, Lifecycle UX & Navigation Acceptance Closure
+
+### Fixed
+
+- Enforced the complete Package, Case Fingerprint and score-model identity contract inside the Pilot Review Service.
+- Rejected incomplete new Pilot Review records before state mutation.
+- Restricted legacy Review handling to explicit restore and migration paths.
+- Removed legacy fallback fingerprints from normal Review creation.
+- Replaced Review-ID generation based on Map size with a monotonic Review sequence.
+- Added Review sequence state to snapshot and restore.
+- Prevented Review-ID reuse after Dataset-specific Review deletion.
+- Prevented lifecycle maps from being overwritten by duplicate Review IDs.
+- Removed the stale reassessment warning when a valid current Review exists.
+- Added neutral historical Review information for Cases with current and older stale Reviews.
+- Preserved the reassessment warning only when no current Review exists.
+- Removed persistent Excess filter override behavior from Relationship navigation.
+- Prevented Relationship navigation from silently changing filtered Summary or Export scope.
+- Added strict Service-contract, Review-ID, lifecycle and navigation regression tests.
+- Preserved Recovery, Data Quality, Action, Opportunity Score and scenario semantics.
+
+### Preserved
+
+- Raw Source
+- Input Trust
+- Mapping and Policy invariants
+- Recovery Waterfall
+- Recovery cap
+- Data Quality Score
+- Readiness calculations
+- Issue Ledger
+- Material Master matching
+- fill-missing-only enrichment
+- Owner Function rules
+- Action recommendations
+- Action priority and confidence
+- Opportunity Score model
+- scenario calculations
+- Package identity and revision semantics
+- Preview / Apply
+- Undo / Reset
+- Formula Injection protection
+- German / English
+- Light / Dark Mode
+- file:// local MVP
+
+### Known Limitations
+
+- Pilot Reviews remain session-only.
+- Historical Reviews are not persisted across browser sessions.
+- Opportunity Score remains a transparent prioritization score.
+- scenarios remain assumption-based.
+- no Consumption History.
+- no Snapshot History.
+- no persistent workflow.
+- no SAP connector.
+- no Predictive Analytics.
+
 ## 2026-08-21 - AP 16.3b.1:
 Pilot Review Lifecycle & Package Acceptance Closure
 

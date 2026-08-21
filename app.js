@@ -410,11 +410,14 @@ const translations = {
     pilotReviewExport: "Pilotbewertungen exportieren",
     pilotReviewExportAll: "Historie exportieren",
     noPilotReviewSummary: "Noch keine Pilotbewertungen im aktuellen Datensatz.",
-    pilotStaleNoticeTitle: "Frühere Bewertung nicht mehr aktuell",
-    pilotStaleNoticeBody: "Der Excess-Fall hat sich seit der Bewertung geändert. Bitte neu prüfen und speichern.",
+    pilotStaleNoticeTitle: "Frühere Pilotbewertung ist veraltet",
+    pilotStaleNoticeBody: "Der Fall hat sich seit der letzten Bewertung geändert. Bitte den aktuellen Stand erneut prüfen und speichern.",
     pilotOrphanNoticeTitle: "Bewertung ohne aktuellen Case",
     pilotOrphanNoticeBody: "Der bewertete Excess-Fall existiert im aktuellen Modell nicht mehr.",
     pilotHistoricalReview: "Historische Bewertung",
+    pilotCurrentHistoryTitle: "Aktuelle Bewertung vorhanden",
+    pilotHistoryOne: "1 frühere Bewertung ist als Historie gespeichert.",
+    pilotHistoryMany: "{count} frühere Bewertungen sind als Historie gespeichert.",
     pilotLifecycleCurrent: "Aktuell",
     pilotLifecycleStale: "Veraltet",
     pilotLifecycleOrphaned: "Verwaist",
@@ -433,8 +436,9 @@ const translations = {
     pilotLifecycleReason_scenario_changed: "Szenario geändert",
     pilotLifecycleReason_relationship_changed: "Relationship geändert",
     pilotLifecycleReason_case_metrics_changed: "Case-Werte geändert",
+    pilotLifecycleReason_legacy_record_unverified: "Legacy-Bewertung nicht verifiziert",
     pilotLifecycleReason_case_no_longer_present: "Case nicht mehr vorhanden",
-    excessTargetFilterAdjusted: "Excess-Filter temporär angepasst, um den verknüpften Case zu zeigen.",
+    excessTargetFilterAdjusted: "Excess-Filter wurden angepasst, um den ausgewählten Fall anzuzeigen.",
     excessTargetCaseMissing: "Verknüpfter Excess-Case ist im aktuellen Modell nicht mehr vorhanden.",
     reviewDisposition: "Review-Ergebnis",
     scoreAssessment: "Score-Bewertung",
@@ -1523,11 +1527,14 @@ const translations = {
     pilotReviewExport: "Export Pilot Reviews",
     pilotReviewExportAll: "Export history",
     noPilotReviewSummary: "No Pilot Reviews in the current dataset yet.",
-    pilotStaleNoticeTitle: "Previous review is no longer current",
-    pilotStaleNoticeBody: "This excess case changed after the review. Recheck it and save a new review.",
+    pilotStaleNoticeTitle: "Previous Pilot Review is outdated",
+    pilotStaleNoticeBody: "The case has changed since the last review. Reassess and save the current state.",
     pilotOrphanNoticeTitle: "Review without current case",
     pilotOrphanNoticeBody: "The reviewed excess case no longer exists in the current model.",
     pilotHistoricalReview: "Historical review",
+    pilotCurrentHistoryTitle: "Current Review available",
+    pilotHistoryOne: "1 previous Review is retained as history.",
+    pilotHistoryMany: "{count} previous Reviews are retained as history.",
     pilotLifecycleCurrent: "Current",
     pilotLifecycleStale: "Stale",
     pilotLifecycleOrphaned: "Orphaned",
@@ -1546,8 +1553,9 @@ const translations = {
     pilotLifecycleReason_scenario_changed: "Scenario changed",
     pilotLifecycleReason_relationship_changed: "Relationship changed",
     pilotLifecycleReason_case_metrics_changed: "Case metrics changed",
+    pilotLifecycleReason_legacy_record_unverified: "Legacy review is unverified",
     pilotLifecycleReason_case_no_longer_present: "Case no longer present",
-    excessTargetFilterAdjusted: "Excess filters were temporarily adjusted to show the linked case.",
+    excessTargetFilterAdjusted: "Excess filters were adjusted to show the selected case.",
     excessTargetCaseMissing: "Linked excess case is no longer available in the current model.",
     reviewDisposition: "Review disposition",
     scoreAssessment: "Score assessment",
@@ -2953,7 +2961,6 @@ let currentExcessViewModel = null;
 let currentExcessVisibleRows = [];
 let currentExcessPageRows = [];
 let currentActiveExcessCase = null;
-let excessFilterOverrideCaseId = "";
 let pilotReviewPackageIdentityOverrideForTest = null;
 let excessPageNumber = 1;
 const excessPageSize = 25;
@@ -4709,10 +4716,7 @@ function excessSummaryFromCases(cases = []) {
 
 function filteredExcessRowsFromCases(cases = []) {
   const decorated = decorateExcessCases(cases);
-  const filtered = sortRowsForScope(applyColumnFilters(decorated, "excess"), "excess");
-  if (!excessFilterOverrideCaseId || filtered.some(row => row.case_id === excessFilterOverrideCaseId)) return filtered;
-  const forcedCase = decorated.find(row => row.case_id === excessFilterOverrideCaseId);
-  return forcedCase ? [forcedCase, ...filtered] : filtered;
+  return sortRowsForScope(applyColumnFilters(decorated, "excess"), "excess");
 }
 
 function excessCaseRows(data = applyGlobalBusinessFilters(enrichedRows)) {
@@ -5796,7 +5800,7 @@ function activeInventoryPackageIdentity() {
     return {
       datasetId: String(pilotReviewPackageIdentityOverrideForTest.datasetId ?? currentDatasetId()),
       packageId: String(pilotReviewPackageIdentityOverrideForTest.packageId || ""),
-      packageRevision: String(pilotReviewPackageIdentityOverrideForTest.packageRevision ?? "")
+      packageRevision: pilotReviewPackageIdentityOverrideForTest.packageRevision
     };
   }
   const activePackage = currentInventoryPackage();
@@ -5804,7 +5808,7 @@ function activeInventoryPackageIdentity() {
   return {
     datasetId: currentDatasetId(),
     packageId: sameDataset ? activePackage.packageId : currentDatasetMeta?.packageId || "",
-    packageRevision: sameDataset ? String(activePackage.revision ?? "") : String(currentDatasetMeta?.inventoryPackageRevision ?? "")
+    packageRevision: sameDataset ? activePackage.revision : currentDatasetMeta?.inventoryPackageRevision
   };
 }
 
@@ -5891,7 +5895,7 @@ function savePilotReviewFromButton(button) {
   const caseId = container.dataset.pilotCaseId || "";
   const item = excessCaseById(caseId) || {};
   const packageIdentity = activeInventoryPackageIdentity();
-  if (!packageIdentity.packageId || !packageIdentity.packageRevision) {
+  if (!packageIdentity.packageId || !Number.isInteger(packageIdentity.packageRevision) || packageIdentity.packageRevision <= 0) {
     setFeedback(t("pilotReviewPackageRevisionMissing"), "error", { autoReset: true });
     return;
   }
@@ -5905,7 +5909,7 @@ function savePilotReviewFromButton(button) {
     caseFingerprint: fingerprint.fingerprint,
     fingerprintVersion: fingerprint.fingerprintVersion,
     caseFingerprintPayload: fingerprint.payload,
-    opportunityScore: item.excess_opportunity_score || 0,
+    opportunityScore: Number(item.excess_opportunity_score || 0),
     opportunityScoreModelVersion: pilotReviewScoreModelVersion(item),
     reviewDisposition: container.querySelector('[data-pilot-review-field="reviewDisposition"]')?.value,
     scoreAssessment: container.querySelector('[data-pilot-review-field="scoreAssessment"]')?.value,
@@ -6188,14 +6192,12 @@ function openExcessCaseById(caseId, options = {}) {
     return { status: "missing" };
   }
 
-  const previousOverride = excessFilterOverrideCaseId;
-  excessFilterOverrideCaseId = "";
   const visibleWithoutOverride = filteredExcessRowsFromCases(cases);
   const hiddenByExcessFilters = !visibleWithoutOverride.some(row => row.case_id === targetCaseId);
-  excessFilterOverrideCaseId = previousOverride;
 
   if (hiddenByExcessFilters && options.adjustFilters !== false) {
-    excessFilterOverrideCaseId = targetCaseId;
+    filterState.columnFilters.excess = {};
+    closeColumnFilterPopover();
     setFeedback(t("excessTargetFilterAdjusted"), "ok", { autoReset: true });
   }
 
@@ -16568,7 +16570,7 @@ function createObsoliqTestBridge() {
         totalRows: rows.length,
         pageRows,
         activeCase: currentActiveExcessCase || pageRows.find(row => row.case_id === activeExcessCaseId) || null,
-        filterOverrideCaseId: excessFilterOverrideCaseId
+        filterOverrideCaseId: ""
       });
     },
     getExcessRowsForTest: () => clonePlainArray(getExcessRows()),
@@ -16601,7 +16603,6 @@ function createObsoliqTestBridge() {
     },
     clearColumnFiltersForTest: scope => {
       filterState.columnFilters[scope] = {};
-      if (scope === "excess") excessFilterOverrideCaseId = "";
       renderCurrentView({ syncStateFromControls: false });
       return clonePlainRecord(filterState.columnFilters[scope] || {});
     },
