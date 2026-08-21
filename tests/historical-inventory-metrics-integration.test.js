@@ -33,7 +33,7 @@
         reviewConfirmed: true
       }
     });
-    const runtime = bridge.getHistoricalMetricsRuntimeForTest();
+    const runtime = await bridge.waitForHistoricalMetricsRuntimeForTest();
     const fieldKeys = bridge.historicalInventoryFieldKeysForTest();
     const composedRows = bridge.composeHistoricalInventoryRowsForTest([row]);
     const exportRows = bridge.enrichedRowsForExportForTest([row], { historical: true });
@@ -64,6 +64,7 @@
         reviewConfirmed: true
       }
     });
+    await bridge.waitForHistoricalMetricsRuntimeForTest();
     const panelText = app.document.getElementById("dataPackagesPanel").textContent;
 
     assert.ok(panelText.includes("Verbrauchshistorie") || panelText.includes("Consumption History"), "Data Foundation should show Consumption History availability");

@@ -47,7 +47,7 @@
         reviewConfirmed: true
       }
     });
-    bridge.getHistoricalMetricsRuntimeForTest();
+    await bridge.waitForHistoricalMetricsRuntimeForTest();
     const after = analyticsSnapshot(bridge);
     const registryAfter = bridge.getRegistrySnapshot();
 

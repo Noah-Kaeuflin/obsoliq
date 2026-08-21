@@ -91,6 +91,9 @@ if (!ObsoliQModules.application?.consumptionHistoryInterpretationService) {
 if (!ObsoliQModules.application?.historicalInventoryMetricsService) {
   throw new Error("ObsoliQ Historical Inventory Metrics Service module failed to load.");
 }
+if (!ObsoliQModules.application?.historicalMetricsRuntimeCoordinator) {
+  throw new Error("ObsoliQ Historical Metrics Runtime Coordinator module failed to load.");
+}
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
 }
@@ -194,6 +197,21 @@ const historicalMetricsService = ObsoliQModules.application.historicalInventoryM
   relationshipEngine: ObsoliQModules.data.consumptionHistoryRelationshipEngine,
   aggregationEngine: ObsoliQModules.data.consumptionHistoryAggregationEngine
 });
+let historicalMetricsRuntimeBuildCount = 0;
+let historicalMetricsRuntimeBuildLog = [];
+const historicalMetricsRuntimeCoordinator = ObsoliQModules.application.historicalMetricsRuntimeCoordinator.createHistoricalMetricsRuntimeCoordinator({
+  buildRuntime: input => {
+    historicalMetricsRuntimeBuildCount += 1;
+    historicalMetricsRuntimeBuildLog.push({
+      inputSignature: input?.inputSignature || "",
+      requestedAt: new Date().toISOString()
+    });
+    return historicalMetricsService.buildHistoricalMetricRuntime(input);
+  },
+  scheduleTask: task => window.setTimeout(task, 0),
+  clock: () => new Date().toISOString(),
+  onStateChange: state => handleHistoricalMetricsRuntimeStateChange(state)
+});
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -240,25 +258,37 @@ const translations = {
     consumptionHistoryDesc: "Historische Verbrauchsbewegungen als optionale Intelligence-Quelle importieren.",
     historicalMetrics: "Historische Kennzahlen",
     historicalEvidence: "Historische Evidenz",
-    historyRelationship: "Inventory ↔ History Beziehung",
-    historicalMetricStatus: "Historische Kennzahlen",
+    historyRelationship: "Bestand ↔ Verbrauchshistorie",
+    inventoryConsumptionHistoryRelationship: "Bestand ↔ Verbrauchshistorie",
+    inventoryConsumptionHistoryRelationshipDesc: "Historische Kennzahlen werden nur aus einer gültigen, bestätigten Verbrauchshistorie berechnet.",
+    historicalMetricStatus: "Berechnungsstatus",
+    historicalMetricsNotCalculated: "Noch nicht berechnet",
+    historicalMetricsCalculating: "Historische Kennzahlen werden berechnet ...",
+    historicalMetricsCalculatingBody: "Die Berechnung wurde kontrolliert gestartet. Alte Kennzahlen werden währenddessen nicht angezeigt.",
+    historicalMetricsError: "Fehler",
+    historicalMetricsErrorTitle: "Historische Kennzahlen konnten nicht berechnet werden.",
+    historicalMetricsErrorBody: "Die Berechnung ist fehlgeschlagen. Details stehen in den technischen Angaben.",
     historicalMetricsAvailable: "Verfügbar",
     historicalMetricsLimited: "Eingeschränkt",
     historicalMetricsUnavailable: "Nicht verfügbar",
+    historicalMetricsNotAvailableYet: "Noch nicht verfügbar",
+    historicalMetricsMissingBody: "Importiere eine Verbrauchshistorie, um letzten Verbrauch, 3-/6-/12-Monatsverbrauch, Bestandsreichweite und Verbrauchstrends zu berechnen.",
+    historicalMetricsNotCalculatedBody: "Gültige Eingaben liegen vor, aber für diese Signatur wurde noch keine Berechnung abgeschlossen.",
+    historicalMetricsLimitedBody: "Eingeschränkte Kennzahlen mit {count} Hinweisen.",
     historicalMetricMissing: "Keine Historie",
-    historyAvailability: "Verbrauchshistorie Verfügbarkeit",
+    historyAvailability: "Verfügbarkeit der Verbrauchshistorie",
     historyAvailabilityImported: "Importiert",
     historyAvailabilityMissing: "Nicht importiert",
     historyAvailabilityInvalid: "Ungültig",
-    historicalRelationshipRate: "Exact / Fallback Match Rate",
+    historicalRelationshipRate: "Exakt-/Fallback-Zuordnungsrate",
     historicalMatchedEntities: "Verknüpfte Einheiten",
-    historicalExactMatches: "Exact Matches",
-    historicalFallbackMatches: "Fallback Matches",
-    historicalUnmatched: "Unmatched",
-    historicalAmbiguous: "Ambiguous",
-    historicalInvalid: "Invalid",
+    historicalExactMatches: "Exakte Zuordnungen",
+    historicalFallbackMatches: "Fallback-Zuordnungen",
+    historicalUnmatched: "Nicht zugeordnet",
+    historicalAmbiguous: "Mehrdeutig",
+    historicalInvalid: "Ungültig",
     historicalCoverageRange: "Historische Abdeckung",
-    partialCurrentPeriod: "Teilperiode aktuell",
+    partialCurrentPeriod: "Aktueller Monat unvollständig",
     lastConsumption: "Letzter Verbrauch",
     lastConsumptionPeriod: "Letzte Verbrauchsperiode",
     temporalPrecision: "Zeitliche Präzision",
@@ -272,10 +302,10 @@ const translations = {
     monthsSinceLastConsumption: "Monate seit letztem Verbrauch",
     consumptionTrend: "Verbrauchstrend",
     inventoryCoverage: "Bestandsreichweite",
-    estimatedRunOut: "Geschätzte Reichweite",
-    historyCoverage: "History Coverage",
-    historyCompleteness: "History Completeness",
-    exactMaterialPlant: "Exact Material + Werk",
+    estimatedRunOut: "Geschätzte Monate bis Bestandsabbau",
+    historyCoverage: "Historische Abdeckung",
+    historyCompleteness: "Vollständigkeit der Historie",
+    exactMaterialPlant: "Exakt Material + Werk",
     materialFallback: "Material-Fallback",
     unmatched: "Nicht verknüpft",
     ambiguous: "Mehrdeutig",
@@ -288,13 +318,35 @@ const translations = {
     historyTrend_declining: "Rückläufig",
     historyTrend_stable: "Stabil",
     historyTrend_insufficient_evidence: "Zu wenig Evidenz",
-    historyReason_history_package_missing: "Consumption History nicht importiert",
-    historyReason_history_package_invalid: "Consumption History ungültig",
-    historyReason_history_interpretation_not_trusted: "History-Semantik nicht bestätigt",
-    historyReason_history_not_ready: "History nicht aggregationsbereit",
+    historyReason_inventory_package_missing: "Bestandspaket fehlt",
+    historyReason_history_package_missing: "Verbrauchshistorie nicht importiert",
+    historyReason_history_package_invalid: "Verbrauchshistorie ungültig",
+    historyReason_history_interpretation_not_trusted: "Semantik der Verbrauchshistorie nicht bestätigt",
+    historyReason_history_not_ready: "Verbrauchshistorie nicht aggregationsbereit",
     historyReason_missing_as_of: "Analyse-Stichtag fehlt",
-    historyReason_no_relationship_matches: "Keine belastbare Inventory-History-Verknüpfung",
-    historyReason_relationship_input_not_ready: "Inventory-History-Eingang nicht bereit",
+    historyReason_no_relationship_matches: "Keine belastbare Bestand-Verbrauchshistorie-Verknüpfung",
+    historyReason_relationship_input_not_ready: "Bestand-Verbrauchshistorie-Eingang nicht bereit",
+    historyReason_runtime_build_failed: "Berechnung fehlgeschlagen",
+    packageActive: "Aktiv",
+    packageValidityValid: "Gültig",
+    packageValidityInvalid: "Ungültig",
+    packageValidityUnknown: "Unbekannt",
+    interpretationTrust: "Interpretationsvertrauen",
+    interpretationTrusted: "Bestätigt",
+    interpretationReviewRequired: "Prüfung erforderlich",
+    interpretationBlocked: "Blockiert",
+    interpretationUnavailable: "Nicht verfügbar",
+    historyReadinessReady: "Bereit",
+    historyReadinessLimited: "Eingeschränkt",
+    historyReadinessNotReady: "Nicht bereit",
+    historyReadinessUnavailable: "Nicht verfügbar",
+    metricsAvailable: "Kennzahlen verfügbar",
+    metricsLimited: "Kennzahlen eingeschränkt",
+    metricsUnavailable: "Kennzahlen nicht verfügbar",
+    relationships: "Beziehungen",
+    calculationDuration: "Berechnungsdauer",
+    retryCalculation: "Erneut berechnen",
+    historicalExportUnavailable: "Historische Kennzahlen sind für die aktuelle Signatur noch nicht verfügbar.",
     dataPackagesTitle: "Datenbasis",
     dataPackagesSubtitle: "Kompakter Status der aktiven Datenquellen und ihrer Verknüpfbarkeit.",
     dataFoundation: "Datenbasis",
@@ -358,10 +410,10 @@ const translations = {
     dropImportsInventoryNote: "Drag & Drop importiert aktuell Inventory Snapshots.",
     materialMasterMappingSubtitle: "Prüfen Sie, wie die Materialstammdatei dem ObsoliQ-Datenmodell zugeordnet wird.",
     consumptionHistoryMappingSubtitle: "Prüfen Sie, wie die Verbrauchshistorie dem ObsoliQ-Datenmodell zugeordnet wird. Zeitbezug erforderlich: Buchungsdatum oder Periode.",
-    historyInterpretation: "History Interpretation",
+    historyInterpretation: "Historien-Interpretation",
     historyInterpretationStatus: "Interpretationsstatus",
-    historyReadiness: "History Readiness",
-    historyReadinessPreview: "History Readiness Vorschau",
+    historyReadiness: "Historienbereitschaft",
+    historyReadinessPreview: "Historienbereitschaft Vorschau",
     historyReady: "Bereit",
     historyLimited: "Eingeschränkt",
     historyNotReady: "Nicht bereit",
@@ -662,21 +714,21 @@ const translations = {
     scenarioAssessment_unavailable: "Nicht verfügbar",
     scenarioAssessment_not_relevant: "Nicht relevant",
     scenarioAssessment_not_assessed: "Nicht bewertet",
-    evidenceGap_consumption_history: "Consumption History",
-    evidenceGap_demand_forecast: "Demand Forecast",
-    evidenceGap_purchase_order_details: "Purchase Order Details",
-    evidenceGap_movement_history: "Movement History",
-    evidenceGap_safety_stock: "Safety Stock",
+    evidenceGap_consumption_history: "Verbrauchshistorie",
+    evidenceGap_demand_forecast: "Bedarfsprognose",
+    evidenceGap_purchase_order_details: "Bestelldetails",
+    evidenceGap_movement_history: "Bewegungshistorie",
+    evidenceGap_safety_stock: "Sicherheitsbestand",
     evidenceGap_moq: "MOQ",
-    evidenceGap_owner_reference: "Owner Reference",
-    evidenceGap_material_master_exact_match: "Material Master Exact Match",
-    evidenceGap_quality_details: "Quality Details",
-    requiredPackage_consumption_history: "Consumption History",
-    requiredPackage_demand_forecast: "Demand Forecast",
-    requiredPackage_purchase_orders: "Purchase Orders",
-    requiredPackage_movement_history: "Movement History",
-    requiredPackage_planning_parameters: "Planning Parameters",
-    requiredPackage_quality: "Quality",
+    evidenceGap_owner_reference: "Owner-Referenz",
+    evidenceGap_material_master_exact_match: "exakter Materialstamm-Match",
+    evidenceGap_quality_details: "Qualitätsdetails",
+    requiredPackage_consumption_history: "Verbrauchshistorie",
+    requiredPackage_demand_forecast: "Bedarfsprognose",
+    requiredPackage_purchase_orders: "Bestellungen",
+    requiredPackage_movement_history: "Bewegungshistorie",
+    requiredPackage_planning_parameters: "Planungsparameter",
+    requiredPackage_quality: "Qualität",
     requiredSapField_material_id: "Materialnummer",
     requiredSapField_plant: "Werk",
     requiredSapField_mrp_controller: "Disponent",
@@ -714,7 +766,7 @@ const translations = {
     exportVariantLabel: "Datenvariante",
     exportVariantOriginal: "Originale Quelldaten",
     exportVariantEnriched: "Angereicherter Analysedatensatz",
-    exportVariantHistorical: "Inventory + historische Kennzahlen",
+    exportVariantHistorical: "Bestand + historische Kennzahlen",
     exportVariantProvenance: "Angereichert mit Provenance",
     exportVariantOriginalDesc: "Nur die unveränderten Originalspalten aus dem Upload.",
     exportVariantEnrichedDesc: "Originalspalten plus angereicherte Materialstammfelder.",
@@ -1487,11 +1539,23 @@ const translations = {
     consumptionHistoryDesc: "Import historical consumption movements as an optional intelligence source.",
     historicalMetrics: "Historical Metrics",
     historicalEvidence: "Historical Evidence",
-    historyRelationship: "Inventory ↔ History Relationship",
-    historicalMetricStatus: "Historical Metrics",
+    historyRelationship: "Inventory ↔ Consumption History",
+    inventoryConsumptionHistoryRelationship: "Inventory ↔ Consumption History",
+    inventoryConsumptionHistoryRelationshipDesc: "Historical metrics are calculated only from a valid and confirmed Consumption History source.",
+    historicalMetricStatus: "Calculation Status",
+    historicalMetricsNotCalculated: "Not calculated",
+    historicalMetricsCalculating: "Calculating historical metrics ...",
+    historicalMetricsCalculatingBody: "The calculation was started in a controlled lifecycle step. Old metrics are not shown while it runs.",
+    historicalMetricsError: "Error",
+    historicalMetricsErrorTitle: "Historical metrics could not be calculated.",
+    historicalMetricsErrorBody: "The calculation failed. Technical details are available in the details section.",
     historicalMetricsAvailable: "Available",
     historicalMetricsLimited: "Limited",
     historicalMetricsUnavailable: "Unavailable",
+    historicalMetricsNotAvailableYet: "Not available yet",
+    historicalMetricsMissingBody: "Import Consumption History to calculate last consumption, 3/6/12-month consumption, inventory coverage and consumption trends.",
+    historicalMetricsNotCalculatedBody: "Valid inputs exist, but no calculation has completed for this signature yet.",
+    historicalMetricsLimitedBody: "Limited metrics with {count} notes.",
     historicalMetricMissing: "No history",
     historyAvailability: "Consumption History Availability",
     historyAvailabilityImported: "Imported",
@@ -1505,7 +1569,7 @@ const translations = {
     historicalAmbiguous: "Ambiguous",
     historicalInvalid: "Invalid",
     historicalCoverageRange: "History Coverage",
-    partialCurrentPeriod: "Partial Current Period",
+    partialCurrentPeriod: "Current Month Incomplete",
     lastConsumption: "Last Consumption",
     lastConsumptionPeriod: "Last Consumption Period",
     temporalPrecision: "Temporal Precision",
@@ -1519,7 +1583,7 @@ const translations = {
     monthsSinceLastConsumption: "Months Since Last Consumption",
     consumptionTrend: "Consumption Trend",
     inventoryCoverage: "Inventory Coverage",
-    estimatedRunOut: "Estimated Run-out",
+    estimatedRunOut: "Estimated Months to Stock Depletion",
     historyCoverage: "History Coverage",
     historyCompleteness: "History Completeness",
     exactMaterialPlant: "Exact Material + Plant",
@@ -1535,13 +1599,35 @@ const translations = {
     historyTrend_declining: "Declining",
     historyTrend_stable: "Stable",
     historyTrend_insufficient_evidence: "Insufficient evidence",
+    historyReason_inventory_package_missing: "Inventory package is missing",
     historyReason_history_package_missing: "Consumption History not imported",
     historyReason_history_package_invalid: "Consumption History invalid",
     historyReason_history_interpretation_not_trusted: "History semantics not confirmed",
     historyReason_history_not_ready: "History not aggregation-ready",
     historyReason_missing_as_of: "Analysis as-of date missing",
-    historyReason_no_relationship_matches: "No reliable Inventory-History relationship",
-    historyReason_relationship_input_not_ready: "Inventory-History input not ready",
+    historyReason_no_relationship_matches: "No reliable Inventory-Consumption History relationship",
+    historyReason_relationship_input_not_ready: "Inventory-Consumption History input not ready",
+    historyReason_runtime_build_failed: "Calculation failed",
+    packageActive: "Active",
+    packageValidityValid: "Valid",
+    packageValidityInvalid: "Invalid",
+    packageValidityUnknown: "Unknown",
+    interpretationTrust: "Interpretation Trust",
+    interpretationTrusted: "Trusted",
+    interpretationReviewRequired: "Review required",
+    interpretationBlocked: "Blocked",
+    interpretationUnavailable: "Unavailable",
+    historyReadinessReady: "Ready",
+    historyReadinessLimited: "Limited",
+    historyReadinessNotReady: "Not ready",
+    historyReadinessUnavailable: "Unavailable",
+    metricsAvailable: "Metrics available",
+    metricsLimited: "Metrics limited",
+    metricsUnavailable: "Metrics unavailable",
+    relationships: "Relationships",
+    calculationDuration: "Calculation duration",
+    retryCalculation: "Retry calculation",
+    historicalExportUnavailable: "Historical metrics are not available for the current signature yet.",
     dataPackagesTitle: "Data Foundation",
     dataPackagesSubtitle: "Compact status of active data sources and relationship compatibility.",
     dataFoundation: "Data Foundation",
@@ -3240,7 +3326,6 @@ let currentDatasetMeta = null;
 let currentInventoryMaterialMasterRelationship = null;
 let currentInventoryEnrichmentDiagnostics = null;
 let currentInventoryEnrichmentProvenance = {};
-let currentHistoricalMetricsRuntime = null;
 let datasetIdentitySequence = 0;
 let feedbackResetTimer = null;
 let activeColumnFilterPopover = null;
@@ -7671,6 +7756,7 @@ function commitCurrentInventoryPackageRevision({
   };
   dataPackageRegistry.enforceRetention(INVENTORY_PACKAGE_TYPE);
   assertActiveInventoryPackageInvariant();
+  onHistoricalMetricInputsChanged({ reason: `${operationType || "inventory_package"}_revision` });
   return registeredPackage;
 }
 
@@ -13004,6 +13090,43 @@ function dataFoundationSourceState(packageRecord) {
   return { className: "available", label: t("packageAvailable") };
 }
 
+function dataFoundationPackageValidityState(packageRecord) {
+  if (!packageRecord) return { key: "unknown", className: "missing", label: t("packageValidityUnknown") };
+  if (packageRecord.status === "invalid" || packageRecord.packageValidation?.statusKey === "invalid") {
+    return { key: "invalid", className: "invalid", label: t("packageValidityInvalid") };
+  }
+  return { key: "valid", className: "available", label: t("packageValidityValid") };
+}
+
+function historyInterpretationTrustState(packageRecord) {
+  if (!packageRecord) return { key: "unavailable", className: "missing", label: t("interpretationUnavailable") };
+  const trustState = packageRecord?.interpretationMetadata?.trustState
+    || packageRecord?.buildData?.interpretationMetadata?.trustState
+    || packageRecord?.buildData?.buildMetadata?.interpretationTrust?.trustState
+    || "trusted";
+  if (trustState === "trusted") return { key: "trusted", className: "available", label: t("interpretationTrusted") };
+  if (trustState === "blocked") return { key: "blocked", className: "invalid", label: t("interpretationBlocked") };
+  return { key: "review_required", className: "warning", label: t("interpretationReviewRequired") };
+}
+
+function historyReadinessDimensionState(readiness) {
+  const status = readiness?.status || "";
+  if (status === "ready") return { key: "ready", className: "available", label: t("historyReadinessReady") };
+  if (status === "limited") return { key: "limited", className: "warning", label: t("historyReadinessLimited") };
+  if (status === "not_ready" || status === "review_required") return { key: "not_ready", className: "invalid", label: t("historyReadinessNotReady") };
+  return { key: "unavailable", className: "missing", label: t("historyReadinessUnavailable") };
+}
+
+function historicalMetricsAvailabilityState(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const status = runtimeState?.status || "not_calculated";
+  if (status === "available") return { key: "available", className: "available", label: t("metricsAvailable") };
+  if (status === "limited") return { key: "limited", className: "warning", label: t("metricsLimited") };
+  if (status === "calculating") return { key: "calculating", className: "warning", label: t("historicalMetricsCalculating") };
+  if (status === "error") return { key: "error", className: "invalid", label: t("historicalMetricsError") };
+  if (status === "unavailable") return { key: "unavailable", className: "missing", label: t("metricsUnavailable") };
+  return { key: "not_calculated", className: "warning", label: t("historicalMetricsNotCalculated") };
+}
+
 function consumptionHistoryReadiness(packageRecord) {
   return packageRecord?.buildData?.buildMetadata?.historyReadiness
     || packageRecord?.interpretationMetadata?.historyReadiness
@@ -13155,34 +13278,160 @@ function renderRelationshipReadinessItem(readiness) {
   `;
 }
 
-function renderHistoricalMetricsReadinessItem(runtime = ensureHistoricalMetricsRuntime()) {
-  const state = historicalMetricsSummaryState(runtime);
+function formatTriStateNumber(value, calculated) {
+  if (!calculated) return t("notAvailable");
+  const number = Number(value);
+  return Number.isFinite(number) ? formatCount(number) : t("notAvailable");
+}
+
+function formatTriStateBoolean(value, calculated) {
+  if (!calculated) return t("notAvailable");
+  if (value === true) return t("yes");
+  if (value === false) return t("no");
+  return t("notAvailable");
+}
+
+function renderDataFoundationStateNotice({ title, body, className = "missing", action = "" }) {
+  return `
+    <div class="data-foundation-history-state ${html(className)}" aria-live="${className === "warning" ? "polite" : "off"}">
+      <strong>${html(title)}</strong>
+      <p>${html(body)}</p>
+      ${action}
+    </div>
+  `;
+}
+
+function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const state = historicalMetricsSummaryState(runtimeState);
   const summary = state.summary || {};
+  const runtime = state.runtime || null;
   const relationship = runtime?.inventoryHistoryRelationshipResult || {};
+  const calculated = ["available", "limited"].includes(runtimeState?.status) && Boolean(runtime);
+  const reason = runtimeState?.reasonCode || runtime?.reason || "";
+  if (!state.packageRecord) {
+    return `
+      <section class="data-foundation-relationship historical-metrics-readiness missing">
+        <div>
+          <span>${html(t("historicalMetrics"))}</span>
+          <strong>${html(t("historicalMetricsUnavailable"))}</strong>
+        </div>
+        ${renderDataFoundationStateNotice({
+          title: t("historicalMetricsNotAvailableYet"),
+          body: t("historicalMetricsMissingBody"),
+          action: `<button class="secondary data-foundation-inline-action" type="button" data-data-foundation-import-consumption-history>${html(t("importConsumptionHistory"))}</button>`
+        })}
+      </section>
+    `;
+  }
+  if (state.packageRecord.status === "invalid" || state.packageRecord.packageValidation?.statusKey === "invalid") {
+    return `
+      <section class="data-foundation-relationship historical-metrics-readiness invalid">
+        <div>
+          <span>${html(t("historicalMetrics"))}</span>
+          <strong>${html(t("historyAvailabilityInvalid"))}</strong>
+        </div>
+        ${renderDataFoundationStateNotice({
+          title: t("historyAvailabilityInvalid"),
+          body: packageValidationReason(state.packageRecord) || t("historyReason_history_package_invalid"),
+          className: "invalid",
+          action: `<button class="secondary data-foundation-inline-action" type="button" data-data-foundation-import-consumption-history>${html(t("importConsumptionHistory"))}</button>`
+        })}
+      </section>
+    `;
+  }
+  if (runtimeState?.status === "calculating") {
+    return `
+      <section class="data-foundation-relationship historical-metrics-readiness warning" aria-live="polite">
+        <div>
+          <span>${html(t("historicalMetrics"))}</span>
+          <strong>${html(t("historicalMetricsCalculating"))}</strong>
+        </div>
+        ${renderDataFoundationStateNotice({
+          title: t("historicalMetricsCalculating"),
+          body: t("historicalMetricsCalculatingBody"),
+          className: "warning"
+        })}
+      </section>
+    `;
+  }
+  if (runtimeState?.status === "error") {
+    return `
+      <section class="data-foundation-relationship historical-metrics-readiness invalid">
+        <div>
+          <span>${html(t("historicalMetrics"))}</span>
+          <strong>${html(t("historicalMetricsError"))}</strong>
+        </div>
+        ${renderDataFoundationStateNotice({
+          title: t("historicalMetricsErrorTitle"),
+          body: runtimeState.errorMessage || t("historicalMetricsErrorBody"),
+          className: "invalid",
+          action: `<button class="secondary data-foundation-inline-action" type="button" data-data-foundation-retry-history>${html(t("retryCalculation"))}</button>`
+        })}
+      </section>
+    `;
+  }
+  if (runtimeState?.status === "unavailable") {
+    return `
+      <section class="data-foundation-relationship historical-metrics-readiness missing">
+        <div>
+          <span>${html(t("historicalMetrics"))}</span>
+          <strong>${html(t("historicalMetricsUnavailable"))}</strong>
+        </div>
+        ${renderDataFoundationStateNotice({
+          title: t("historicalMetricsUnavailable"),
+          body: translatedCodeLabel(`historyReason_${reason || "history_package_missing"}`, reason || "history_package_missing")
+        })}
+      </section>
+    `;
+  }
+  if (runtimeState?.status === "not_calculated") {
+    return `
+      <section class="data-foundation-relationship historical-metrics-readiness warning">
+        <div>
+          <span>${html(t("historicalMetrics"))}</span>
+          <strong>${html(t("historicalMetricsNotCalculated"))}</strong>
+        </div>
+        ${renderDataFoundationStateNotice({
+          title: t("historicalMetricsNotCalculated"),
+          body: t("historicalMetricsNotCalculatedBody"),
+          className: "warning"
+        })}
+      </section>
+    `;
+  }
   const coverage = summary.historyCoverageStart || summary.historyCoverageEnd
     ? `${summary.historyCoverageStart || "-"} – ${summary.historyCoverageEnd || "-"}`
     : t("notAvailable");
   const matchRate = Number.isFinite(Number(summary.relationshipMatchRate))
     ? formatQualityPercent(Number(summary.relationshipMatchRate || 0) * 100)
     : t("notAvailable");
-  const matched = Number.isFinite(Number(summary.matchedInventoryEntityCount))
-    ? formatCount(summary.matchedInventoryEntityCount)
-    : t("notAvailable");
   const rows = [
-    [t("historyAvailability"), state.packageRecord ? t("historyAvailabilityImported") : t("historyAvailabilityMissing")],
     [t("historicalMetricStatus"), state.label],
     [t("historicalRelationshipRate"), matchRate],
-    [t("historicalMatchedEntities"), matched],
-    [t("historicalExactMatches"), formatCount(summary.exactMatchCount || relationship.exactMatchCount || 0)],
-    [t("historicalFallbackMatches"), formatCount(summary.fallbackMatchCount || relationship.fallbackMatchCount || 0)],
     [t("historicalCoverageRange"), coverage],
-    [t("partialCurrentPeriod"), summary.partialCurrentPeriod ? t("yes") : t("no")]
+    [t("analysisAsOfDate"), summary.analysisAsOfDate || t("notAvailable")]
+  ];
+  const technicalRows = [
+    [t("historicalMatchedEntities"), formatTriStateNumber(summary.matchedInventoryEntityCount, calculated)],
+    [t("historicalExactMatches"), formatTriStateNumber(summary.exactMatchCount ?? relationship.exactMatchCount, calculated)],
+    [t("historicalFallbackMatches"), formatTriStateNumber(summary.fallbackMatchCount ?? relationship.fallbackMatchCount, calculated)],
+    [t("historicalUnmatched"), formatTriStateNumber(summary.unmatchedInventoryCount, calculated)],
+    [t("historicalAmbiguous"), formatTriStateNumber(summary.ambiguousCount, calculated)],
+    [t("historicalInvalid"), formatTriStateNumber(summary.invalidKeyCount, calculated)],
+    [t("includedRows"), formatTriStateNumber(summary.includedRowCount, calculated)],
+    [t("excludedRows"), formatTriStateNumber(summary.excludedRowCount, calculated)],
+    [t("historyCompleteness"), Number.isFinite(Number(summary.historyCompleteness)) ? formatQualityPercent(Number(summary.historyCompleteness) * 100) : t("notAvailable")],
+    [t("partialCurrentPeriod"), formatTriStateBoolean(summary.partialCurrentPeriod, calculated)],
+    [t("packageId"), state.packageRecord.packageId || t("notAvailable")],
+    [t("packageRevision"), state.packageRecord.revision || state.packageRecord.packageRevision || t("notAvailable")],
+    [t("mappingSignature"), runtimeState.completedInputSignature || runtimeState.requestedInputSignature || t("notAvailable")],
+    [t("calculationDuration"), runtimeState.durationMs !== null && runtimeState.durationMs !== undefined ? `${formatCount(runtimeState.durationMs)} ms` : t("notAvailable")]
   ];
   return `
     <section class="data-foundation-relationship historical-metrics-readiness ${html(state.className)}">
       <div>
         <span>${html(t("historicalMetrics"))}</span>
-        <strong>${html(state.label)}</strong>
+        <strong>${html(state.label)}${runtimeState?.status === "limited" ? ` · ${html(t("historicalMetricsLimited"))}` : ""}</strong>
       </div>
       <div class="data-foundation-relationship-grid">
         ${rows.map(([label, value]) => `
@@ -13192,7 +13441,18 @@ function renderHistoricalMetricsReadinessItem(runtime = ensureHistoricalMetricsR
           </div>
         `).join("")}
       </div>
-      ${runtime?.reason ? `<p>${html(translatedCodeLabel(`historyReason_${runtime.reason}`, runtime.reason))}</p>` : ""}
+      ${runtimeState?.status === "limited" ? `<p>${html(t("historicalMetricsLimitedBody").replace("{count}", formatCount((runtimeState.limitationCodes || []).length)))}</p>` : ""}
+      <details class="data-foundation-technical">
+        <summary>${html(t("technicalDetails"))}</summary>
+        <div class="data-foundation-technical-grid">
+          ${technicalRows.map(([label, value]) => `
+            <div class="data-foundation-technical-row">
+              <span>${html(label)}</span>
+              <strong>${html(value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </details>
     </section>
   `;
 }
@@ -13232,27 +13492,84 @@ function dataFoundationSummary(inventoryPackage, materialMasterPackage, readines
   const inventoryReady = Boolean(inventoryPackage && dataFoundationSourceState(inventoryPackage).className === "available");
   const materialReady = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "available");
   const materialInvalid = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "invalid");
-  const coreCount = [inventoryReady, Boolean(materialMasterPackage)].filter(Boolean).length;
-  const optionalCount = Boolean(consumptionHistoryPackage) ? 1 : 0;
-  const coreText = t("dataFoundationSummary").replace("{count}", formatCount(coreCount));
-  const optionalText = t("optionalIntelligenceSummary").replace("{count}", formatCount(optionalCount));
+  const coreReadyCount = Number(inventoryReady) + Number(materialReady);
+  const optionalReadyCount = consumptionHistoryPackage ? 1 : 0;
+  const historyState = consumptionHistoryPackage
+    ? historyReadinessDimensionState(consumptionHistoryReadiness(consumptionHistoryPackage))
+    : { className: "missing", label: t("packageMissing") };
   const quality = currentRelationshipQuality();
+  const chips = [
+    { className: coreReadyCount === 2 ? "available" : materialInvalid ? "invalid" : "missing", text: t("dataFoundationSummary").replace("{count}", formatCount(coreReadyCount)) },
+    { className: optionalReadyCount ? historyState.className : "missing", text: t("optionalIntelligenceSummary").replace("{count}", formatCount(optionalReadyCount)) },
+    { className: inventoryReady ? "available" : "missing", text: `${t("inventoryData")}: ${inventoryReady ? t("packageActive") : t("packageMissing")}` },
+    { className: materialReady ? "available" : materialInvalid ? "invalid" : "missing", text: `${t("materialMaster")}: ${materialReady ? t("packageActive") : materialInvalid ? t("packageInvalid") : t("packageMissing")}` },
+    { className: historyState.className, text: `${t("consumptionHistory")}: ${consumptionHistoryPackage ? historyState.label : t("packageMissing")}` }
+  ];
+  if (inventoryReady && materialReady && quality.status !== "unavailable") {
+    chips.push({
+      className: quality.status === "complete" ? "available" : quality.status === "critical" ? "invalid" : "warning",
+      text: relationshipQualityLabel(quality)
+    });
+  }
   if (inventoryReady && materialReady && quality.status === "complete") {
-    return { className: "complete", icon: "✓", text: `${t("dataFoundationComplete")} · ${optionalText}` };
+    return { className: "complete", icon: "✓", chips };
   }
   if (inventoryReady && materialReady && quality.status === "limited") {
-    return { className: "warning", icon: "›", text: `${coreText} · ${optionalText} · ${relationshipQualityLabel(quality)}` };
+    return { className: "warning", icon: "›", chips };
   }
   if (inventoryReady && materialReady && quality.status === "critical") {
-    return { className: "invalid", icon: "!", text: `${coreText} · ${optionalText} · ${relationshipQualityLabel(quality)}` };
+    return { className: "invalid", icon: "!", chips };
   }
   if (materialInvalid) {
-    return { className: "invalid", icon: "!", text: `${coreText} · ${optionalText} · ${t("materialMaster")} ${t("packageInvalid").toLocaleLowerCase(locale())}` };
+    return { className: "invalid", icon: "!", chips };
   }
   if (!materialMasterPackage) {
-    return { className: "missing", icon: "›", text: `${coreText} · ${optionalText} · ${t("materialMaster")} ${t("packageMissing").toLocaleLowerCase(locale())}` };
+    return { className: "missing", icon: "›", chips };
   }
-  return { className: "warning", icon: "›", text: `${coreText} · ${optionalText} · ${relationshipCompatibilityState(readiness).label}` };
+  return { className: "warning", icon: "›", chips };
+}
+
+function renderDataFoundationSummaryChips(chips = []) {
+  return chips.map(chip => `
+    <span class="data-foundation-summary-chip ${html(chip.className)}">${html(chip.text)}</span>
+  `).join("");
+}
+
+function buildDataFoundationPresentationModel({
+  inventoryPackage,
+  materialMasterPackage,
+  consumptionHistoryPackage,
+  materialMasterRelationshipReadiness,
+  historicalRuntimeState
+}) {
+  const historyReadiness = consumptionHistoryReadiness(consumptionHistoryPackage);
+  return {
+    sources: {
+      inventory: {
+        presence: inventoryPackage ? "imported" : "not_imported",
+        validity: dataFoundationPackageValidityState(inventoryPackage)
+      },
+      materialMaster: {
+        presence: materialMasterPackage ? "imported" : "not_imported",
+        validity: dataFoundationPackageValidityState(materialMasterPackage)
+      },
+      consumptionHistory: {
+        presence: consumptionHistoryPackage ? "imported" : "not_imported",
+        validity: dataFoundationPackageValidityState(consumptionHistoryPackage)
+      }
+    },
+    relationships: {
+      materialMaster: relationshipCompatibilityState(materialMasterRelationshipReadiness),
+      consumptionHistory: {
+        label: t("inventoryConsumptionHistoryRelationship"),
+        state: historicalMetricsAvailabilityState(historicalRuntimeState)
+      }
+    },
+    interpretationTrust: historyInterpretationTrustState(consumptionHistoryPackage),
+    historyReadiness: historyReadinessDimensionState(historyReadiness),
+    historicalMetrics: historicalMetricsAvailabilityState(historicalRuntimeState),
+    historicalRuntimeState
+  };
 }
 
 function renderPackageAvailability() {
@@ -13265,13 +13582,21 @@ function renderPackageAvailability() {
     inventoryPackage,
     materialMasterPackage
   });
+  const historicalRuntimeState = historicalMetricsRuntimeForPresentation();
+  const presentationModel = buildDataFoundationPresentationModel({
+    inventoryPackage,
+    materialMasterPackage,
+    consumptionHistoryPackage,
+    materialMasterRelationshipReadiness: readiness,
+    historicalRuntimeState
+  });
   const summary = dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness, consumptionHistoryPackage);
   target.innerHTML = `
     <details class="data-foundation ${html(summary.className)}" data-data-foundation>
       <summary class="data-foundation-summary">
         <span class="data-foundation-summary-main">
           <span class="data-foundation-summary-icon" aria-hidden="true">${html(summary.icon)}</span>
-          <strong>${html(summary.text)}</strong>
+          <strong>${renderDataFoundationSummaryChips(summary.chips)}</strong>
         </span>
       </summary>
       <div class="data-foundation-detail">
@@ -13281,14 +13606,35 @@ function renderPackageAvailability() {
           ${renderDataFoundationSourceRow("materialMaster", materialMasterPackage, { showGranularity: true, importAction: true })}
           ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, { showGranularity: true, importAction: true, importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE })}
         </div>
+        <div class="data-foundation-section-label">${html(t("relationships"))}</div>
         ${renderRelationshipReadinessItem(readiness)}
-        ${renderHistoricalMetricsReadinessItem(ensureHistoricalMetricsRuntime())}
+        <section class="data-foundation-relationship ${html(presentationModel.relationships.consumptionHistory.state.className)}">
+          <div>
+            <span>${html(t("inventoryConsumptionHistoryRelationship"))}</span>
+            <strong>${html(presentationModel.relationships.consumptionHistory.state.label)}</strong>
+          </div>
+          <p>${html(t("inventoryConsumptionHistoryRelationshipDesc"))}</p>
+        </section>
+        <div class="data-foundation-section-label">${html(t("historicalMetrics"))}</div>
+        ${renderHistoricalMetricsReadinessItem(historicalRuntimeState)}
         <details class="data-foundation-technical">
           <summary>${html(t("technicalDetails"))}</summary>
           <div class="data-foundation-technical-grid">
             ${renderPackageTechnicalDetails(inventoryPackage, "inventoryData")}
             ${renderPackageTechnicalDetails(materialMasterPackage, "materialMaster")}
             ${renderPackageTechnicalDetails(consumptionHistoryPackage, "consumptionHistory")}
+            <div class="data-foundation-technical-row">
+              <span>${html(t("interpretationTrust"))}</span>
+              <strong>${html(presentationModel.interpretationTrust.label)}</strong>
+            </div>
+            <div class="data-foundation-technical-row">
+              <span>${html(t("historyReadiness"))}</span>
+              <strong>${html(presentationModel.historyReadiness.label)}</strong>
+            </div>
+            <div class="data-foundation-technical-row">
+              <span>${html(t("historicalMetricStatus"))}</span>
+              <strong>${html(presentationModel.historicalMetrics.label)}</strong>
+            </div>
           </div>
         </details>
       </div>
@@ -13654,29 +14000,85 @@ function historicalMetricsInputSignatureForCurrentState() {
   return `${baseSignature}:dataset:${currentDatasetId()}:rows:${enrichedRows.length}`;
 }
 
-function ensureHistoricalMetricsRuntime(options = {}) {
-  const signature = historicalMetricsInputSignatureForCurrentState();
-  if (!options.force && currentHistoricalMetricsRuntime?.historicalMetricsInputSignature === signature) {
-    return currentHistoricalMetricsRuntime;
-  }
+function historicalMetricsBuildInputForCurrentState() {
   const inventoryPackage = currentInventoryPackage();
   const historyPackage = currentConsumptionHistoryPackage();
-  currentHistoricalMetricsRuntime = historicalMetricsService.buildHistoricalMetricRuntime({
+  return {
     inventoryPackage,
     historyPackage,
     inventoryRows: enrichedRows,
     historyRows: historyRowsForActivePackage(historyPackage),
     analysisAsOf: historyAnalysisAsOf(historyPackage),
     semanticPolicySignature: historySemanticPolicySignature(historyPackage)
-  });
-  currentHistoricalMetricsRuntime.historicalMetricsInputSignature = signature;
-  return currentHistoricalMetricsRuntime;
+  };
 }
 
-function historicalMetricsRuntimeHasColumns(runtime = ensureHistoricalMetricsRuntime()) {
+function historicalMetricsRuntimeStateSnapshot() {
+  return historicalMetricsRuntimeCoordinator.getState();
+}
+
+function historicalMetricsRuntimeForPresentation() {
+  return historicalMetricsRuntimeStateSnapshot();
+}
+
+function historicalMetricsResultForCurrentSignature(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  if (!runtimeState || !["available", "limited"].includes(runtimeState.status)) return null;
+  const signature = historicalMetricsInputSignatureForCurrentState();
+  if (runtimeState.completedInputSignature !== signature) return null;
+  return runtimeState.result || null;
+}
+
+function invalidateHistoricalMetricsRuntime(options = {}) {
+  const nextInputSignature = options.nextInputSignature || "";
+  return historicalMetricsRuntimeCoordinator.invalidate({
+    reason: options.reason || "input_changed",
+    nextInputSignature
+  });
+}
+
+function onHistoricalMetricInputsChanged({ reason = "input_changed", force = false } = {}) {
+  if (!currentDatasetMeta && !currentInventoryPackage()) {
+    return historicalMetricsRuntimeCoordinator.setUnavailable({
+      inputSignature: "",
+      reasonCode: "inventory_package_missing",
+      reason
+    });
+  }
+  const inputSignature = historicalMetricsInputSignatureForCurrentState();
+  const buildInput = historicalMetricsBuildInputForCurrentState();
+  const validation = historicalMetricsService.validateInputs(buildInput);
+  if (!validation.ok) {
+    return historicalMetricsRuntimeCoordinator.setUnavailable({
+      inputSignature,
+      reasonCode: validation.reason || "historical_metrics_unavailable",
+      limitationCodes: [validation.reason].filter(Boolean),
+      reason
+    });
+  }
+  return historicalMetricsRuntimeCoordinator.requestBuild({
+    inputSignature,
+    buildInput,
+    reason,
+    force
+  });
+}
+
+function retryHistoricalMetricsRuntime() {
+  return onHistoricalMetricInputsChanged({ reason: "retry", force: true });
+}
+
+function handleHistoricalMetricsRuntimeStateChange() {
+  renderPackageAvailability();
+  updateDownloadVariantAvailability();
+  if (currentView === "inventory") {
+    renderInventoryExplorer();
+  }
+}
+
+function historicalMetricsRuntimeHasColumns(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
   return Boolean(
     runtime
-    && runtime.status !== "unavailable"
     && Object.keys(runtime.historicalMetricsByInventoryRowKey || {}).length
   );
 }
@@ -13685,7 +14087,8 @@ function historicalMetricRowKey(row = {}) {
   return String(row.inventory_row_key || row.inventoryRowKey || `INV-${row.__sourceRowIndex || row.row_number || ""}`);
 }
 
-function historicalMetricsForRow(row = {}, runtime = ensureHistoricalMetricsRuntime()) {
+function historicalMetricsForRow(row = {}, runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
   const rowKey = historicalMetricRowKey(row);
   return runtime?.historicalMetricsByInventoryRowKey?.[rowKey] || null;
 }
@@ -13706,6 +14109,9 @@ function displayHistoricalMetricStatus(status) {
   if (status === "available") return t("historicalMetricsAvailable");
   if (status === "limited") return t("historicalMetricsLimited");
   if (status === "unavailable") return t("historicalMetricsUnavailable");
+  if (status === "not_calculated") return t("historicalMetricsNotCalculated");
+  if (status === "calculating") return t("historicalMetricsCalculating");
+  if (status === "error") return t("historicalMetricsError");
   if (status === "missing") return t("historicalMetricMissing");
   return status ? translatedCodeLabel(`historyReason_${status}`, status) : t("historicalMetricMissing");
 }
@@ -13779,10 +14185,10 @@ function formatHistoricalMetricValue(key, value, row = {}) {
 }
 
 function composeHistoricalInventoryRows(rows = []) {
-  const runtime = ensureHistoricalMetricsRuntime();
-  if (!historicalMetricsRuntimeHasColumns(runtime)) return rows;
+  const runtimeState = historicalMetricsRuntimeForPresentation();
+  if (!historicalMetricsRuntimeHasColumns(runtimeState)) return rows;
   return rows.map(row => {
-    const metric = historicalMetricsForRow(row, runtime);
+    const metric = historicalMetricsForRow(row, runtimeState);
     const historicalValues = Object.fromEntries(activeHistoricalInventoryFieldKeys({ export: true }).map(key => [
       key,
       historicalValueForField(metric, key)
@@ -13791,22 +14197,32 @@ function composeHistoricalInventoryRows(rows = []) {
   });
 }
 
-function historicalMetricsSummaryState(runtime = ensureHistoricalMetricsRuntime()) {
+function historicalMetricsSummaryState(runtimeState = historicalMetricsRuntimeForPresentation()) {
   const historyPackage = currentConsumptionHistoryPackage();
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
+  const status = runtimeState?.status || "not_calculated";
+  const reasonCode = runtimeState?.reasonCode || runtime?.reason || "";
   const state = !historyPackage
     ? { className: "missing", label: t("historyAvailabilityMissing") }
     : historyPackage.status === "invalid" || historyPackage.packageValidation?.statusKey === "invalid"
       ? { className: "invalid", label: t("historyAvailabilityInvalid") }
-      : runtime?.status === "available"
+      : status === "available"
         ? { className: "available", label: t("historicalMetricsAvailable") }
-        : runtime?.status === "limited"
+        : status === "limited"
           ? { className: "warning", label: t("historicalMetricsLimited") }
-          : { className: "warning", label: translatedCodeLabel(`historyReason_${runtime?.reason || "history_package_missing"}`, runtime?.reason || t("historicalMetricsUnavailable")) };
+          : status === "calculating"
+            ? { className: "warning", label: t("historicalMetricsCalculating") }
+            : status === "error"
+              ? { className: "invalid", label: t("historicalMetricsError") }
+              : status === "not_calculated"
+                ? { className: "warning", label: t("historicalMetricsNotCalculated") }
+                : { className: "warning", label: translatedCodeLabel(`historyReason_${reasonCode || "history_package_missing"}`, reasonCode || t("historicalMetricsUnavailable")) };
   return {
     ...state,
     packageRecord: historyPackage,
     runtime,
-    summary: runtime?.historicalMetricsSummary || {}
+    runtimeState,
+    summary: runtime?.historicalMetricsSummary || runtimeState?.summary || {}
   };
 }
 
@@ -13817,7 +14233,7 @@ function snapshotDatasetRuntimeState() {
     filterControlState: snapshotFilterControlState(),
     datasetUiState: snapshotDatasetUiState(),
     actionStatusSnapshot: actionStatusSnapshotForCurrentRows(),
-    currentHistoricalMetricsRuntime: clonePlainRecord(currentHistoricalMetricsRuntime)
+    historicalMetricsRuntimeState: historicalMetricsRuntimeCoordinator.snapshot()
   };
 }
 
@@ -13829,7 +14245,7 @@ function restoreDatasetRuntimeState(snapshot) {
   refreshFilterOptions({ syncStateFromControls: false });
   applyFilterStateToControls(filterState, { rebuildOptions: false });
   restoreActionStatusesFromSnapshot(snapshot.actionStatusSnapshot);
-  currentHistoricalMetricsRuntime = clonePlainRecord(snapshot.currentHistoricalMetricsRuntime || null);
+  historicalMetricsRuntimeCoordinator.restore(snapshot.historicalMetricsRuntimeState || null);
   syncDatasetUiFromMeta(currentDatasetMeta);
   renderActiveFilterChips({ syncStateFromControls: false });
 }
@@ -14428,7 +14844,7 @@ function commitInventoryDatasetBuild(buildResult, statusSnapshot = null, nextDat
     timestamp: buildResult.buildMetadata?.builtAt || new Date().toISOString()
   });
   enrichedRows = decorateActionRows(enrichment.rows);
-  currentHistoricalMetricsRuntime = null;
+  invalidateHistoricalMetricsRuntime({ reason: "inventory_dataset_changed" });
   restoreActionStatusesFromSnapshot(statusSnapshot);
   recoveryValidationErrors = buildResult.recoveryValidationErrors;
   excludedSourceRows = buildResult.excludedSourceRows;
@@ -15972,7 +16388,9 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       error
     });
   }
-  currentHistoricalMetricsRuntime = null;
+  if (context.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+    onHistoricalMetricInputsChanged({ reason: "consumption_history_package_imported" });
+  }
   renderPackageAvailability();
   if ([MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(context.packageType) && currentDatasetMeta) {
     renderAfterDatasetChange({ syncStateFromControls: false });
@@ -16545,6 +16963,29 @@ function selectedDownloadVariant() {
   return ["original", "enriched", "historical", "provenance"].includes(value) ? value : "original";
 }
 
+function historicalMetricsExportAvailable() {
+  const runtimeState = historicalMetricsRuntimeForPresentation();
+  return ["available", "limited"].includes(runtimeState.status)
+    && runtimeState.completedInputSignature === historicalMetricsInputSignatureForCurrentState()
+    && historicalMetricsRuntimeHasColumns(runtimeState);
+}
+
+function updateDownloadVariantAvailability() {
+  const historicalControl = $("downloadVariantHistorical");
+  if (!historicalControl) return;
+  const available = historicalMetricsExportAvailable();
+  historicalControl.disabled = !available;
+  const option = historicalControl.closest(".scope-option");
+  if (option) {
+    option.classList.toggle("disabled", !available);
+    option.title = available ? "" : t("historicalExportUnavailable");
+  }
+  if (!available && historicalControl.checked) {
+    const fallback = $("downloadVariantEnriched") || $("downloadVariantOriginal");
+    if (fallback) fallback.checked = true;
+  }
+}
+
 function exportDataForScope(scope, type = "report") {
   if (type === "top") {
     return scope === "all" ? overviewTopRows(enrichedRows) : visibleTopRows(getFilteredRows("overview"));
@@ -16605,6 +17046,10 @@ function buildDownloadPayload(type, format, scope = "filtered") {
   const topRows = rowsForExport(top, opportunityColumns());
   const actionRows = rowsForExport(type === "actions" ? data : visibleActionRows(data), actionExportColumns());
   const variant = type === "inventory" ? selectedDownloadVariant() : "original";
+  if (type === "inventory" && variant === "historical" && !historicalMetricsExportAvailable()) {
+    setFeedback(t("historicalExportUnavailable"), "error", { autoReset: true });
+    return null;
+  }
   const fullRows = type === "inventory" && variant !== "original"
     ? enrichedRowsForExport(data, { historical: variant === "historical", provenance: variant === "provenance" })
     : rawRowsForExport(data);
@@ -16706,6 +17151,7 @@ function showDownloadDialog(type, options = {}) {
   if (variantControl) variantControl.checked = true;
   $("downloadFormatExcel").checked = true;
   $("downloadModal").classList.add("active");
+  updateDownloadVariantAvailability();
   restoreHeaderDataStatus();
 }
 
@@ -16882,6 +17328,49 @@ function runDownload() {
   } finally {
     setBusy(false);
   }
+}
+
+let dataFoundationDisclosureControllerInitialized = false;
+let lastDataFoundationSummaryControl = null;
+
+function closeDataFoundationDetail(options = {}) {
+  let closed = false;
+  document.querySelectorAll("[data-data-foundation][open]").forEach(details => {
+    details.removeAttribute("open");
+    closed = true;
+  });
+  if (closed && options.focus !== false) {
+    (lastDataFoundationSummaryControl || document.querySelector("[data-data-foundation] > summary"))?.focus?.({ preventScroll: true });
+  }
+  return closed;
+}
+
+function initDataFoundationDisclosureController() {
+  if (dataFoundationDisclosureControllerInitialized) return;
+  dataFoundationDisclosureControllerInitialized = true;
+  document.addEventListener("click", event => {
+    if (!(event.target instanceof Element)) return;
+    const retryButton = event.target.closest("[data-data-foundation-retry-history]");
+    if (retryButton) {
+      event.preventDefault();
+      retryHistoricalMetricsRuntime();
+      return;
+    }
+    const summary = event.target.closest("[data-data-foundation] > summary");
+    if (summary) {
+      lastDataFoundationSummaryControl = summary;
+      return;
+    }
+    const openPanel = document.querySelector("[data-data-foundation][open]");
+    if (openPanel && !event.target.closest("[data-data-foundation]")) {
+      closeDataFoundationDetail({ focus: false });
+    }
+  });
+  window.addEventListener("keydown", event => {
+    if (event.key === "Escape" && closeDataFoundationDetail()) {
+      event.preventDefault();
+    }
+  });
 }
 
 function addEventListenerIfPresent(id, eventName, handler, options = {}) {
@@ -17406,8 +17895,47 @@ function createObsoliqTestBridge() {
     getMaterialMasterPackages: () => clonePlainArray(dataPackageRegistry.listByType(MATERIAL_MASTER_PACKAGE_TYPE)),
     getConsumptionHistoryPackages: () => clonePlainArray(dataPackageRegistry.listByType(CONSUMPTION_HISTORY_PACKAGE_TYPE)),
     getActivePackageByType: packageType => clonePlainRecord(dataPackageRegistry.getActivePackage(packageType)),
-    getHistoricalMetricsRuntimeForTest: () => clonePlainRecord(ensureHistoricalMetricsRuntime()),
-    buildHistoricalMetricsRuntimeForTest: options => clonePlainRecord(ensureHistoricalMetricsRuntime({ force: options?.force !== false })),
+    getHistoricalMetricsRuntimeForTest: () => clonePlainRecord(historicalMetricsRuntimeForPresentation()),
+    getHistoricalMetricsRuntimeResultForTest: () => clonePlainRecord(historicalMetricsResultForCurrentSignature()),
+    requestHistoricalMetricsRuntimeForTest: options => clonePlainRecord(onHistoricalMetricInputsChanged({
+      reason: options?.reason || "test_request",
+      force: options?.force === true
+    })),
+    buildHistoricalMetricsRuntimeForTest: options => clonePlainRecord(onHistoricalMetricInputsChanged({
+      reason: options?.reason || "test_build",
+      force: options?.force !== false
+    })),
+    waitForHistoricalMetricsRuntimeForTest: async () => clonePlainRecord(await historicalMetricsRuntimeCoordinator.whenIdle()),
+    retryHistoricalMetricsRuntimeForTest: () => clonePlainRecord(retryHistoricalMetricsRuntime()),
+    restoreHistoricalMetricsRuntimeForTest: snapshot => clonePlainRecord(historicalMetricsRuntimeCoordinator.restore(snapshot)),
+    historicalMetricsRuntimeSnapshotForTest: () => clonePlainRecord(historicalMetricsRuntimeCoordinator.snapshot()),
+    getHistoricalMetricsBuildCountersForTest: () => clonePlainRecord({
+      buildCount: historicalMetricsRuntimeBuildCount,
+      buildLog: historicalMetricsRuntimeBuildLog,
+      state: historicalMetricsRuntimeCoordinator.snapshot()
+    }),
+    resetHistoricalMetricsBuildCountersForTest: () => {
+      historicalMetricsRuntimeBuildCount = 0;
+      historicalMetricsRuntimeBuildLog = [];
+      return { buildCount: historicalMetricsRuntimeBuildCount, buildLog: [] };
+    },
+    renderPackageAvailabilityForTest: () => {
+      renderPackageAvailability();
+      return $("dataPackagesPanel")?.textContent || "";
+    },
+    renderOverviewForTest: () => {
+      renderOverview();
+      return $("overviewWorkspace")?.textContent || "";
+    },
+    renderInventoryExplorerForTest: () => {
+      renderInventoryExplorer();
+      return $("inventoryTable")?.textContent || "";
+    },
+    showDownloadDialogForTest: (type = "inventory", options = {}) => {
+      showDownloadDialog(type, options);
+      return $("downloadModal")?.textContent || "";
+    },
+    closeDataFoundationDetailForTest: () => closeDataFoundationDetail({ focus: false }),
     runHistoricalMetricsForTest: input => clonePlainRecord(historicalMetricsService.buildHistoricalMetricRuntime(input || {
       inventoryPackage: currentInventoryPackage(),
       historyPackage: currentConsumptionHistoryPackage(),
@@ -17653,11 +18181,7 @@ function createObsoliqTestBridge() {
       activeInventoryPackage: clonePlainRecord(currentInventoryPackage()),
       activeMaterialMasterPackage: clonePlainRecord(currentMaterialMasterPackage()),
       activeConsumptionHistoryPackage: clonePlainRecord(currentConsumptionHistoryPackage()),
-      historicalMetricsRuntime: clonePlainRecord(currentHistoricalMetricsRuntime ? {
-        status: currentHistoricalMetricsRuntime.status,
-        reason: currentHistoricalMetricsRuntime.reason,
-        summary: currentHistoricalMetricsRuntime.historicalMetricsSummary
-      } : null),
+      historicalMetricsRuntime: clonePlainRecord(historicalMetricsRuntimeForPresentation()),
       materialMasterRelationship: clonePlainRecord(currentInventoryMaterialMasterRelationship),
       inventoryEnrichment: clonePlainRecord(currentInventoryEnrichmentDiagnostics),
       rawRows: rawRows.length,
@@ -17731,6 +18255,7 @@ function createObsoliqTestBridge() {
 function bootstrapObsoliQApp() {
   initInventoryTableResize();
   initNavigationCollapse();
+  initDataFoundationDisclosureController();
   applyTheme();
   applyTranslations({ render: false });
   if (obsoliqTestMode) {

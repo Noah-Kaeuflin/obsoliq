@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-08-22 - AP 16.4c.1:
+Historical Runtime Orchestration & Data Foundation UX Closure
+
+### Fixed
+
+- Removed Historical Metrics calculation from Data Foundation and Overview render paths.
+- Added explicit Historical Runtime states for not calculated, calculating, available, limited, unavailable and error.
+- Added input-signature-based build deduplication and generation-based stale-result rejection.
+- Prevented repeated builds for the same completed or in-flight signature.
+- Added controlled browser scheduling before the synchronous Historical Metrics build.
+- Added lifecycle triggers after Inventory and Consumption History input changes.
+- Prevented language, theme, currency, filter, sort, pagination, disclosure and export-dialog interactions from triggering builds.
+- Invalidated stale Historical Metrics before rebuilding changed inputs.
+- Kept changed-signature failures from restoring metrics from an older signature.
+- Added a compact unavailable state when Consumption History is missing.
+- Removed false zero Match counts and false "No" partial-period values from unavailable states.
+- Preserved real calculated zero and false values after successful calculation.
+- Separated Package presence, Package validity, Interpretation Trust, History Readiness and Metrics availability.
+- Prevented invalid Packages from being counted as available.
+- Added imported-plus-limited presentation for limited Consumption History evidence.
+- Replaced the long Data Foundation summary with compact source status chips.
+- Reduced Historical Analysis to four primary values and moved secondary relationship, coverage and provenance values into technical details.
+- Added controlled viewport height, internal Data Foundation scrolling and responsive drawer behavior.
+- Added Escape and outside-click close behavior without expanding the central click router materially.
+- Completed German and English Historical Metrics terminology cleanup.
+- Preserved Original, Enriched and Historical export separation.
+- Added Runtime orchestration, presentation-state, lifecycle and export-availability regression tests.
+- Preserved Recovery, Data Quality, Actions, Opportunity Scores, scenarios, Pilot Reviews and Slow / Dead behavior.
+
+### Known Limitations
+
+- Historical calculation remains synchronous after controlled scheduling.
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Snapshot History
+- no Predictive Analytics
+- no persistence
+- no SAP integration
+
 ## 2026-08-21 - AP 16.4c:
 Inventory Relationship & Historical Metrics
 

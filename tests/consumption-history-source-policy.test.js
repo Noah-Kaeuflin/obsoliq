@@ -168,7 +168,7 @@ Material Number,Consumption Quantity,Consumption Quantity,Posting Date
     assert.equal(active.interpretationMetadata.trustState, "trusted", "Interpretation may be trusted");
     assert.equal(readiness.status, "limited", "Engine-produced History Readiness should be limited");
     assert.ok(panel.textContent.includes("Optionale Intelligence-Quellen 1/1"), "Availability count should remain separate");
-    assert.ok(panel.textContent.includes("History Readiness: Eingeschränkt"), "Data Foundation should show translated readiness");
+    assert.ok(panel.textContent.includes("Historienbereitschaft: Eingeschränkt"), "Data Foundation should show translated readiness");
     assert.equal(panel.textContent.includes("History Readiness: limited"), false, "Raw readiness code should not be visible");
   });
 

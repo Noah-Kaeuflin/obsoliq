@@ -36,6 +36,20 @@ Historical metrics are derived runtime evidence only. They do not mutate Registr
 
 Recommended next work block: AP 16.4d — Slow / Dead Stock Intelligence. AP 16.4c does not add predictive analytics.
 
+### AP 16.4c.1 — Historical Runtime Orchestration & Data Foundation UX Closure
+
+AP 16.4c.1 closes the boundary between historical analytics and presentation. Historical Metrics are now coordinated by an explicit runtime state with the statuses `not_calculated`, `calculating`, `available`, `limited`, `unavailable` and `error`. Runtime calculation is triggered by input lifecycle events such as Inventory changes, Consumption History import, semantic-policy changes and analysis-as-of changes, not by rendering Data Foundation, Overview, Inventory Explorer, filters, sorting, language, theme, currency or export-dialog presentation.
+
+Runtime requests use a deterministic input signature. Completed and in-flight signatures are deduplicated, changed signatures invalidate stale metrics before recomputation, and generation checks prevent late stale completions from overwriting the current Runtime. Calculation remains synchronously executed after controlled browser scheduling, so large 10k Inventory / 50k History builds are bounded by tests but still run on the main thread in this local MVP.
+
+Data Foundation separates Package presence, Package validity, Interpretation Trust, History Readiness and Historical Metrics availability. Missing Consumption History now shows one compact unavailable state instead of false zero match counts or false boolean values. Calculated zero and calculated false remain visible only after a successful calculation. Limited and invalid states are shown separately from fully available metrics.
+
+The open Data Foundation hierarchy now presents at most four primary Historical Analysis values: Calculation Status, Exact / Fallback Match Rate, History Coverage and Analysis-as-of. Secondary relationship, coverage, exclusion and provenance details move into technical disclosure sections with bounded internal scrolling and responsive drawer behavior on mobile.
+
+Original Data, Enriched Data and Historical Metrics exports remain separate. Historical export availability follows the current Runtime signature and does not trigger calculation. Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios, Pilot Reviews, Slow / Dead placeholders and Raw Source remain analytically isolated.
+
+Recommended next work block remains AP 16.4d — Slow / Dead Stock Intelligence.
+
 ### AP 16.4b — Temporal, Movement & Unit Semantics
 
 Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.

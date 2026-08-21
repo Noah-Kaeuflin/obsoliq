@@ -140,6 +140,29 @@ Metric provenance includes Inventory Package ID/revision, History Package ID/rev
 
 The Historical Metrics Runtime is derived and session-local. It indexes metrics by Inventory entity and exposes shared row-level views for repeated Inventory rows. Entity-level metric authority prevents row-level portfolio double counting. Runtime signatures include Package identity, revisions, semantic policy, model versions and Analysis-as-of evidence; changed inputs invalidate stale metrics. Metric calculation does not create Package revisions and does not mutate Raw Source or authoritative Inventory analytical rows.
 
+### AP 16.4c.1 Historical Metrics Runtime State Contract
+
+`HistoricalMetricsRuntimeState` is the authoritative application-level state for derived Historical Metrics. Allowed statuses are:
+
+- `not_calculated`: the current eligible input has not produced a Runtime yet or was invalidated.
+- `calculating`: a build for the current input signature was accepted and scheduled.
+- `available`: a successful Runtime exists for the current input signature and metrics are fully available.
+- `limited`: a successful Runtime exists for the current input signature, but relationship, coverage, readiness or evidence limitations apply.
+- `unavailable`: required evidence is missing, invalid or not analytically usable.
+- `error`: an unexpected build, relationship, aggregation or commit exception occurred.
+
+The state carries `inputSignature`, `requestedInputSignature`, `completedInputSignature`, `generation`, optional `result`, `relationshipResult`, `summary`, `reasonCode`, `limitationCodes`, `errorCode`, `errorMessage`, `requestedAt`, `startedAt`, `completedAt` and `durationMs`. Runtime results are current only when the completed signature equals the active input signature. Changed analytical inputs invalidate the previous completed signature before recomputation, and generation checks reject stale completions.
+
+Build lifecycle is request-driven. Inventory Package changes, Consumption History Package changes, semantic-policy changes and Analysis-as-of changes are valid invalidation/build triggers. Rendering Data Foundation, Overview or Inventory Explorer, opening or closing disclosures, language changes, theme changes, currency changes, filters, sorting, pagination and export-dialog opening are non-triggers.
+
+Build deduplication is signature-based. One completed signature is not rebuilt by repeated requests, and one in-flight signature cannot start a second concurrent build. Explicit retry is allowed only for an error or forced retry path. Runtime calculation is derived and session-local; it must not create a Package, Package revision or Raw Source mutation.
+
+Package presence, Package validity, Interpretation Trust, History Readiness and Historical Metrics availability are separate contracts. A package record can exist while being invalid, limited or analytically unavailable. An imported limited source is displayed as imported plus limited, not as fully ready. An invalid package is not counted as available or usable.
+
+Data Foundation reads a presentation model derived from these states only. It does not calculate analytics. Missing evidence is not zero: unavailable numeric values render as `n. v.` / `n/a` or are omitted, while calculated numeric zero renders as `0`. Unavailable Boolean values render as `n. v.` / `n/a`, while calculated `false` renders as `Nein` / `No`.
+
+Historical export availability is tied to the current Runtime signature. Historical export is disabled for `not_calculated`, `calculating`, `unavailable` and `error` states and enabled only for current `available` or `limited` Runtime results.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

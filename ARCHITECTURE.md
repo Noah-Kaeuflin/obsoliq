@@ -21,6 +21,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/consumption-history-builder.js` validates and builds optional Consumption History package payloads without touching UI or analytical state.
 - `js/data/consumption-history-relationship-engine.js` owns Inventory-to-Consumption-History entity matching, anti-fan-out diagnostics and relationship provenance.
 - `js/data/consumption-history-aggregation-engine.js` owns semantic-row-only rolling windows, monthly buckets, exclusions, historical metrics and metric provenance.
+- `js/application/historical-metrics-runtime-coordinator.js` owns Historical Metrics runtime scheduling, signature deduplication, explicit states, retry, stale-result rejection and state notifications.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -74,6 +75,20 @@ The Aggregation Engine owns calendar windows, semantic eligible-row selection, e
 The Historical Metrics Service owns package validation, semantic acceptance, explicit Analysis-as-of validation, orchestration, deterministic input signatures, invalidation and coherent unavailable runtimes. Derived metrics remain outside the authoritative Inventory analytical rows and outside Registry mutation. Data Foundation presents status only; Inventory Explorer composes a read-only `· CH` view; export includes historical columns only when the historical variant is selected.
 
 AP 16.4c does not implement Slow / Dead classification, predictive logic, Snapshot History, Purchase Order optimization, SAP integration, persistence or changes to Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios or Pilot Reviews.
+
+## AP 16.4c.1 Historical Runtime Orchestration
+
+The AP 16.4c.1 runtime flow is:
+
+Inventory / History Input Change -> Historical Input Signature -> Runtime Invalidation -> Runtime Coordinator -> Calculating State -> Historical Metrics Service -> Relationship Engine -> Aggregation Engine -> Coherent Runtime Commit -> Targeted Presentation Update.
+
+Ownership is separated as follows:
+
+- Runtime Coordinator: controlled scheduling, deterministic input-signature deduplication, generation-based stale-result protection, explicit Runtime states, retry and subscriber notification.
+- Historical Metrics Service: Package validation, semantic acceptance, relationship/aggregation orchestration, metric result assembly and coherent unavailable/error Runtime payloads.
+- Data Foundation: presentation model only. It reads Package presence, Package validity, Interpretation Trust, History Readiness and Runtime availability; it does not build Runtime metrics, relationships or aggregations.
+
+Render functions are side-effect-free regarding Historical analytics. Opening or closing Data Foundation, rendering Overview, opening Inventory Explorer, changing filters, sorting, pagination, language, currency, theme or the export dialog must not trigger a Historical Metrics build. Changed analytical inputs invalidate the current Runtime before a new lifecycle request is accepted. A stale calculation completion cannot overwrite a newer signature, and Runtime recalculation does not create Data Package revisions.
 
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 
