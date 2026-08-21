@@ -44,15 +44,38 @@
     ])
   });
 
-  function normalizeHeader(header) {
+  function normalizeMapForFieldDefinitions(fieldDefinitions = inventoryFieldDefinitions) {
+    const entries = Object.entries(fieldDefinitions || {});
+    const map = { ...normalizeMap };
+    entries.forEach(([fieldKey, definition]) => {
+      [
+        fieldKey,
+        definition?.label?.de,
+        definition?.label?.en,
+        ...(definition?.aliases || [])
+      ].filter(Boolean).forEach(alias => {
+        map[normalizeHeaderToken(alias)] = fieldKey;
+      });
+    });
+    return map;
+  }
+
+  function normalizeHeader(header, options = {}) {
     const token = normalizeHeaderToken(header);
-    return normalizeMap[token] || token.replace(/\s+/g, "_");
+    const map = options.normalizeMap || normalizeMapForFieldDefinitions(options.fieldDefinitions || inventoryFieldDefinitions);
+    return map[token] || token.replace(/\s+/g, "_");
   }
 
   function mappingOptions(options = {}) {
+    const fieldDefinitions = options.fieldDefinitions || inventoryFieldDefinitions;
     return {
       sourceColumnMetadata: Array.isArray(options.sourceColumnMetadata) ? options.sourceColumnMetadata : [],
-      policy: options.policy || DEFAULT_MAPPING_POLICY
+      policy: options.policy || DEFAULT_MAPPING_POLICY,
+      fieldDefinitions,
+      normalizeMap: options.normalizeMap || normalizeMapForFieldDefinitions(fieldDefinitions),
+      protectedFieldKeys: options.protectedFieldKeys instanceof Set
+        ? options.protectedFieldKeys
+        : new Set(Array.isArray(options.protectedFieldKeys) ? options.protectedFieldKeys : [...protectedImportFieldKeys])
     };
   }
 
@@ -63,7 +86,10 @@
       rows: Array.isArray(config.rows) ? config.rows : [],
       ...mappingOptions({
         sourceColumnMetadata: config.sourceColumnMetadata,
-        policy: config.policy
+        policy: config.policy,
+        fieldDefinitions: config.fieldDefinitions,
+        normalizeMap: config.normalizeMap,
+        protectedFieldKeys: config.protectedFieldKeys
       })
     };
   }
@@ -79,9 +105,10 @@
   }
 
   function determineMappingMatchType(sourceColumn, canonicalField, options = {}) {
-    if (!canonicalField || !inventoryFieldDefinitions[canonicalField]) return "unknown";
-    if (protectedImportFieldKeys.has(canonicalField)) return "protected";
-    const definition = inventoryFieldDefinitions[canonicalField];
+    const { fieldDefinitions, protectedFieldKeys } = mappingOptions(options);
+    if (!canonicalField || !fieldDefinitions[canonicalField]) return "unknown";
+    if (protectedFieldKeys.has(canonicalField)) return "protected";
+    const definition = fieldDefinitions[canonicalField];
     const sourceIndex = options.sourceIndex ?? null;
     const sourceLabel = sourceOriginalHeader(sourceColumn, sourceIndex, options);
     const sourceToken = normalizeHeaderToken(sourceLabel);
@@ -90,7 +117,7 @@
     if ([definition.label?.de, definition.label?.en, ...(definition.aliases || [])].some(alias => normalizeHeaderToken(alias) === sourceToken)) {
       return "alias";
     }
-    if (normalizeHeader(sourceLabel) === canonicalField) return "normalized";
+    if (normalizeHeader(sourceLabel, options) === canonicalField) return "normalized";
     return "unknown";
   }
 
@@ -113,11 +140,12 @@
   }
 
   function buildMappingEvidence(mapping = [], options = {}) {
+    const { fieldDefinitions } = mappingOptions(options);
     const columnProfiles = options.columnProfiles || [];
     const profileByIndex = new Map(columnProfiles.map(profile => [profile.sourceIndex, profile]));
     const schemaWarnings = options.schemaWarnings || [];
     return refreshColumnMappingStatuses(mapping, options).map(entry => {
-      const definition = inventoryFieldDefinitions[entry.selectedCanonicalField || entry.proposedCanonicalField || ""];
+      const definition = fieldDefinitions[entry.selectedCanonicalField || entry.proposedCanonicalField || ""];
       const profile = profileByIndex.get(entry.sourceIndex) || null;
       const expectedNumeric = Boolean(definition && ["number", "currency", "percentage"].includes(definition.type));
       const numericEvidence = profile && expectedNumeric
@@ -209,6 +237,7 @@
   }
 
   function refreshColumnMappingStatuses(mapping = [], options = {}) {
+    const { fieldDefinitions, protectedFieldKeys } = mappingOptions(options);
     const next = cloneColumnMapping(mapping);
     const canonicalCounts = new Map();
 
@@ -224,7 +253,7 @@
 
     next.forEach(entry => {
       const selected = entry.selectedCanonicalField;
-      const definition = selected ? inventoryFieldDefinitions[selected] : null;
+      const definition = selected ? fieldDefinitions[selected] : null;
       if (selected && definition?.importable !== false) {
         canonicalCounts.set(selected, (canonicalCounts.get(selected) || 0) + 1);
       }
@@ -232,7 +261,7 @@
 
     next.forEach(entry => {
       const selected = entry.selectedCanonicalField;
-      const definition = selected ? inventoryFieldDefinitions[selected] : null;
+      const definition = selected ? fieldDefinitions[selected] : null;
       if (entry.protected) {
         entry.status = "protected";
         entry.ignored = true;
@@ -276,15 +305,15 @@
   }
 
   function createAutomaticColumnMapping(input = {}) {
-    const { headers, rows, sourceColumnMetadata } = parseMappingInput(input);
-    const options = { sourceColumnMetadata };
+    const { headers, rows, sourceColumnMetadata, policy, fieldDefinitions, normalizeMap: activeNormalizeMap, protectedFieldKeys } = parseMappingInput(input);
+    const options = { sourceColumnMetadata, policy, fieldDefinitions, normalizeMap: activeNormalizeMap, protectedFieldKeys };
     const automaticSelections = new Set();
     const mapping = headers.map((sourceColumn, sourceIndex) => {
       const sourceLabel = sourceOriginalHeader(sourceColumn, sourceIndex, options);
       const normalizedSourceColumn = sourceTechnicalKey(sourceColumn, sourceIndex, options);
-      const canonicalField = normalizeHeader(sourceLabel);
-      const definition = inventoryFieldDefinitions[canonicalField] || null;
-      const isProtected = Boolean(definition && protectedImportFieldKeys.has(canonicalField));
+      const canonicalField = normalizeHeader(sourceLabel, options);
+      const definition = fieldDefinitions[canonicalField] || null;
+      const isProtected = Boolean(definition && protectedFieldKeys.has(canonicalField));
       const isImportable = Boolean(definition && definition.importable !== false && !isProtected);
       const matchType = isProtected ? "protected" : definition
         ? determineMappingMatchType(sourceColumn, canonicalField, { ...options, sourceIndex })
@@ -338,7 +367,14 @@
   }
 
   function validateColumnMapping(mapping = [], options = {}) {
-    const { policy } = mappingOptions(options);
+    const { policy, fieldDefinitions } = mappingOptions(options);
+    const normalizedPolicy = {
+      requiredFields: policy.requiredFields || [],
+      requiredAnyOfMappingGroups: policy.requiredAnyOfMappingGroups || [],
+      organizationFields: policy.organizationFields || [],
+      recoveryInputFields: policy.recoveryInputFields || [],
+      workflowFields: policy.workflowFields || []
+    };
     const refreshed = refreshColumnMappingStatuses(mapping, options);
     const selectedFields = mappingSelectedFields(refreshed);
     const duplicateCanonicalMappings = [];
@@ -346,9 +382,15 @@
     const errors = [];
     const warnings = [];
 
-    policy.requiredFields.forEach(fieldKey => {
+    normalizedPolicy.requiredFields.forEach(fieldKey => {
       if (!selectedFields.has(fieldKey)) {
         errors.push({ key: "mappingMissingRequired", field: fieldKey });
+      }
+    });
+    normalizedPolicy.requiredAnyOfMappingGroups.forEach(group => {
+      const fields = (group || []).filter(Boolean);
+      if (fields.length && !fields.some(fieldKey => selectedFields.has(fieldKey))) {
+        errors.push({ key: "mappingMissingRequiredAnyOf", fields });
       }
     });
 
@@ -356,7 +398,7 @@
     refreshed.forEach(entry => {
       const selected = entry.selectedCanonicalField;
       if (!selected) return;
-      const definition = inventoryFieldDefinitions[selected];
+      const definition = fieldDefinitions[selected];
       if (!definition) {
         errors.push({ key: "mappingInvalidTarget", sourceColumn: entry.sourceColumn, field: selected });
         return;
@@ -377,13 +419,13 @@
       }
     });
 
-    if (!policy.organizationFields.some(fieldKey => selectedFields.has(fieldKey))) {
+    if (normalizedPolicy.organizationFields.length && !normalizedPolicy.organizationFields.some(fieldKey => selectedFields.has(fieldKey))) {
       warnings.push({ key: "mappingNoOrganizationField" });
     }
-    if (!policy.recoveryInputFields.some(fieldKey => selectedFields.has(fieldKey))) {
+    if (normalizedPolicy.recoveryInputFields.length && !normalizedPolicy.recoveryInputFields.some(fieldKey => selectedFields.has(fieldKey))) {
       warnings.push({ key: "mappingNoRecoveryField" });
     }
-    if (!policy.workflowFields.some(fieldKey => selectedFields.has(fieldKey))) {
+    if (normalizedPolicy.workflowFields.length && !normalizedPolicy.workflowFields.some(fieldKey => selectedFields.has(fieldKey))) {
       warnings.push({ key: "mappingNoWorkflowField" });
     }
     const unknownColumns = refreshed.filter(entry => !entry.selectedCanonicalField && !entry.protected);
@@ -398,7 +440,11 @@
       valid: errors.length === 0,
       errors,
       warnings,
-      missingRequiredFields: policy.requiredFields.filter(fieldKey => !selectedFields.has(fieldKey)),
+      missingRequiredFields: normalizedPolicy.requiredFields.filter(fieldKey => !selectedFields.has(fieldKey)),
+      missingRequiredAnyOfGroups: normalizedPolicy.requiredAnyOfMappingGroups.filter(group => (
+        (group || []).filter(Boolean).length
+        && !(group || []).some(fieldKey => selectedFields.has(fieldKey))
+      )),
       duplicateCanonicalMappings,
       protectedMappings,
       mapping: refreshed
@@ -409,17 +455,18 @@
     const options = Array.isArray(headersOrOptions) ? maybeOptions : headersOrOptions || {};
     const headers = Array.isArray(headersOrOptions) ? headersOrOptions : options.headers || [];
     const { policy } = mappingOptions(options);
+    const recoveryFields = policy.recoveryInputFields || [];
     const validation = validateColumnMapping(mapping, options);
     const selectedFields = mappingSelectedFields(validation.mapping);
     const requiredLowConfidence = validation.mapping.some(entry => (
-      policy.requiredFields.includes(entry.selectedCanonicalField)
+      (policy.requiredFields || []).includes(entry.selectedCanonicalField)
       && ["low", "none"].includes(entry.confidence)
     ));
     const reviewRequired = validation.errors.length > 0
       || validation.duplicateCanonicalMappings.length > 0
       || requiredLowConfidence
       || validation.protectedMappings.length > 0
-      || !policy.recoveryInputFields.some(fieldKey => selectedFields.has(fieldKey));
+      || (recoveryFields.length ? !recoveryFields.some(fieldKey => selectedFields.has(fieldKey)) : false);
 
     return {
       reviewRequired,
@@ -442,7 +489,10 @@
     const mapping = Array.isArray(config.mapping) ? config.mapping : [];
     const options = mappingOptions({
       sourceColumnMetadata: config.sourceColumnMetadata,
-      policy: config.policy
+      policy: config.policy,
+      fieldDefinitions: config.fieldDefinitions,
+      normalizeMap: config.normalizeMap,
+      protectedFieldKeys: config.protectedFieldKeys
     });
     const sourceColumnMetadata = options.sourceColumnMetadata;
 

@@ -6,6 +6,46 @@ The canonical inventory model describes SAP-like inventory rows after source par
 
 The current MVP keeps original source columns visible in the Inventory Explorer while analytical calculations use canonical fields.
 
+## AP 16.4a Consumption History Data Package Contract
+
+Consumption History is an optional Data Package with package type `consumption_history` and schema version `consumption-history-v1`.
+
+Required canonical fields:
+
+- `material_id`
+- `consumption_quantity`
+- one raw temporal reference: `posting_date` or `period`
+
+Optional canonical fields:
+
+- `plant`
+- `base_unit`
+- `movement_type`
+- `consumption_value`
+- `movement_count`
+- `storage_location`
+- `document_id`
+- `document_item`
+
+The package builder preserves identifiers and raw temporal values as source text. It does not parse dates, derive periods, create buckets, infer movement semantics or convert units. Numeric consumption fields are parsed through the existing localized numeric parser; zero quantities are valid, negative quantities are retained and diagnosed, and invalid required quantities block the package.
+
+Each normalized row receives a `package_row_key`, the original `__sourceRowIndex` and mapped package fields. `package_row_key` is deterministic and technically stable only within one Package revision. It is not a semantic SAP movement identity, a cross-revision event ID or a cross-upload deduplication key.
+
+Consumption History key taxonomy:
+
+- `entityKeys`: `material_id` and optional `plant`
+- `temporalReference`: `posting_date` and `period`
+- `eventIdentity`: `document_id`, `document_item`, `movement_type`, `storage_location`, quantity and `base_unit`
+- `unitContext`: `base_unit`
+
+Only `entityKeys` may later participate in Inventory-to-History relationship matching. `posting_date` and `period` are temporal references, not Inventory relationship keys. A later Inventory relationship may use `material_id` plus `plant` with controlled Material-only fallback, but no such relationship is executed in AP 16.4a or AP 16.4b.
+
+A later semantic event identity must be built from available business evidence such as `material_id`, `plant`, normalized posting date or period, `document_id`, `document_item`, `movement_type`, signed quantity and `base_unit`. Freshness metadata records the package as `raw_history_uninterpreted`.
+
+Diagnostics are package-scoped. AP 16.4a reports missing required mappings, invalid required quantities, negative quantities, missing units, multiple units and exact duplicate source rows. Duplicate source rows are retained; diagnostics do not mutate Raw Source.
+
+The contract is isolated from Inventory Snapshot calculations. Consumption History package rows are not yet joined into Recovery, slow/dead-stock classification, Data Quality Score, Action Cockpit, Opportunity Score, scenarios, Pilot Review or exports.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

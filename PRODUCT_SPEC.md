@@ -6,6 +6,30 @@ ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. 
 
 The product helps users move from SAP or Excel inventory data to classification, recovery potential, root cause, recommended action, owner, status tracking and exportable management reporting.
 
+### AP 16.4a — Consumption History Contract & Builder
+
+ObsoliQ now accepts Consumption History as a separate optional intelligence Data Package. This package captures historical consumption evidence without changing current Inventory Snapshot analytics.
+
+The current AP 16.4a scope is intentionally narrow:
+
+- users can select Consumption History from the existing upload package selector;
+- the Mapping Assistant supports package-specific Consumption History fields;
+- a valid package requires `material_id`, `consumption_quantity` and either `posting_date` or `period`;
+- material, plant, document and item identifiers remain text so leading zeroes are preserved;
+- posting dates and periods remain raw source values and are not interpreted into time buckets;
+- quantities and values use the existing localized numeric parser, with zero accepted and negative quantities retained with diagnostics;
+- units are preserved as source evidence and are not converted;
+- exact duplicate rows are retained and diagnosed;
+- the package is visible in Data Foundation as an optional intelligence source.
+
+Consumption History is not yet used for slow-moving or dead-stock classification, Recovery calculations, Opportunity Score, Data Quality Score, Action recommendations, Pilot Review logic, scenarios or exports. Those integrations belong to later AP 16.4 work blocks.
+
+Next sequence:
+
+- AP 16.4b - Temporal, Movement & Unit Semantics
+- AP 16.4c - Inventory Relationship & Historical Metrics
+- AP 16.4d - Slow / Dead Stock Intelligence
+
 ### AP 16.3b.1.1 — Pilot Review Contract, Lifecycle UX & Navigation Acceptance Closure
 
 Pilot Review creation is now protected by a strict Service-level contract. New Reviews require a complete Dataset, Case, Inventory row, Package, Package revision, Case fingerprint, fingerprint version, fingerprint payload and Opportunity Score model identity before any Review state is mutated. Package Revision is a positive integer and is not coerced from text.
@@ -1426,4 +1450,9 @@ These decisions may change what the app shows or how issues are classified, but 
 
 ## Recommended Next Work Block
 
-AP 16.4: Consumption History Package & Historical Consumption Intelligence. This next block should add actual last-consumption date, 3M / 6M / 12M consumption, average monthly consumption, movement frequency, intermittency, demand trend, inventory coverage and run-out evidence before stronger Slow / Dead Stock and later predictive risk work.
+AP 16.4b: Temporal, Movement & Unit Semantics. This next block should make Consumption History dates, periods, movement types and units deterministic and reviewable before any historical aggregation.
+
+Subsequent roadmap:
+
+- AP 16.4c: Inventory Relationship & Historical Metrics
+- AP 16.4d: Slow / Dead Stock Intelligence

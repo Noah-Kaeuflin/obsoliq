@@ -30,22 +30,23 @@
 
     const fieldDefinitions = canonical.inventoryFieldDefinitions || {};
 
-    function mappedRowsForTrust({ headers = [], rows = [], mapping = [], sourceColumnMetadata = [], mappingPolicy = null } = {}) {
+    function mappedRowsForTrust({ headers = [], rows = [], mapping = [], sourceColumnMetadata = [], mappingPolicy = null, fieldDefinitions: activeFieldDefinitions = fieldDefinitions } = {}) {
       return mappingEngine.applyApprovedColumnMapping({
         headers,
         rows,
         mapping,
         sourceColumnMetadata,
-        policy: mappingPolicy || undefined
+        policy: mappingPolicy || undefined,
+        fieldDefinitions: activeFieldDefinitions
       });
     }
 
-    function diagnosticsFromMappingEvidence(mappingEvidence = [], profile = {}) {
+    function diagnosticsFromMappingEvidence(mappingEvidence = [], profile = {}, activeFieldDefinitions = fieldDefinitions) {
       const profileByIndex = new Map((profile.columns || []).map(column => [column.sourceIndex, column]));
       const diagnostics = [];
       mappingEvidence.forEach(entry => {
         const fieldKey = entry.selectedCanonicalField || entry.proposedCanonicalField || "";
-        const definition = fieldDefinitions[fieldKey];
+        const definition = activeFieldDefinitions[fieldKey];
         if (!definition || !entry.selectedCanonicalField || entry.ignored || entry.status === "protected") return;
         const profileForEntry = profileByIndex.get(entry.sourceIndex);
         if (!profileForEntry) return;
@@ -307,6 +308,7 @@
       sourceColumnMetadata = [],
       mapping = [],
       mappingPolicy = null,
+      fieldDefinitions: activeFieldDefinitions = fieldDefinitions,
       priorPackage = null,
       normalizationPolicy = {},
       sourceDescriptor = {}
@@ -322,11 +324,13 @@
         : null;
       const mappingValidation = mappingEngine.validateColumnMapping(mapping || [], {
         sourceColumnMetadata,
-        policy: mappingPolicy || undefined
+        policy: mappingPolicy || undefined,
+        fieldDefinitions: activeFieldDefinitions
       });
       const mappingEvidence = mappingEngine.buildMappingEvidence(mappingValidation.mapping, {
         sourceColumnMetadata,
         policy: mappingPolicy || undefined,
+        fieldDefinitions: activeFieldDefinitions,
         columnProfiles: schemaProfile.columns,
         schemaWarnings: schemaDrift?.warnings || []
       });
@@ -335,7 +339,8 @@
         rows,
         mapping: mappingValidation.mapping,
         sourceColumnMetadata,
-        mappingPolicy
+        mappingPolicy,
+        fieldDefinitions: activeFieldDefinitions
       });
       const effectiveNormalizationPolicy = normalizationPolicy && typeof normalizationPolicy === "object"
         ? normalizationPolicy
@@ -344,12 +349,12 @@
         rows: canonicalRows,
         columnMapping: mappingValidation.mapping,
         sourceColumnMetadata,
-        fieldDefinitions,
+        fieldDefinitions: activeFieldDefinitions,
         normalizationPolicy: effectiveNormalizationPolicy,
         mappingPolicy: mappingPolicy || {},
         localeOptions: effectiveNormalizationPolicy.localeOptions || {}
       });
-      const mappingDiagnostics = diagnosticsFromMappingEvidence(mappingEvidence, schemaProfile);
+      const mappingDiagnostics = diagnosticsFromMappingEvidence(mappingEvidence, schemaProfile, activeFieldDefinitions);
       const diagnostics = [
         ...mappingDiagnostics,
         ...(normalization.diagnostics || [])

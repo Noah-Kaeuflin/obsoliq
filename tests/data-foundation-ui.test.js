@@ -60,9 +60,11 @@
     assert.equal(panel.parentElement, app.document.querySelector(".overview-header"), "Data Foundation should be part of the Overview header");
     assert.equal(app.document.querySelector("#view-dashboard #dataPackagesPanel"), null, "Dashboard grid should not own the Data Foundation panel");
     assert.equal(app.document.querySelector(".data-packages-card"), null, "Old large package card should not render");
-    assert.ok(text.includes("Datenbasis 1/2"), "Summary should show compact 1/2 source status");
+    assert.ok(text.includes("Kern-Datenbasis 1/2"), "Summary should show compact core source status");
+    assert.ok(text.includes("Optionale Intelligence-Quellen 0/1"), "Summary should show optional intelligence source status separately");
     assert.ok(text.includes("Bestandsdaten"), "Inventory source should be shown");
     assert.ok(text.includes("Materialstamm"), "Material Master source should be shown");
+    assert.ok(text.includes("Verbrauchshistorie"), "Consumption History source should be shown as optional intelligence source");
     assert.ok(text.includes("Nicht importiert"), "Missing Material Master should use explicit missing wording");
     assert.ok(text.includes("Noch nicht prüfbar"), "Relationship should be separated and not assessable until Material Master exists");
     assert.ok(!text.includes("0 Zeilen"), "Missing Material Master should not claim zero rows");
@@ -102,9 +104,10 @@
     const text = app.document.getElementById("dataPackagesPanel").textContent;
 
     assert.equal(result.status, "loaded", "Material Master import should use the existing package importer");
-    assert.ok(text.includes("Datenbasis 2/2"), "Summary should show that both data sources exist");
+    assert.ok(text.includes("Kern-Datenbasis 2/2"), "Summary should show that both core data sources exist");
+    assert.ok(text.includes("Optionale Intelligence-Quellen 0/1"), "Summary should show optional intelligence sources separately");
     assert.ok(text.includes("Relationship kritisch"), "Summary should expose critical match quality instead of claiming completeness");
-    assert.ok(!text.includes("Datenbasis vollständig"), "A partial Material Master must not be reported as complete");
+    assert.ok(!text.includes("Kern-Datenbasis vollständig"), "A partial Material Master must not be reported as complete");
     assert.ok(text.includes("Verknüpfung durchgeführt"), "Relationship should show that row-level matching was executed");
     assert.ok(text.includes("Match Rate"), "Data Foundation should show the actual match rate");
     assert.ok(text.includes("Zugeordnete Zeilen"), "Data Foundation should show matched row counts");
@@ -122,9 +125,11 @@
       openDataFoundation(app);
       const text = app.document.getElementById("dataPackagesPanel").textContent;
 
-      assert.ok(text.includes("Data Foundation 1/2"), "English summary should be localized");
+      assert.ok(text.includes("Core Data Foundation 1/2"), "English core summary should be localized");
+      assert.ok(text.includes("Optional Intelligence Sources 0/1"), "English optional intelligence summary should be localized");
       assert.ok(text.includes("Inventory Data"), "Inventory source should be localized");
       assert.ok(text.includes("Material Master"), "Material Master source should be localized");
+      assert.ok(text.includes("Consumption History"), "Consumption History source should be localized");
       assert.ok(text.includes("Not Imported"), "Missing source state should be localized");
       assert.ok(text.includes("Not yet assessable"), "Relationship state should be localized");
     } finally {

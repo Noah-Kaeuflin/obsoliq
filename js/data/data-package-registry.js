@@ -45,8 +45,29 @@
       packageType: "consumption_history",
       domain: "demand",
       temporalMode: "history",
-      currentUiSupport: "contract_only",
+      currentUiSupport: "optional_intelligence_source",
+      importSupported: true,
+      builderIdentifier: "consumptionHistoryBuilder",
+      schemaVersion: "consumption-history-v1",
+      mappingPolicy: {
+        requiredFields: ["material_id", "consumption_quantity"],
+        requiredAnyOfMappingGroups: [["posting_date", "period"]],
+        organizationFields: ["plant"],
+        workflowFields: [],
+        recoveryInputFields: [],
+        optionalFields: [
+          "plant",
+          "base_unit",
+          "movement_type",
+          "consumption_value",
+          "movement_count",
+          "storage_location",
+          "document_id",
+          "document_item"
+        ]
+      },
       description: "Historical consumption signals for later slow-moving and dead-stock intelligence.",
+      requiredRelationshipKeys: ["material_id"],
       recommendedRelationshipKeys: ["material_id", "plant", "period"]
     },
     demand_forecast: {
