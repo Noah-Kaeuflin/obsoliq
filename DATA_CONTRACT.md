@@ -178,6 +178,20 @@ Unavailable is not numeric zero. Missing or unsupported evidence is omitted or s
 
 Historical export availability is tied to the current Runtime signature. Historical export is disabled for `not_calculated`, `calculating`, `unavailable` and `error` states and enabled only for current `available` or `limited` Runtime results.
 
+### DF-UX-02.1 Presentation Projection Contract
+
+The collapsed Data Foundation Summary is a presentation projection only. `primaryText`, `secondaryText`, `missingExtensionCount` and `reviewSourceCount` communicate the prioritized visible state, but they do not replace the full source-state contract.
+
+`sourceStates` remains the complete presentation contract for Inventory, Material Master and Consumption History source states. Missing, invalid, review-required, limited and error states remain distinct. A visible missing source may omit the text "Not Imported" when an Import action is present; this does not change Package presence semantics or Registry state.
+
+Source-row variants are visual only:
+
+- `compact-active`: active imported source evidence.
+- `actionable-missing`: missing optional source with an Import action.
+- `diagnostic`: invalid, limited, not-ready, review-required or error evidence.
+
+The Data Quality source badge reflects the current Dataset source label, including uploaded filenames. Row and column metadata reflect current Dataset Meta counts. Header presentation does not create analytical truth, mutate Data Quality issues or write Package records.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

@@ -359,6 +359,10 @@ const translations = {
     dataFoundationMissingCount: "{count} fehlen",
     dataFoundationExtensionMissingSingular: "1 Erweiterung fehlt",
     dataFoundationExtensionMissingPlural: "{count} Erweiterungen fehlen",
+    dataFoundationReviewSourceSingular: "1 Quelle prüfen",
+    dataFoundationReviewSourcePlural: "{count} Quellen prüfen",
+    dataFoundationAllAnalysesAvailable: "Alle Analysen verfügbar",
+    dataFoundationReview: "Datenbasis prüfen",
     dataFoundationInventoryActive: "Bestandsanalyse aktiv",
     dataFoundationInventoryMissing: "Bestandsdaten fehlen",
     dataFoundationInventoryInvalid: "Bestandsdaten prüfen",
@@ -378,11 +382,13 @@ const translations = {
     contextEnrichment: "Kontextanreicherung",
     historicalAnalysis: "Historische Analyse",
     sourceImportedButNotUsable: "Importiert, aber noch nicht analytisch nutzbar.",
-    inventoryDataRole: "Autoritative Quelle für aktuelle Bestands-KPIs, Recovery, Datenqualität und Maßnahmen.",
-    materialMasterRole: "Ergänzt Planungs-, Organisations- und Verantwortlichkeitskontext auf Material-/Werk-Ebene.",
-    consumptionHistoryRole: "Ermöglicht Verbrauchsmetriken, Reichweiten und Trendindikatoren aus historisierten Bewegungen.",
-    materialMasterMissingAction: "Importiere den Materialstamm, um Kontextanreicherung und Match-Evidenz zu aktivieren.",
-    consumptionHistoryMissingAction: "Importiere die Verbrauchshistorie, um historische Analyse und Bestandsreichweiten zu aktivieren.",
+    inventoryAnalysisAsOf: "Stand",
+    materialMasterRole: "Planungs-, Organisations- und Owner-Kontext",
+    consumptionHistoryRole: "3-/6-/12-Monatsverbrauch, Reichweite und Trend",
+    materialMasterMissingAction: "Planungs-, Organisations- und Owner-Kontext",
+    consumptionHistoryMissingAction: "3-/6-/12-Monatsverbrauch, Reichweite und Trend",
+    dataFoundationMatchRateShort: "Zuordnungsrate",
+    dataFoundationFieldsEnriched: "ergänzte Felder",
     dataSources: "Datenquellen",
     inventoryData: "Bestandsdaten",
     relationshipCompatibility: "Verknüpfbarkeit",
@@ -1669,6 +1675,10 @@ const translations = {
     dataFoundationMissingCount: "{count} missing",
     dataFoundationExtensionMissingSingular: "1 Extension Missing",
     dataFoundationExtensionMissingPlural: "{count} Extensions Missing",
+    dataFoundationReviewSourceSingular: "1 Source Requires Review",
+    dataFoundationReviewSourcePlural: "{count} Sources Require Review",
+    dataFoundationAllAnalysesAvailable: "All Analyses Available",
+    dataFoundationReview: "Review Data Foundation",
     dataFoundationInventoryActive: "Inventory Analysis Active",
     dataFoundationInventoryMissing: "Inventory Data Missing",
     dataFoundationInventoryInvalid: "Inventory Data Review",
@@ -1688,11 +1698,13 @@ const translations = {
     contextEnrichment: "Context Enrichment",
     historicalAnalysis: "Historical Analysis",
     sourceImportedButNotUsable: "Imported, but not analytically usable yet.",
-    inventoryDataRole: "Authoritative source for current inventory KPIs, recovery, data quality and actions.",
-    materialMasterRole: "Adds planning, organizational and ownership context at material/plant level.",
-    consumptionHistoryRole: "Unlocks consumption metrics, coverage and trend indicators from historical movements.",
-    materialMasterMissingAction: "Import Material Master to activate context enrichment and match evidence.",
-    consumptionHistoryMissingAction: "Import Consumption History to activate historical analysis and inventory coverage.",
+    inventoryAnalysisAsOf: "As of",
+    materialMasterRole: "Planning, organizational and owner context",
+    consumptionHistoryRole: "3/6/12-month consumption, coverage and trend",
+    materialMasterMissingAction: "Planning, organizational and owner context",
+    consumptionHistoryMissingAction: "3/6/12-month consumption, coverage and trend",
+    dataFoundationMatchRateShort: "match rate",
+    dataFoundationFieldsEnriched: "enriched fields",
     dataSources: "Data Sources",
     inventoryData: "Inventory Data",
     relationshipCompatibility: "Relationship Compatibility",
@@ -13208,16 +13220,43 @@ function relationshipCompatibilityState(readiness) {
 function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
   const state = options.state || dataFoundationSourceState(packageRecord);
   const reason = packageRecord && state.className === "invalid" ? packageValidationReason(packageRecord) : "";
+  const variant = options.variant || (
+    !packageRecord && options.importAction
+      ? "actionable-missing"
+      : state.className === "available"
+        ? "compact-active"
+        : "diagnostic"
+  );
   const meta = [];
-  if (options.roleKey) meta.push(t(options.roleKey));
-  if (packageRecord) {
-    meta.push(packageRowsText(packageRecord));
-    if (packageRecord.freshness?.importedAt) meta.push(`${t("packageImportedAt")}: ${formatDateTime(packageRecord.freshness.importedAt)}`);
-    if (options.showGranularity) meta.push(`${t("packageGranularity")}: ${packageGranularityLabel(packageRecord)}`);
+  if (packageRecord && variant === "compact-active") {
+    if (options.metaText) {
+      meta.push(options.metaText);
+    } else if (options.sourceKind === "inventory") {
+      meta.push(packageRowsText(packageRecord));
+      if (packageRecord.freshness?.importedAt) meta.push(`${t("inventoryAnalysisAsOf")} ${formatDateTime(packageRecord.freshness.importedAt)}`);
+    } else if (options.sourceKind === "materialMaster") {
+      const relationship = currentInventoryMaterialMasterRelationship || currentDatasetMeta?.materialMasterRelationship?.relationship || null;
+      const enrichment = currentInventoryEnrichmentDiagnostics || currentDatasetMeta?.materialMasterRelationship?.enrichment || null;
+      if (Number.isFinite(Number(relationship?.matchRate))) {
+        meta.push(`${formatQualityPercent(Number(relationship.matchRate || 0) * 100)} ${t("dataFoundationMatchRateShort")}`);
+      }
+      if (Number.isFinite(Number(enrichment?.enrichedFieldCount))) {
+        meta.push(`${formatCount(enrichment.enrichedFieldCount)} ${t("dataFoundationFieldsEnriched")}`);
+      }
+      if (!meta.length) meta.push(t("materialMasterRole"));
+    } else if (options.sourceKind === "consumptionHistory") {
+      meta.push(t("dataFoundationHistoryAvailable"));
+    } else {
+      meta.push(packageRowsText(packageRecord));
+    }
+  } else if (packageRecord) {
+    if (options.diagnosticText) meta.push(options.diagnosticText);
+    else if (options.roleKey) meta.push(t(options.roleKey));
+    else meta.push(state.label);
+    if (packageRecord.freshness?.importedAt && state.className === "invalid") meta.push(`${t("packageImportedAt")}: ${formatDateTime(packageRecord.freshness.importedAt)}`);
     if (packageRecord.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
       const readiness = consumptionHistoryReadiness(packageRecord);
       if (readiness?.status) meta.push(`${t("historyReadiness")}: ${historyReadinessStatusLabel(readiness.status)}`);
-      if (Number.isFinite(Number(readiness?.readyRowCount))) meta.push(`${t("historyRowsEligible")}: ${formatCount(readiness.readyRowCount)}`);
     }
   } else if (options.missingDescriptionKey) {
     meta.push(t(options.missingDescriptionKey));
@@ -13228,18 +13267,22 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
   const actionLabel = options.importActionType === CONSUMPTION_HISTORY_PACKAGE_TYPE
     ? "importConsumptionHistoryCompact"
     : "importMaterialMasterCompact";
-  const action = !packageRecord && options.importAction
+  const action = options.actionMarkup || (!packageRecord && options.importAction
     ? `<button class="secondary data-foundation-inline-action" type="button" ${actionKey}>${html(t(actionLabel))}</button>`
-    : "";
+    : "");
+  const statusMarkup = variant === "actionable-missing"
+    ? ""
+    : `<span class="data-foundation-state">${html(options.statusLabel || state.label)}</span>`;
+  const accessibleState = state.label ? ` aria-label="${html(`${t(labelKey)} · ${state.label}`)}"` : "";
   return `
-    <div class="data-foundation-source ${html(state.className)}">
+    <div class="data-foundation-source ${html(state.className)} ${html(variant)}"${accessibleState}>
       <span class="data-foundation-dot" aria-hidden="true"></span>
       <div class="data-foundation-source-copy">
-        <strong>${html(t(labelKey))}</strong>
-        <small>${html(meta.length ? meta.join(" · ") : state.label)}</small>
+        <strong class="data-foundation-source-title">${html(t(labelKey))}</strong>
+        <small class="data-foundation-source-meta">${html(meta.length ? meta.join(" · ") : state.label)}</small>
         ${reason ? `<small class="data-foundation-reason">${html(reason)}</small>` : ""}
       </div>
-      <span class="data-foundation-state">${html(state.label)}</span>
+      ${statusMarkup}
       ${action}
     </div>
   `;
@@ -13286,39 +13329,39 @@ function renderRelationshipReadinessItem(readiness) {
   const hasExecutedRelationship = relationship?.status === "executed";
   const executedBody = hasExecutedRelationship ? `
       <div class="data-foundation-relationship-grid">
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("matchRate"))}</span>
           <strong>${html(relationshipMatchRateText(relationship))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("matchedRows"))}</span>
           <strong>${html(relationshipMatchedRowsText(relationship))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("exactMatches"))}</span>
           <strong>${html(formatCount(relationship.exactMatchCount || 0))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("fallbackMatches"))}</span>
           <strong>${html(formatCount(relationship.fallbackMatchCount || 0))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("unmatchedMaterials"))}</span>
           <strong>${html(formatCount(relationship.unmatchedCount || 0))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("ambiguousMaterials"))}</span>
           <strong>${html(formatCount(relationship.ambiguousCount || 0))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("enrichedFields"))}</span>
           <strong>${html(formatCount(enrichment?.enrichedFieldCount || 0))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("enrichmentConflicts"))}</span>
           <strong>${html(formatCount((enrichment?.conflictCount || 0) + (relationship.conflictCount || 0)))}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("excessQualityTitle"))}</span>
           <strong>${html(`${relationshipQualityLabel(quality)} · ${formatCount(quality.score || 0)}/100`)}</strong>
         </div>
@@ -13397,7 +13440,7 @@ function renderInventoryHistoryRelationshipItem(runtimeState = historicalMetrics
       ${renderDataFoundationCardHead(t("inventoryConsumptionHistoryRelationship"), t("relationshipExecuted"))}
       <div class="data-foundation-relationship-grid">
         ${rows.map(([label, value]) => `
-          <div>
+          <div class="data-foundation-relationship-metric">
             <span>${html(label)}</span>
             <strong>${html(value)}</strong>
           </div>
@@ -13501,7 +13544,7 @@ function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRu
       ${renderDataFoundationCardHead(t("historicalMetrics"), `${state.label}${runtimeState?.status === "limited" ? ` · ${t("historicalMetricsLimited")}` : ""}`)}
       <div class="data-foundation-relationship-grid">
         ${rows.map(([label, value]) => `
-          <div>
+          <div class="data-foundation-relationship-metric">
             <span>${html(label)}</span>
             <strong>${html(value)}</strong>
           </div>
@@ -13561,10 +13604,12 @@ function dataFoundationCountText(key, count) {
 function dataFoundationSummarySegment(className, textKey, options = {}) {
   return {
     className,
+    textKey,
     text: t(textKey),
     active: Boolean(options.active),
     missing: Boolean(options.missing),
-    review: Boolean(options.review)
+    review: Boolean(options.review),
+    critical: Boolean(options.critical)
   };
 }
 
@@ -13614,17 +13659,33 @@ function dataFoundationSummaryFromSegments(segments = []) {
   const activeCount = segments.filter(segment => segment.active).length;
   const missingExtensionCount = segments.slice(1).filter(segment => segment.missing).length;
   const reviewCount = segments.filter(segment => segment.review).length;
-  const compactExtensionText = missingExtensionCount === 1
-    ? t("dataFoundationExtensionMissingSingular")
-    : missingExtensionCount > 1
-      ? dataFoundationCountText("dataFoundationExtensionMissingPlural", missingExtensionCount)
-      : dataFoundationCountText("dataFoundationActiveCount", activeCount);
-  const mobileParts = [
-    t("dataFoundation"),
-    dataFoundationCountText("dataFoundationActiveCount", activeCount)
-  ];
-  if (missingExtensionCount) mobileParts.push(dataFoundationCountText("dataFoundationMissingCount", missingExtensionCount));
-  if (!missingExtensionCount && reviewCount) mobileParts.push(`${formatCount(reviewCount)} ${currentLanguage === "de" ? "prüfen" : "review"}`);
+  const inventorySegment = segments[0] || {};
+  const hasCriticalFoundation = inventorySegment.critical || inventorySegment.missing || inventorySegment.className === "invalid";
+  const secondaryText = (() => {
+    if (reviewCount) {
+      return reviewCount === 1
+        ? t("dataFoundationReviewSourceSingular")
+        : dataFoundationCountText("dataFoundationReviewSourcePlural", reviewCount);
+    }
+    if (missingExtensionCount) {
+      return missingExtensionCount === 1
+        ? t("dataFoundationExtensionMissingSingular")
+        : dataFoundationCountText("dataFoundationExtensionMissingPlural", missingExtensionCount);
+    }
+    return "";
+  })();
+  const primaryText = hasCriticalFoundation
+    ? t("dataFoundationReview")
+    : reviewCount || missingExtensionCount
+      ? t("dataFoundationInventoryActive")
+      : t("dataFoundationAllAnalysesAvailable");
+  const mobileText = hasCriticalFoundation
+    ? `${t("dataFoundation")} · ${t("dataFoundationReview")}`
+    : reviewCount
+      ? `${t("dataFoundation")} · ${secondaryText}`
+      : missingExtensionCount
+        ? `${t("dataFoundation")} · ${dataFoundationCountText("dataFoundationActiveCount", activeCount)} · ${dataFoundationCountText("dataFoundationMissingCount", missingExtensionCount)}`
+        : `${t("dataFoundation")} · ${t("dataFoundationAllAnalysesAvailable")}`;
   const className = segments.some(segment => segment.className === "invalid")
     ? "invalid"
     : segments.some(segment => segment.className === "warning")
@@ -13634,21 +13695,14 @@ function dataFoundationSummaryFromSegments(segments = []) {
         : "complete";
   return {
     className,
-    segments: segments.slice(0, 3),
+    primaryText,
+    secondaryText,
     activeCount,
     missingExtensionCount,
-    compactText: `${t("dataFoundation")} · ${segments[0]?.text || t("dataFoundationSummary")} · ${compactExtensionText}`,
-    mobileText: mobileParts.join(" · ")
+    reviewSourceCount: reviewCount,
+    sourceStates: segments.slice(0, 3),
+    mobileText
   };
-}
-
-function renderDataFoundationSummarySegments(segments = []) {
-  return segments.map(segment => `
-    <span class="data-foundation-summary-segment ${html(segment.className)}">
-      <span class="data-foundation-summary-dot" aria-hidden="true"></span>
-      <span>${html(segment.text)}</span>
-    </span>
-  `).join("");
 }
 
 function buildDataFoundationPresentationModel({
@@ -13667,9 +13721,15 @@ function buildDataFoundationPresentationModel({
       : dataFoundationSummarySegment("missing", "dataFoundationInventoryMissing", { missing: true });
   const materialSegment = dataFoundationMaterialSegment(materialMasterPackage);
   const historySegment = dataFoundationHistorySegment(consumptionHistoryPackage, historicalRuntimeState);
+  const sourceStates = {
+    inventory: inventorySegment,
+    materialMaster: materialSegment,
+    consumptionHistory: historySegment
+  };
   const summary = dataFoundationSummaryFromSegments([inventorySegment, materialSegment, historySegment]);
   return {
     summary,
+    sourceStates,
     sources: {
       inventory: {
         presence: inventoryPackage ? "imported" : "not_imported",
@@ -13698,16 +13758,29 @@ function buildDataFoundationPresentationModel({
   };
 }
 
+function dataFoundationSourceRowStateFromSegment(segment, fallbackState) {
+  if (!segment) return fallbackState;
+  if (segment.review) {
+    return {
+      className: segment.className === "invalid" ? "invalid" : "warning",
+      label: t("interpretationReviewRequired")
+    };
+  }
+  if (segment.active) return { className: "available", label: t("packageActive") };
+  if (segment.missing) return { className: "missing", label: t("packageMissing") };
+  return fallbackState;
+}
+
 function renderHistoryPreparationItem(presentationModel) {
   return `
     <section class="data-foundation-relationship history-preparation ${html(presentationModel.historyReadiness.className)}">
       ${renderDataFoundationCardHead(t("historyInterpretation"), presentationModel.interpretationTrust.label)}
       <div class="data-foundation-relationship-grid">
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("interpretationTrust"))}</span>
           <strong>${html(presentationModel.interpretationTrust.label)}</strong>
         </div>
-        <div>
+        <div class="data-foundation-relationship-metric">
           <span>${html(t("historyReadiness"))}</span>
           <strong>${html(presentationModel.historyReadiness.label)}</strong>
         </div>
@@ -13735,48 +13808,77 @@ function renderPackageAvailability() {
     historicalRuntimeState
   });
   const summary = presentationModel.summary;
+  const summaryLabel = [t("dataFoundation"), summary.primaryText, summary.secondaryText].filter(Boolean).join(" · ");
   const materialSourceState = dataFoundationSourceState(materialMasterPackage);
   const historySourceState = dataFoundationSourceState(consumptionHistoryPackage);
+  const materialRowState = dataFoundationSourceRowStateFromSegment(presentationModel.sourceStates.materialMaster, materialSourceState);
+  const historyRowState = dataFoundationSourceRowStateFromSegment(presentationModel.sourceStates.consumptionHistory, historySourceState);
+  const materialRowVariant = !materialMasterPackage
+    ? "actionable-missing"
+    : materialRowState.className === "available"
+      ? "compact-active"
+      : "diagnostic";
+  const historyRowVariant = !consumptionHistoryPackage
+    ? "actionable-missing"
+    : historyRowState.className === "available"
+      ? "compact-active"
+      : "diagnostic";
   const canShowContextEnrichment = Boolean(materialMasterPackage && materialSourceState.className === "available");
   const canShowHistoricalAnalysis = Boolean(consumptionHistoryPackage && historySourceState.className === "available");
   target.innerHTML = `
     <details class="data-foundation ${html(summary.className)}" data-data-foundation>
-      <summary class="data-foundation-summary" aria-expanded="false">
+      <summary class="data-foundation-summary" aria-expanded="false" aria-controls="dataFoundationDetail" aria-label="${html(summaryLabel)}">
         <span class="data-foundation-summary-main">
           <strong class="data-foundation-summary-title">${html(t("dataFoundation"))}</strong>
-          <span class="data-foundation-summary-segments">${renderDataFoundationSummarySegments(summary.segments)}</span>
-          <span class="data-foundation-summary-compact">${html(summary.compactText)}</span>
+          <span class="data-foundation-summary-status">
+            <span class="data-foundation-summary-primary">${html(summary.primaryText)}</span>
+            ${summary.secondaryText ? `<span class="data-foundation-summary-secondary">${html(summary.secondaryText)}</span>` : ""}
+          </span>
           <span class="data-foundation-summary-mobile">${html(summary.mobileText)}</span>
         </span>
       </summary>
       <span class="data-foundation-scrim" data-data-foundation-close aria-hidden="true"></span>
-      <div class="data-foundation-detail" role="dialog" aria-modal="false" aria-labelledby="dataFoundationDrawerTitle">
+      <div id="dataFoundationDetail" class="data-foundation-detail" role="region" aria-labelledby="dataFoundationDrawerTitle">
         <div class="data-foundation-drawer-head">
           <div>
             <h3 id="dataFoundationDrawerTitle">${html(t("dataFoundation"))}</h3>
             <p>${html(t("dataPackagesSubtitle"))}</p>
           </div>
-          <button class="secondary data-foundation-close" type="button" data-data-foundation-close aria-label="${html(t("dataFoundationClose"))}">${html(t("close"))}</button>
+          <button class="data-foundation-close" type="button" data-data-foundation-close aria-label="${html(t("dataFoundationClose"))}" title="${html(t("dataFoundationClose"))}">
+            <span aria-hidden="true">×</span>
+          </button>
         </div>
         <div class="data-foundation-detail-body">
           <div class="data-foundation-section-label">${html(t("activeAnalysis"))}</div>
           <div class="data-foundation-source-list">
-            ${renderDataFoundationSourceRow("inventoryData", inventoryPackage, { roleKey: "inventoryDataRole" })}
+            ${renderDataFoundationSourceRow("inventoryData", inventoryPackage, {
+              sourceKind: "inventory",
+              variant: inventoryPackage ? "compact-active" : "diagnostic",
+              statusLabel: inventoryPackage ? t("packageActive") : t("dataFoundationReview")
+            })}
           </div>
           <div class="data-foundation-section-label">${html(t("extensions"))}</div>
           <div class="data-foundation-source-list">
             ${renderDataFoundationSourceRow("materialMaster", materialMasterPackage, {
+              state: materialRowState,
+              sourceKind: "materialMaster",
+              variant: materialRowVariant,
               showGranularity: true,
               importAction: true,
               roleKey: "materialMasterRole",
-              missingDescriptionKey: "materialMasterMissingAction"
+              missingDescriptionKey: "materialMasterMissingAction",
+              diagnosticText: t("materialMasterRole")
             })}
             ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, {
+              state: historyRowState,
+              sourceKind: "consumptionHistory",
+              variant: historyRowVariant,
               showGranularity: true,
               importAction: true,
               importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE,
               roleKey: "consumptionHistoryRole",
-              missingDescriptionKey: "consumptionHistoryMissingAction"
+              missingDescriptionKey: "consumptionHistoryMissingAction",
+              diagnosticText: t("consumptionHistoryRole")
             })}
           </div>
           ${canShowContextEnrichment ? `
@@ -17505,12 +17607,59 @@ function runDownload() {
 
 let dataFoundationDisclosureControllerInitialized = false;
 let lastDataFoundationSummaryControl = null;
+let dataFoundationModeQuery = null;
+
+function isDataFoundationMobileMode() {
+  return dataFoundationModeQuery ? dataFoundationModeQuery.matches : window.innerWidth < 900;
+}
+
+function focusableElementsIn(container) {
+  if (!container) return [];
+  return [...container.querySelectorAll([
+    "button:not([disabled])",
+    "[href]",
+    "input:not([disabled])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])"
+  ].join(","))].filter(element => element.offsetParent !== null || element === document.activeElement);
+}
+
+function focusDataFoundationDetail(details) {
+  const detail = details?.querySelector(".data-foundation-detail");
+  const firstFocusable = focusableElementsIn(detail)[0];
+  (firstFocusable || detail)?.focus?.({ preventScroll: true });
+}
+
+function updateDataFoundationInteractionMode(options = {}) {
+  const isMobile = isDataFoundationMobileMode();
+  const openDetails = document.querySelector("[data-data-foundation][open]");
+  document.querySelectorAll("[data-data-foundation]").forEach(details => {
+    details.dataset.dataFoundationMode = isMobile ? "drawer" : "popover";
+    const detail = details.querySelector(".data-foundation-detail");
+    if (!detail) return;
+    if (isMobile) {
+      detail.setAttribute("role", "dialog");
+      detail.setAttribute("aria-modal", "true");
+      detail.setAttribute("tabindex", "-1");
+    } else {
+      detail.setAttribute("role", "region");
+      detail.removeAttribute("aria-modal");
+      detail.removeAttribute("tabindex");
+    }
+  });
+  document.body.classList.toggle("data-foundation-modal-open", Boolean(openDetails && isMobile));
+  if (openDetails && isMobile && options.focus !== false && !openDetails.contains(document.activeElement)) {
+    focusDataFoundationDetail(openDetails);
+  }
+}
 
 function syncDataFoundationDisclosureState() {
   document.querySelectorAll("[data-data-foundation]").forEach(details => {
     const summary = details.querySelector(":scope > summary");
     if (summary) summary.setAttribute("aria-expanded", details.open ? "true" : "false");
   });
+  updateDataFoundationInteractionMode({ focus: false });
 }
 
 function closeDataFoundationDetail(options = {}) {
@@ -17520,6 +17669,7 @@ function closeDataFoundationDetail(options = {}) {
     closed = true;
   });
   if (closed) syncDataFoundationDisclosureState();
+  if (closed) document.body.classList.remove("data-foundation-modal-open");
   if (closed && options.focus !== false) {
     (lastDataFoundationSummaryControl || document.querySelector("[data-data-foundation] > summary"))?.focus?.({ preventScroll: true });
   }
@@ -17529,6 +17679,7 @@ function closeDataFoundationDetail(options = {}) {
 function initDataFoundationDisclosureController() {
   if (dataFoundationDisclosureControllerInitialized) return;
   dataFoundationDisclosureControllerInitialized = true;
+  dataFoundationModeQuery = window.matchMedia("(max-width: 899px)");
   document.addEventListener("click", event => {
     if (!(event.target instanceof Element)) return;
     const closeButton = event.target.closest("[data-data-foundation-close]");
@@ -17546,19 +17697,52 @@ function initDataFoundationDisclosureController() {
     const summary = event.target.closest("[data-data-foundation] > summary");
     if (summary) {
       lastDataFoundationSummaryControl = summary;
-      setTimeout(syncDataFoundationDisclosureState, 0);
+      setTimeout(() => {
+        syncDataFoundationDisclosureState();
+        const details = summary.closest("[data-data-foundation]");
+        if (details?.open && isDataFoundationMobileMode()) focusDataFoundationDetail(details);
+      }, 0);
       return;
     }
     const openPanel = document.querySelector("[data-data-foundation][open]");
-    if (openPanel && !event.target.closest("[data-data-foundation]")) {
+    if (openPanel && !isDataFoundationMobileMode() && !event.target.closest("[data-data-foundation]")) {
       closeDataFoundationDetail({ focus: false });
     }
   });
   window.addEventListener("keydown", event => {
     if (event.key === "Escape" && closeDataFoundationDetail()) {
       event.preventDefault();
+      return;
+    }
+    if (event.key !== "Tab" || !isDataFoundationMobileMode()) return;
+    const openPanel = document.querySelector("[data-data-foundation][open]");
+    const detail = openPanel?.querySelector(".data-foundation-detail");
+    if (!detail) return;
+    const focusable = focusableElementsIn(detail);
+    if (!focusable.length) {
+      event.preventDefault();
+      detail.focus?.({ preventScroll: true });
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   });
+  document.addEventListener("toggle", event => {
+    if (!(event.target instanceof HTMLDetailsElement) || !event.target.matches("[data-data-foundation]")) return;
+    syncDataFoundationDisclosureState();
+    if (event.target.open && isDataFoundationMobileMode()) focusDataFoundationDetail(event.target);
+  }, true);
+  const modeChangeHandler = () => updateDataFoundationInteractionMode({ focus: false });
+  if (dataFoundationModeQuery.addEventListener) dataFoundationModeQuery.addEventListener("change", modeChangeHandler);
+  else dataFoundationModeQuery.addListener(modeChangeHandler);
+  window.addEventListener("resize", modeChangeHandler, { passive: true });
   syncDataFoundationDisclosureState();
 }
 
@@ -18112,6 +18296,16 @@ function createObsoliqTestBridge() {
       renderPackageAvailability();
       return $("dataPackagesPanel")?.textContent || "";
     },
+    buildDataFoundationPresentationModelForTest: (input = {}) => clonePlainRecord(buildDataFoundationPresentationModel({
+      inventoryPackage: Object.prototype.hasOwnProperty.call(input, "inventoryPackage") ? input.inventoryPackage : currentInventoryPackage(),
+      materialMasterPackage: Object.prototype.hasOwnProperty.call(input, "materialMasterPackage") ? input.materialMasterPackage : currentMaterialMasterPackage(),
+      consumptionHistoryPackage: Object.prototype.hasOwnProperty.call(input, "consumptionHistoryPackage") ? input.consumptionHistoryPackage : currentConsumptionHistoryPackage(),
+      materialMasterRelationshipReadiness: input.materialMasterRelationshipReadiness || packageImportService.relationshipReadiness({
+        inventoryPackage: Object.prototype.hasOwnProperty.call(input, "inventoryPackage") ? input.inventoryPackage : currentInventoryPackage(),
+        materialMasterPackage: Object.prototype.hasOwnProperty.call(input, "materialMasterPackage") ? input.materialMasterPackage : currentMaterialMasterPackage()
+      }),
+      historicalRuntimeState: input.historicalRuntimeState || historicalMetricsRuntimeForPresentation()
+    })),
     renderOverviewForTest: () => {
       renderOverview();
       return $("overviewWorkspace")?.textContent || "";

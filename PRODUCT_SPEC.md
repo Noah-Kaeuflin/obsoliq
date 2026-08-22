@@ -62,6 +62,18 @@ The drawer has a clear title, Close action, scrim and bounded scroll owner. Open
 
 AP 16.4d remains the next analytical block and is not implemented by DF-UX-02.
 
+### DF-UX-02.1 — Data Foundation Visual Hierarchy & Data Quality Header Closure
+
+DF-UX-02.1 closes the visual hierarchy of the existing Data Foundation without changing analytical state. The collapsed control now shows one prioritized primary statement and one secondary exception statement, for example active Inventory Analysis plus missing extension count or review-source count. Full `sourceStates` remain available inside the open Data Foundation and Technical Details.
+
+The open Data Foundation uses three source-row variants: `compact-active` for active sources, `actionable-missing` for missing optional extensions and `diagnostic` for invalid, limited or review-required sources. Missing Material Master and Consumption History rows use short role descriptions plus Import actions, without redundant visible "Not Imported" labels beside those actions.
+
+Card nesting is reduced so the open surface owns the main border, radius and shadow. Technical Details is a muted secondary disclosure, and the text Close button is replaced with an accessible icon-only X control. Desktop behavior is a non-modal anchored Popover without a scrim. Mobile behavior remains a modal Bottom Drawer with scrim, focus containment and body-scroll locking.
+
+The Data Quality header now combines title, source and dataset metadata into one compact two-line block. Only the current source label, such as Sample Data or the uploaded filename, is shown as a badge. Row and column counts are inline muted metadata, and the redundant Data Loaded chip is removed from the Data Quality header.
+
+All DF-UX-02.1 changes are presentation-only. Opening, closing, scrolling and responsive mode changes do not trigger Historical Runtime builds, Registry mutation, Package revision changes or analytical recalculation.
+
 ### AP 16.4b — Temporal, Movement & Unit Semantics
 
 Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.

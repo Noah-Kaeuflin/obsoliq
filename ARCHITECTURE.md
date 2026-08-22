@@ -102,6 +102,20 @@ The collapsed summary is capability-oriented and bounded to three visible segmen
 
 Relationship and Metrics rendering remain separate. Material Master relationship evidence is part of Context Enrichment. Inventory-to-History relationship evidence is rendered only when the current Historical Runtime provides it, while Historical Metrics state is rendered as its own card. Technical Package, provenance, readiness and runtime details remain collapsed in Technical Details.
 
+## DF-UX-02.1 Data Foundation Presentation Closure
+
+The DF-UX-02.1 presentation flow is:
+
+Existing Product State -> Data Foundation Presentation Adapter -> Prioritized Summary -> Source Row Variants -> Desktop Popover / Mobile Drawer -> Presentation Only.
+
+`sourceStates` remain the authoritative source-state projection for open content, Technical Details and tests. The collapsed Summary is only a prioritization projection with `primaryText`, `secondaryText`, missing-extension count and review-source count. It does not replace Package presence, Package validity, Interpretation Trust, History Readiness, Relationship state or Historical Metrics Runtime state.
+
+Source rows use explicit presentation variants: `compact-active`, `actionable-missing` and `diagnostic`. The variants change visual hierarchy only. They do not alter Package semantics, Relationship results, Runtime results or Data Quality behavior.
+
+The Data Foundation interaction controller owns Popover/Drawer semantics. Desktop mode uses a non-modal anchored Popover with `role="region"` and no scrim. Mobile mode uses `role="dialog"`, `aria-modal="true"`, a scrim, focus containment and body-scroll locking. Opening, closing, pressing Escape, outside-click closing, scrolling or breakpoint switching never calls Historical Runtime build, Package import, Registry mutation or analytical engines.
+
+The Data Quality header reads current Dataset Meta only. It renders the source label as a title-row badge and row/column counts as inline metadata. It does not mutate Dataset Meta, Data Quality issues or Package records.
+
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 
 The Pilot Review Service owns the complete Review contract and lifecycle boundary. It validates new Review identity, generates Review IDs, owns the monotonic `reviewSequence`, computes Case fingerprints, stores Review records, reconciles current/stale/orphaned lifecycle state, builds current and all-state summaries, exports Review rows, and snapshots/restores Review state.

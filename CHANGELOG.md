@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026-08-22 - DF-UX-02.1:
+Data Foundation Visual Hierarchy & Data Quality Header Closure
+
+### Changed
+
+- Replaced equal-weight Data Foundation source statements with one prioritized primary status and one secondary exception status.
+- Retained complete source states for the open Data Foundation and Technical Details.
+- Reduced the collapsed Summary to a calmer visual hierarchy with singular and plural extension and review-source summaries.
+- Replaced nested source cards with compact rows and subtle dividers.
+- Reduced the active Inventory source to row count and source-date evidence.
+- Shortened Material Master copy to planning, organizational and owner context.
+- Shortened Consumption History copy to 3/6/12-month consumption, coverage and trend.
+- Removed redundant visible "Not Imported" text where an Import action is already present.
+- Preserved distinct invalid, review-required, not-ready, limited and error states.
+- Replaced the text Close button with an accessible icon-only X action.
+- Separated desktop Data Foundation behavior into a non-modal anchored Popover without a scrim.
+- Preserved a modal, focus-contained and scroll-locked Bottom Drawer on mobile.
+- Added responsive Popover/Drawer semantic switching without analytical recalculation.
+- Reduced Technical Details to a muted secondary disclosure.
+- Preserved the four-value Historical Analysis hierarchy.
+- Integrated the Data Quality source badge into the title row.
+- Moved Data Quality row and column counts into the subtitle metadata line.
+- Removed the redundant Data Loaded chip from the Data Quality header.
+- Preserved the actual uploaded filename as the primary source label.
+- Consolidated obsolete nested Data Foundation CSS.
+- Added Summary, source-row, Popover/Drawer, Data Quality header, localization, responsive and render-purity tests.
+- Preserved Registry, Package imports, Material Master enrichment, Consumption History semantics, Historical Runtime and all analytical calculations.
+
+### Preserved
+
+- Inventory KPIs
+- Recovery
+- Data Quality calculations
+- Remediation
+- Actions
+- Excess
+- Opportunity Score
+- scenarios
+- Pilot Reviews
+- Material Master Relationship
+- Material Master enrichment
+- Consumption History interpretation
+- History Readiness
+- Inventory-to-History Relationship
+- Historical Metrics
+- Historical Runtime signatures and invalidation
+- Package IDs and revisions
+- all export variants
+- Formula Injection protection
+- German / English
+- Light / Dark Mode
+- file:// MVP
+
+### Known Limitations
+
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Predictive Inventory Risk
+- no Snapshot History
+- no persistence
+- no SAP integration
+
 ## 2026-08-22 - DF-UX-02:
 Capability-Oriented Data Foundation
 
