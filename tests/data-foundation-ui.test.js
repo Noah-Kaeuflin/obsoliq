@@ -51,26 +51,33 @@
     return details;
   }
 
-  test("DF-UX-01 Data Foundation replaces the large Overview package card", async assert => {
+  test("DF-UX-02 Data Foundation presents compact capability states", async assert => {
     const app = await loadOverviewApp();
     const panel = app.document.getElementById("dataPackagesPanel");
     const details = openDataFoundation(app);
     const text = panel.textContent;
+    const summarySegments = panel.querySelectorAll(".data-foundation-summary-segment");
 
     assert.equal(panel.parentElement, app.document.querySelector(".overview-header"), "Data Foundation should be part of the Overview header");
     assert.equal(app.document.querySelector("#view-dashboard #dataPackagesPanel"), null, "Dashboard grid should not own the Data Foundation panel");
     assert.equal(app.document.querySelector(".data-packages-card"), null, "Old large package card should not render");
-    assert.ok(text.includes("Kern-Datenbasis 1/2"), "Summary should show compact core source status");
-    assert.ok(text.includes("Optionale Intelligence-Quellen 0/1"), "Summary should show optional intelligence source status separately");
+    assert.ok(summarySegments.length <= 3, "Collapsed summary should render no more than three direct segments");
+    assert.equal(text.includes("Kern-Datenbasis"), false, "Aggregate core counter should not be visible");
+    assert.equal(text.includes("Optionale Intelligence-Quellen"), false, "Aggregate optional counter should not be visible");
+    assert.ok(text.includes("Bestandsanalyse aktiv"), "Inventory capability should be shown as active analysis");
+    assert.ok(text.includes("Materialstamm fehlt"), "Missing Material Master should be shown directly");
+    assert.ok(text.includes("Historie fehlt"), "Missing history should be shown directly");
     assert.ok(text.includes("Bestandsdaten"), "Inventory source should be shown");
     assert.ok(text.includes("Materialstamm"), "Material Master source should be shown");
-    assert.ok(text.includes("Verbrauchshistorie"), "Consumption History source should be shown as optional intelligence source");
+    assert.ok(text.includes("Verbrauchshistorie"), "Consumption History source should be shown as a product extension");
     assert.ok(text.includes("Nicht importiert"), "Missing Material Master should use explicit missing wording");
-    assert.ok(text.includes("Noch nicht prüfbar"), "Relationship should be separated and not assessable until Material Master exists");
+    assert.equal(text.includes("Noch nicht prüfbar"), false, "Missing Material Master should not create a separate not-assessable relationship card");
     assert.ok(!text.includes("0 Zeilen"), "Missing Material Master should not claim zero rows");
     assert.ok(!text.includes("Importiert: -"), "Missing Material Master should not show dash-import metadata");
     assert.ok(!text.includes("Granularität: -"), "Missing Material Master should not show dash-granularity metadata");
     assert.ok(!details.querySelector(".data-foundation-technical")?.textContent.includes("%"), "Technical detail should not imply a match rate");
+    assert.ok(details.querySelector(".data-foundation-close"), "Drawer should expose a visible close action");
+    assert.ok(details.querySelector(".data-foundation-detail-body"), "Drawer should have one explicit scroll owner");
   });
 
   test("DF-UX-01 Material Master import action uses the existing package upload flow", async assert => {
@@ -102,12 +109,14 @@
     await waitFor(() => app.document.querySelector("#dataPackagesPanel .data-foundation.invalid"), "Data Foundation critical quality");
     openDataFoundation(app);
     const text = app.document.getElementById("dataPackagesPanel").textContent;
+    const summarySegments = app.document.querySelectorAll("#dataPackagesPanel .data-foundation-summary-segment");
 
     assert.equal(result.status, "loaded", "Material Master import should use the existing package importer");
-    assert.ok(text.includes("Kern-Datenbasis 2/2"), "Summary should show that both core data sources exist");
-    assert.ok(text.includes("Optionale Intelligence-Quellen 0/1"), "Summary should show optional intelligence sources separately");
-    assert.ok(text.includes("Relationship kritisch"), "Summary should expose critical match quality instead of claiming completeness");
-    assert.ok(!text.includes("Kern-Datenbasis vollständig"), "A partial Material Master must not be reported as complete");
+    assert.equal(summarySegments.length <= 3, true, "Summary should stay at three direct capability segments");
+    assert.equal(text.includes("Kern-Datenbasis"), false, "Material Master state should not use aggregate core counters");
+    assert.equal(text.includes("Optionale Intelligence-Quellen"), false, "Material Master state should not use optional aggregate counters");
+    assert.ok(text.includes("Kontextanreicherung prüfen"), "Summary should expose relationship quality as context enrichment review");
+    assert.ok(!text.includes("Datenbasis vollständig"), "A partial Material Master must not be reported as complete");
     assert.ok(text.includes("Verknüpfung durchgeführt"), "Relationship should show that row-level matching was executed");
     assert.ok(text.includes("Match Rate"), "Data Foundation should show the actual match rate");
     assert.ok(text.includes("Zugeordnete Zeilen"), "Data Foundation should show matched row counts");
@@ -125,13 +134,16 @@
       openDataFoundation(app);
       const text = app.document.getElementById("dataPackagesPanel").textContent;
 
-      assert.ok(text.includes("Core Data Foundation 1/2"), "English core summary should be localized");
-      assert.ok(text.includes("Optional Intelligence Sources 0/1"), "English optional intelligence summary should be localized");
+      assert.equal(text.includes("Core Data Foundation"), false, "English aggregate core summary should be removed");
+      assert.equal(text.includes("Optional Intelligence Sources"), false, "English aggregate optional summary should be removed");
+      assert.ok(text.includes("Inventory Analysis Active"), "English inventory capability should be localized");
+      assert.ok(text.includes("Material Master Missing"), "English Material Master missing state should be localized");
+      assert.ok(text.includes("History Missing"), "English History missing state should be localized");
       assert.ok(text.includes("Inventory Data"), "Inventory source should be localized");
       assert.ok(text.includes("Material Master"), "Material Master source should be localized");
       assert.ok(text.includes("Consumption History"), "Consumption History source should be localized");
       assert.ok(text.includes("Not Imported"), "Missing source state should be localized");
-      assert.ok(text.includes("Not yet assessable"), "Relationship state should be localized");
+      assert.equal(text.includes("Not yet assessable"), false, "Missing Material Master should not render a separate not-assessable relationship card");
     } finally {
       languageSelect.value = "de";
       languageSelect.dispatchEvent(new app.Event("change", { bubbles: true }));

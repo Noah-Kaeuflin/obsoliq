@@ -161,6 +161,21 @@ Package presence, Package validity, Interpretation Trust, History Readiness and 
 
 Data Foundation reads a presentation model derived from these states only. It does not calculate analytics. Missing evidence is not zero: unavailable numeric values render as `n. v.` / `n/a` or are omitted, while calculated numeric zero renders as `0`. Unavailable Boolean values render as `n. v.` / `n/a`, while calculated `false` renders as `Nein` / `No`.
 
+### DF-UX-02 Data Foundation Presentation Contract
+
+The Data Foundation presentation contract distinguishes these dimensions:
+
+- Package Presence: whether a source Package record exists.
+- Package Validity: whether the Package can be considered structurally usable.
+- Interpretation Trust: whether reviewed Consumption History source semantics can be applied.
+- History Readiness: whether interpreted History evidence is aggregation-ready or limited.
+- Relationship State: whether Inventory can be related to Material Master or Consumption History.
+- Historical Metrics Runtime State: whether derived historical metrics for the current signature are available, limited, calculating, unavailable or errored.
+
+Presence is not readiness. Validity is not readiness. Relationship State is not Metrics State. A missing source suppresses dependent presentation instead of creating separate unavailable Relationship or Metrics cards. A presentation count must not imply several dimensions at once, so visible aggregate source counters are not part of the contract.
+
+Unavailable is not numeric zero. Missing or unsupported evidence is omitted or shown as `n. v.` / `n/a`, while calculated zero and calculated false remain valid calculated values after Runtime completion.
+
 Historical export availability is tied to the current Runtime signature. Historical export is disabled for `not_calculated`, `calculating`, `unavailable` and `error` states and enabled only for current `available` or `limited` Runtime results.
 
 ## AP 16.3b.1.1 Pilot Review Record Contract

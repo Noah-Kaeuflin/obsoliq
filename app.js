@@ -348,12 +348,41 @@ const translations = {
     retryCalculation: "Erneut berechnen",
     historicalExportUnavailable: "Historische Kennzahlen sind für die aktuelle Signatur noch nicht verfügbar.",
     dataPackagesTitle: "Datenbasis",
-    dataPackagesSubtitle: "Kompakter Status der aktiven Datenquellen und ihrer Verknüpfbarkeit.",
+    dataPackagesSubtitle: "Kompakter Status der aktiven Datenquellen und ihrer Analysefähigkeiten.",
     dataFoundation: "Datenbasis",
-    dataFoundationComplete: "Kern-Datenbasis vollständig",
-    dataFoundationSummary: "Kern-Datenbasis {count}/2",
-    optionalIntelligenceSummary: "Optionale Intelligence-Quellen {count}/1",
-    dataFoundationDetails: "Datenbasisdetails",
+    dataFoundationComplete: "Datenbasis vollständig",
+    dataFoundationSummary: "Bestandsanalyse aktiv",
+    optionalIntelligenceSummary: "Erweiterungen fehlen",
+    dataFoundationDetails: "Datenbasis prüfen",
+    dataFoundationClose: "Datenbasis schließen",
+    dataFoundationActiveCount: "{count} aktiv",
+    dataFoundationMissingCount: "{count} fehlen",
+    dataFoundationExtensionMissingSingular: "1 Erweiterung fehlt",
+    dataFoundationExtensionMissingPlural: "{count} Erweiterungen fehlen",
+    dataFoundationInventoryActive: "Bestandsanalyse aktiv",
+    dataFoundationInventoryMissing: "Bestandsdaten fehlen",
+    dataFoundationInventoryInvalid: "Bestandsdaten prüfen",
+    dataFoundationMaterialActive: "Kontextanreicherung aktiv",
+    dataFoundationMaterialLimited: "Kontextanreicherung prüfen",
+    dataFoundationMaterialMissing: "Materialstamm fehlt",
+    dataFoundationMaterialInvalid: "Materialstamm prüfen",
+    dataFoundationHistoryAvailable: "Historische Analyse verfügbar",
+    dataFoundationHistoryLimited: "Historische Analyse eingeschränkt",
+    dataFoundationHistoryCalculating: "Historie wird berechnet",
+    dataFoundationHistoryMissing: "Historie fehlt",
+    dataFoundationHistoryInvalid: "Historie prüfen",
+    dataFoundationHistoryNotReady: "Historie vorbereiten",
+    dataFoundationHistoryError: "Historie fehlerhaft",
+    activeAnalysis: "Aktive Analyse",
+    extensions: "Erweiterungen",
+    contextEnrichment: "Kontextanreicherung",
+    historicalAnalysis: "Historische Analyse",
+    sourceImportedButNotUsable: "Importiert, aber noch nicht analytisch nutzbar.",
+    inventoryDataRole: "Autoritative Quelle für aktuelle Bestands-KPIs, Recovery, Datenqualität und Maßnahmen.",
+    materialMasterRole: "Ergänzt Planungs-, Organisations- und Verantwortlichkeitskontext auf Material-/Werk-Ebene.",
+    consumptionHistoryRole: "Ermöglicht Verbrauchsmetriken, Reichweiten und Trendindikatoren aus historisierten Bewegungen.",
+    materialMasterMissingAction: "Importiere den Materialstamm, um Kontextanreicherung und Match-Evidenz zu aktivieren.",
+    consumptionHistoryMissingAction: "Importiere die Verbrauchshistorie, um historische Analyse und Bestandsreichweiten zu aktivieren.",
     dataSources: "Datenquellen",
     inventoryData: "Bestandsdaten",
     relationshipCompatibility: "Verknüpfbarkeit",
@@ -1629,12 +1658,41 @@ const translations = {
     retryCalculation: "Retry calculation",
     historicalExportUnavailable: "Historical metrics are not available for the current signature yet.",
     dataPackagesTitle: "Data Foundation",
-    dataPackagesSubtitle: "Compact status of active data sources and relationship compatibility.",
+    dataPackagesSubtitle: "Compact status of active data sources and analytical capabilities.",
     dataFoundation: "Data Foundation",
-    dataFoundationComplete: "Core Data Foundation complete",
-    dataFoundationSummary: "Core Data Foundation {count}/2",
-    optionalIntelligenceSummary: "Optional Intelligence Sources {count}/1",
-    dataFoundationDetails: "Data Foundation details",
+    dataFoundationComplete: "Data Foundation complete",
+    dataFoundationSummary: "Inventory Analysis Active",
+    optionalIntelligenceSummary: "Extensions missing",
+    dataFoundationDetails: "Review Data Foundation",
+    dataFoundationClose: "Close Data Foundation",
+    dataFoundationActiveCount: "{count} active",
+    dataFoundationMissingCount: "{count} missing",
+    dataFoundationExtensionMissingSingular: "1 Extension Missing",
+    dataFoundationExtensionMissingPlural: "{count} Extensions Missing",
+    dataFoundationInventoryActive: "Inventory Analysis Active",
+    dataFoundationInventoryMissing: "Inventory Data Missing",
+    dataFoundationInventoryInvalid: "Inventory Data Review",
+    dataFoundationMaterialActive: "Context Enrichment Active",
+    dataFoundationMaterialLimited: "Context Enrichment Review",
+    dataFoundationMaterialMissing: "Material Master Missing",
+    dataFoundationMaterialInvalid: "Material Master Review",
+    dataFoundationHistoryAvailable: "Historical Analysis Available",
+    dataFoundationHistoryLimited: "Historical Analysis Limited",
+    dataFoundationHistoryCalculating: "History Calculating",
+    dataFoundationHistoryMissing: "History Missing",
+    dataFoundationHistoryInvalid: "History Review",
+    dataFoundationHistoryNotReady: "History Preparation",
+    dataFoundationHistoryError: "History Error",
+    activeAnalysis: "Active Analysis",
+    extensions: "Extensions",
+    contextEnrichment: "Context Enrichment",
+    historicalAnalysis: "Historical Analysis",
+    sourceImportedButNotUsable: "Imported, but not analytically usable yet.",
+    inventoryDataRole: "Authoritative source for current inventory KPIs, recovery, data quality and actions.",
+    materialMasterRole: "Adds planning, organizational and ownership context at material/plant level.",
+    consumptionHistoryRole: "Unlocks consumption metrics, coverage and trend indicators from historical movements.",
+    materialMasterMissingAction: "Import Material Master to activate context enrichment and match evidence.",
+    consumptionHistoryMissingAction: "Import Consumption History to activate historical analysis and inventory coverage.",
     dataSources: "Data Sources",
     inventoryData: "Inventory Data",
     relationshipCompatibility: "Relationship Compatibility",
@@ -13148,9 +13206,10 @@ function relationshipCompatibilityState(readiness) {
 }
 
 function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
-  const state = dataFoundationSourceState(packageRecord);
+  const state = options.state || dataFoundationSourceState(packageRecord);
   const reason = packageRecord && state.className === "invalid" ? packageValidationReason(packageRecord) : "";
   const meta = [];
+  if (options.roleKey) meta.push(t(options.roleKey));
   if (packageRecord) {
     meta.push(packageRowsText(packageRecord));
     if (packageRecord.freshness?.importedAt) meta.push(`${t("packageImportedAt")}: ${formatDateTime(packageRecord.freshness.importedAt)}`);
@@ -13160,6 +13219,8 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
       if (readiness?.status) meta.push(`${t("historyReadiness")}: ${historyReadinessStatusLabel(readiness.status)}`);
       if (Number.isFinite(Number(readiness?.readyRowCount))) meta.push(`${t("historyRowsEligible")}: ${formatCount(readiness.readyRowCount)}`);
     }
+  } else if (options.missingDescriptionKey) {
+    meta.push(t(options.missingDescriptionKey));
   }
   const actionKey = options.importActionType === CONSUMPTION_HISTORY_PACKAGE_TYPE
     ? "data-data-foundation-import-consumption-history"
@@ -13268,9 +13329,9 @@ function renderRelationshipReadinessItem(readiness) {
     `;
   return `
     <section class="data-foundation-relationship ${html(state.className)}">
-      <div>
-        <span>${html(hasExecutedRelationship ? t("relationshipMatchResult") : t("relationshipCompatibility"))}</span>
-        <strong>${html(state.label)}</strong>
+      <div class="data-foundation-relationship-head">
+        <span class="data-foundation-relationship-title">${html(hasExecutedRelationship ? t("relationshipMatchResult") : t("relationshipCompatibility"))}</span>
+        <strong class="data-foundation-relationship-value">${html(state.label)}</strong>
       </div>
       ${executedBody}
       <p>${html(t("relationshipCompatibilityDisclaimer"))}</p>
@@ -13301,51 +13362,78 @@ function renderDataFoundationStateNotice({ title, body, className = "missing", a
   `;
 }
 
+function renderDataFoundationCardHead(label, value) {
+  return `
+    <div class="data-foundation-relationship-head">
+      <span class="data-foundation-relationship-title">${html(label)}</span>
+      <strong class="data-foundation-relationship-value">${html(value)}</strong>
+    </div>
+  `;
+}
+
+function renderInventoryHistoryRelationshipItem(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const state = historicalMetricsSummaryState(runtimeState);
+  const runtime = state.runtime || null;
+  const summary = state.summary || {};
+  const relationship = runtime?.inventoryHistoryRelationshipResult || {};
+  const calculated = ["available", "limited"].includes(runtimeState?.status) && Boolean(runtime);
+  if (!state.packageRecord || !calculated) return "";
+  const matchRate = Number.isFinite(Number(summary.relationshipMatchRate))
+    ? formatQualityPercent(Number(summary.relationshipMatchRate || 0) * 100)
+    : t("notAvailable");
+  const rows = [
+    [t("historicalRelationshipRate"), matchRate],
+    [t("historicalMatchedEntities"), formatTriStateNumber(summary.matchedInventoryEntityCount, calculated)],
+    [t("historicalExactMatches"), formatTriStateNumber(summary.exactMatchCount ?? relationship.exactMatchCount, calculated)],
+    [t("historicalFallbackMatches"), formatTriStateNumber(summary.fallbackMatchCount ?? relationship.fallbackMatchCount, calculated)]
+  ];
+  const technicalRows = [
+    [t("historicalUnmatched"), formatTriStateNumber(summary.unmatchedInventoryCount, calculated)],
+    [t("historicalAmbiguous"), formatTriStateNumber(summary.ambiguousCount, calculated)],
+    [t("historicalInvalid"), formatTriStateNumber(summary.invalidKeyCount, calculated)]
+  ];
+  return `
+    <section class="data-foundation-relationship historical-relationship ${html(state.className)}">
+      ${renderDataFoundationCardHead(t("inventoryConsumptionHistoryRelationship"), t("relationshipExecuted"))}
+      <div class="data-foundation-relationship-grid">
+        ${rows.map(([label, value]) => `
+          <div>
+            <span>${html(label)}</span>
+            <strong>${html(value)}</strong>
+          </div>
+        `).join("")}
+      </div>
+      <details class="data-foundation-technical">
+        <summary>${html(t("technicalDetails"))}</summary>
+        <div class="data-foundation-technical-grid">
+          ${technicalRows.map(([label, value]) => `
+            <div class="data-foundation-technical-row">
+              <span>${html(label)}</span>
+              <strong>${html(value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+      </details>
+    </section>
+  `;
+}
+
 function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRuntimeForPresentation()) {
   const state = historicalMetricsSummaryState(runtimeState);
   const summary = state.summary || {};
   const runtime = state.runtime || null;
-  const relationship = runtime?.inventoryHistoryRelationshipResult || {};
   const calculated = ["available", "limited"].includes(runtimeState?.status) && Boolean(runtime);
   const reason = runtimeState?.reasonCode || runtime?.reason || "";
   if (!state.packageRecord) {
-    return `
-      <section class="data-foundation-relationship historical-metrics-readiness missing">
-        <div>
-          <span>${html(t("historicalMetrics"))}</span>
-          <strong>${html(t("historicalMetricsUnavailable"))}</strong>
-        </div>
-        ${renderDataFoundationStateNotice({
-          title: t("historicalMetricsNotAvailableYet"),
-          body: t("historicalMetricsMissingBody"),
-          action: `<button class="secondary data-foundation-inline-action" type="button" data-data-foundation-import-consumption-history>${html(t("importConsumptionHistory"))}</button>`
-        })}
-      </section>
-    `;
+    return "";
   }
   if (state.packageRecord.status === "invalid" || state.packageRecord.packageValidation?.statusKey === "invalid") {
-    return `
-      <section class="data-foundation-relationship historical-metrics-readiness invalid">
-        <div>
-          <span>${html(t("historicalMetrics"))}</span>
-          <strong>${html(t("historyAvailabilityInvalid"))}</strong>
-        </div>
-        ${renderDataFoundationStateNotice({
-          title: t("historyAvailabilityInvalid"),
-          body: packageValidationReason(state.packageRecord) || t("historyReason_history_package_invalid"),
-          className: "invalid",
-          action: `<button class="secondary data-foundation-inline-action" type="button" data-data-foundation-import-consumption-history>${html(t("importConsumptionHistory"))}</button>`
-        })}
-      </section>
-    `;
+    return "";
   }
   if (runtimeState?.status === "calculating") {
     return `
       <section class="data-foundation-relationship historical-metrics-readiness warning" aria-live="polite">
-        <div>
-          <span>${html(t("historicalMetrics"))}</span>
-          <strong>${html(t("historicalMetricsCalculating"))}</strong>
-        </div>
+        ${renderDataFoundationCardHead(t("historicalMetrics"), t("historicalMetricsCalculating"))}
         ${renderDataFoundationStateNotice({
           title: t("historicalMetricsCalculating"),
           body: t("historicalMetricsCalculatingBody"),
@@ -13357,10 +13445,7 @@ function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRu
   if (runtimeState?.status === "error") {
     return `
       <section class="data-foundation-relationship historical-metrics-readiness invalid">
-        <div>
-          <span>${html(t("historicalMetrics"))}</span>
-          <strong>${html(t("historicalMetricsError"))}</strong>
-        </div>
+        ${renderDataFoundationCardHead(t("historicalMetrics"), t("historicalMetricsError"))}
         ${renderDataFoundationStateNotice({
           title: t("historicalMetricsErrorTitle"),
           body: runtimeState.errorMessage || t("historicalMetricsErrorBody"),
@@ -13373,10 +13458,7 @@ function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRu
   if (runtimeState?.status === "unavailable") {
     return `
       <section class="data-foundation-relationship historical-metrics-readiness missing">
-        <div>
-          <span>${html(t("historicalMetrics"))}</span>
-          <strong>${html(t("historicalMetricsUnavailable"))}</strong>
-        </div>
+        ${renderDataFoundationCardHead(t("historicalMetrics"), t("historicalMetricsUnavailable"))}
         ${renderDataFoundationStateNotice({
           title: t("historicalMetricsUnavailable"),
           body: translatedCodeLabel(`historyReason_${reason || "history_package_missing"}`, reason || "history_package_missing")
@@ -13387,10 +13469,7 @@ function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRu
   if (runtimeState?.status === "not_calculated") {
     return `
       <section class="data-foundation-relationship historical-metrics-readiness warning">
-        <div>
-          <span>${html(t("historicalMetrics"))}</span>
-          <strong>${html(t("historicalMetricsNotCalculated"))}</strong>
-        </div>
+        ${renderDataFoundationCardHead(t("historicalMetrics"), t("historicalMetricsNotCalculated"))}
         ${renderDataFoundationStateNotice({
           title: t("historicalMetricsNotCalculated"),
           body: t("historicalMetricsNotCalculatedBody"),
@@ -13402,23 +13481,13 @@ function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRu
   const coverage = summary.historyCoverageStart || summary.historyCoverageEnd
     ? `${summary.historyCoverageStart || "-"} – ${summary.historyCoverageEnd || "-"}`
     : t("notAvailable");
-  const matchRate = Number.isFinite(Number(summary.relationshipMatchRate))
-    ? formatQualityPercent(Number(summary.relationshipMatchRate || 0) * 100)
-    : t("notAvailable");
   const rows = [
     [t("historicalMetricStatus"), state.label],
-    [t("historicalRelationshipRate"), matchRate],
     [t("historicalCoverageRange"), coverage],
-    [t("analysisAsOfDate"), summary.analysisAsOfDate || t("notAvailable")]
+    [t("analysisAsOfDate"), summary.analysisAsOfDate || t("notAvailable")],
+    [t("includedRows"), formatTriStateNumber(summary.includedRowCount, calculated)]
   ];
   const technicalRows = [
-    [t("historicalMatchedEntities"), formatTriStateNumber(summary.matchedInventoryEntityCount, calculated)],
-    [t("historicalExactMatches"), formatTriStateNumber(summary.exactMatchCount ?? relationship.exactMatchCount, calculated)],
-    [t("historicalFallbackMatches"), formatTriStateNumber(summary.fallbackMatchCount ?? relationship.fallbackMatchCount, calculated)],
-    [t("historicalUnmatched"), formatTriStateNumber(summary.unmatchedInventoryCount, calculated)],
-    [t("historicalAmbiguous"), formatTriStateNumber(summary.ambiguousCount, calculated)],
-    [t("historicalInvalid"), formatTriStateNumber(summary.invalidKeyCount, calculated)],
-    [t("includedRows"), formatTriStateNumber(summary.includedRowCount, calculated)],
     [t("excludedRows"), formatTriStateNumber(summary.excludedRowCount, calculated)],
     [t("historyCompleteness"), Number.isFinite(Number(summary.historyCompleteness)) ? formatQualityPercent(Number(summary.historyCompleteness) * 100) : t("notAvailable")],
     [t("partialCurrentPeriod"), formatTriStateBoolean(summary.partialCurrentPeriod, calculated)],
@@ -13429,10 +13498,7 @@ function renderHistoricalMetricsReadinessItem(runtimeState = historicalMetricsRu
   ];
   return `
     <section class="data-foundation-relationship historical-metrics-readiness ${html(state.className)}">
-      <div>
-        <span>${html(t("historicalMetrics"))}</span>
-        <strong>${html(state.label)}${runtimeState?.status === "limited" ? ` · ${html(t("historicalMetricsLimited"))}` : ""}</strong>
-      </div>
+      ${renderDataFoundationCardHead(t("historicalMetrics"), `${state.label}${runtimeState?.status === "limited" ? ` · ${t("historicalMetricsLimited")}` : ""}`)}
       <div class="data-foundation-relationship-grid">
         ${rows.map(([label, value]) => `
           <div>
@@ -13488,50 +13554,100 @@ function renderPackageTechnicalDetails(packageRecord, labelKey) {
     `).join("");
 }
 
-function dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness, consumptionHistoryPackage = null) {
-  const inventoryReady = Boolean(inventoryPackage && dataFoundationSourceState(inventoryPackage).className === "available");
-  const materialReady = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "available");
-  const materialInvalid = Boolean(materialMasterPackage && dataFoundationSourceState(materialMasterPackage).className === "invalid");
-  const coreReadyCount = Number(inventoryReady) + Number(materialReady);
-  const optionalReadyCount = consumptionHistoryPackage ? 1 : 0;
-  const historyState = consumptionHistoryPackage
-    ? historyReadinessDimensionState(consumptionHistoryReadiness(consumptionHistoryPackage))
-    : { className: "missing", label: t("packageMissing") };
-  const quality = currentRelationshipQuality();
-  const chips = [
-    { className: coreReadyCount === 2 ? "available" : materialInvalid ? "invalid" : "missing", text: t("dataFoundationSummary").replace("{count}", formatCount(coreReadyCount)) },
-    { className: optionalReadyCount ? historyState.className : "missing", text: t("optionalIntelligenceSummary").replace("{count}", formatCount(optionalReadyCount)) },
-    { className: inventoryReady ? "available" : "missing", text: `${t("inventoryData")}: ${inventoryReady ? t("packageActive") : t("packageMissing")}` },
-    { className: materialReady ? "available" : materialInvalid ? "invalid" : "missing", text: `${t("materialMaster")}: ${materialReady ? t("packageActive") : materialInvalid ? t("packageInvalid") : t("packageMissing")}` },
-    { className: historyState.className, text: `${t("consumptionHistory")}: ${consumptionHistoryPackage ? historyState.label : t("packageMissing")}` }
-  ];
-  if (inventoryReady && materialReady && quality.status !== "unavailable") {
-    chips.push({
-      className: quality.status === "complete" ? "available" : quality.status === "critical" ? "invalid" : "warning",
-      text: relationshipQualityLabel(quality)
-    });
-  }
-  if (inventoryReady && materialReady && quality.status === "complete") {
-    return { className: "complete", icon: "✓", chips };
-  }
-  if (inventoryReady && materialReady && quality.status === "limited") {
-    return { className: "warning", icon: "›", chips };
-  }
-  if (inventoryReady && materialReady && quality.status === "critical") {
-    return { className: "invalid", icon: "!", chips };
-  }
-  if (materialInvalid) {
-    return { className: "invalid", icon: "!", chips };
-  }
-  if (!materialMasterPackage) {
-    return { className: "missing", icon: "›", chips };
-  }
-  return { className: "warning", icon: "›", chips };
+function dataFoundationCountText(key, count) {
+  return t(key).replace("{count}", formatCount(count));
 }
 
-function renderDataFoundationSummaryChips(chips = []) {
-  return chips.map(chip => `
-    <span class="data-foundation-summary-chip ${html(chip.className)}">${html(chip.text)}</span>
+function dataFoundationSummarySegment(className, textKey, options = {}) {
+  return {
+    className,
+    text: t(textKey),
+    active: Boolean(options.active),
+    missing: Boolean(options.missing),
+    review: Boolean(options.review)
+  };
+}
+
+function dataFoundationMaterialSegment(materialMasterPackage) {
+  const state = dataFoundationSourceState(materialMasterPackage);
+  if (!materialMasterPackage) {
+    return dataFoundationSummarySegment("missing", "dataFoundationMaterialMissing", { missing: true });
+  }
+  if (state.className === "invalid") {
+    return dataFoundationSummarySegment("invalid", "dataFoundationMaterialInvalid", { review: true });
+  }
+  const quality = currentRelationshipQuality();
+  if (quality.status === "critical") {
+    return dataFoundationSummarySegment("invalid", "dataFoundationMaterialLimited", { review: true });
+  }
+  if (quality.status === "limited") {
+    return dataFoundationSummarySegment("warning", "dataFoundationMaterialLimited", { review: true });
+  }
+  return dataFoundationSummarySegment("available", "dataFoundationMaterialActive", { active: true });
+}
+
+function dataFoundationHistorySegment(consumptionHistoryPackage, runtimeState) {
+  const sourceState = dataFoundationSourceState(consumptionHistoryPackage);
+  if (!consumptionHistoryPackage) {
+    return dataFoundationSummarySegment("missing", "dataFoundationHistoryMissing", { missing: true });
+  }
+  if (sourceState.className === "invalid") {
+    return dataFoundationSummarySegment("invalid", "dataFoundationHistoryInvalid", { review: true });
+  }
+  const runtimeStatus = runtimeState?.status || "not_calculated";
+  if (runtimeStatus === "available") {
+    return dataFoundationSummarySegment("available", "dataFoundationHistoryAvailable", { active: true });
+  }
+  if (runtimeStatus === "limited") {
+    return dataFoundationSummarySegment("warning", "dataFoundationHistoryLimited", { active: true, review: true });
+  }
+  if (runtimeStatus === "calculating") {
+    return dataFoundationSummarySegment("warning", "dataFoundationHistoryCalculating", { review: true });
+  }
+  if (runtimeStatus === "error") {
+    return dataFoundationSummarySegment("invalid", "dataFoundationHistoryError", { review: true });
+  }
+  return dataFoundationSummarySegment("warning", "dataFoundationHistoryNotReady", { review: true });
+}
+
+function dataFoundationSummaryFromSegments(segments = []) {
+  const activeCount = segments.filter(segment => segment.active).length;
+  const missingExtensionCount = segments.slice(1).filter(segment => segment.missing).length;
+  const reviewCount = segments.filter(segment => segment.review).length;
+  const compactExtensionText = missingExtensionCount === 1
+    ? t("dataFoundationExtensionMissingSingular")
+    : missingExtensionCount > 1
+      ? dataFoundationCountText("dataFoundationExtensionMissingPlural", missingExtensionCount)
+      : dataFoundationCountText("dataFoundationActiveCount", activeCount);
+  const mobileParts = [
+    t("dataFoundation"),
+    dataFoundationCountText("dataFoundationActiveCount", activeCount)
+  ];
+  if (missingExtensionCount) mobileParts.push(dataFoundationCountText("dataFoundationMissingCount", missingExtensionCount));
+  if (!missingExtensionCount && reviewCount) mobileParts.push(`${formatCount(reviewCount)} ${currentLanguage === "de" ? "prüfen" : "review"}`);
+  const className = segments.some(segment => segment.className === "invalid")
+    ? "invalid"
+    : segments.some(segment => segment.className === "warning")
+      ? "warning"
+      : segments.some(segment => segment.className === "missing")
+        ? "missing"
+        : "complete";
+  return {
+    className,
+    segments: segments.slice(0, 3),
+    activeCount,
+    missingExtensionCount,
+    compactText: `${t("dataFoundation")} · ${segments[0]?.text || t("dataFoundationSummary")} · ${compactExtensionText}`,
+    mobileText: mobileParts.join(" · ")
+  };
+}
+
+function renderDataFoundationSummarySegments(segments = []) {
+  return segments.map(segment => `
+    <span class="data-foundation-summary-segment ${html(segment.className)}">
+      <span class="data-foundation-summary-dot" aria-hidden="true"></span>
+      <span>${html(segment.text)}</span>
+    </span>
   `).join("");
 }
 
@@ -13543,7 +13659,17 @@ function buildDataFoundationPresentationModel({
   historicalRuntimeState
 }) {
   const historyReadiness = consumptionHistoryReadiness(consumptionHistoryPackage);
+  const inventorySourceState = dataFoundationSourceState(inventoryPackage);
+  const inventorySegment = inventorySourceState.className === "available"
+    ? dataFoundationSummarySegment("available", "dataFoundationInventoryActive", { active: true })
+    : inventorySourceState.className === "invalid"
+      ? dataFoundationSummarySegment("invalid", "dataFoundationInventoryInvalid", { review: true })
+      : dataFoundationSummarySegment("missing", "dataFoundationInventoryMissing", { missing: true });
+  const materialSegment = dataFoundationMaterialSegment(materialMasterPackage);
+  const historySegment = dataFoundationHistorySegment(consumptionHistoryPackage, historicalRuntimeState);
+  const summary = dataFoundationSummaryFromSegments([inventorySegment, materialSegment, historySegment]);
   return {
+    summary,
     sources: {
       inventory: {
         presence: inventoryPackage ? "imported" : "not_imported",
@@ -13572,6 +13698,24 @@ function buildDataFoundationPresentationModel({
   };
 }
 
+function renderHistoryPreparationItem(presentationModel) {
+  return `
+    <section class="data-foundation-relationship history-preparation ${html(presentationModel.historyReadiness.className)}">
+      ${renderDataFoundationCardHead(t("historyInterpretation"), presentationModel.interpretationTrust.label)}
+      <div class="data-foundation-relationship-grid">
+        <div>
+          <span>${html(t("interpretationTrust"))}</span>
+          <strong>${html(presentationModel.interpretationTrust.label)}</strong>
+        </div>
+        <div>
+          <span>${html(t("historyReadiness"))}</span>
+          <strong>${html(presentationModel.historyReadiness.label)}</strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function renderPackageAvailability() {
   const target = $("dataPackagesPanel");
   if (!target) return;
@@ -13590,53 +13734,82 @@ function renderPackageAvailability() {
     materialMasterRelationshipReadiness: readiness,
     historicalRuntimeState
   });
-  const summary = dataFoundationSummary(inventoryPackage, materialMasterPackage, readiness, consumptionHistoryPackage);
+  const summary = presentationModel.summary;
+  const materialSourceState = dataFoundationSourceState(materialMasterPackage);
+  const historySourceState = dataFoundationSourceState(consumptionHistoryPackage);
+  const canShowContextEnrichment = Boolean(materialMasterPackage && materialSourceState.className === "available");
+  const canShowHistoricalAnalysis = Boolean(consumptionHistoryPackage && historySourceState.className === "available");
   target.innerHTML = `
     <details class="data-foundation ${html(summary.className)}" data-data-foundation>
-      <summary class="data-foundation-summary">
+      <summary class="data-foundation-summary" aria-expanded="false">
         <span class="data-foundation-summary-main">
-          <span class="data-foundation-summary-icon" aria-hidden="true">${html(summary.icon)}</span>
-          <strong>${renderDataFoundationSummaryChips(summary.chips)}</strong>
+          <strong class="data-foundation-summary-title">${html(t("dataFoundation"))}</strong>
+          <span class="data-foundation-summary-segments">${renderDataFoundationSummarySegments(summary.segments)}</span>
+          <span class="data-foundation-summary-compact">${html(summary.compactText)}</span>
+          <span class="data-foundation-summary-mobile">${html(summary.mobileText)}</span>
         </span>
       </summary>
-      <div class="data-foundation-detail">
-        <div class="data-foundation-section-label">${html(t("dataSources"))}</div>
-        <div class="data-foundation-source-list">
-          ${renderDataFoundationSourceRow("inventoryData", inventoryPackage)}
-          ${renderDataFoundationSourceRow("materialMaster", materialMasterPackage, { showGranularity: true, importAction: true })}
-          ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, { showGranularity: true, importAction: true, importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE })}
-        </div>
-        <div class="data-foundation-section-label">${html(t("relationships"))}</div>
-        ${renderRelationshipReadinessItem(readiness)}
-        <section class="data-foundation-relationship ${html(presentationModel.relationships.consumptionHistory.state.className)}">
+      <span class="data-foundation-scrim" data-data-foundation-close aria-hidden="true"></span>
+      <div class="data-foundation-detail" role="dialog" aria-modal="false" aria-labelledby="dataFoundationDrawerTitle">
+        <div class="data-foundation-drawer-head">
           <div>
-            <span>${html(t("inventoryConsumptionHistoryRelationship"))}</span>
-            <strong>${html(presentationModel.relationships.consumptionHistory.state.label)}</strong>
+            <h3 id="dataFoundationDrawerTitle">${html(t("dataFoundation"))}</h3>
+            <p>${html(t("dataPackagesSubtitle"))}</p>
           </div>
-          <p>${html(t("inventoryConsumptionHistoryRelationshipDesc"))}</p>
-        </section>
-        <div class="data-foundation-section-label">${html(t("historicalMetrics"))}</div>
-        ${renderHistoricalMetricsReadinessItem(historicalRuntimeState)}
-        <details class="data-foundation-technical">
-          <summary>${html(t("technicalDetails"))}</summary>
-          <div class="data-foundation-technical-grid">
-            ${renderPackageTechnicalDetails(inventoryPackage, "inventoryData")}
-            ${renderPackageTechnicalDetails(materialMasterPackage, "materialMaster")}
-            ${renderPackageTechnicalDetails(consumptionHistoryPackage, "consumptionHistory")}
-            <div class="data-foundation-technical-row">
-              <span>${html(t("interpretationTrust"))}</span>
-              <strong>${html(presentationModel.interpretationTrust.label)}</strong>
-            </div>
-            <div class="data-foundation-technical-row">
-              <span>${html(t("historyReadiness"))}</span>
-              <strong>${html(presentationModel.historyReadiness.label)}</strong>
-            </div>
-            <div class="data-foundation-technical-row">
-              <span>${html(t("historicalMetricStatus"))}</span>
-              <strong>${html(presentationModel.historicalMetrics.label)}</strong>
-            </div>
+          <button class="secondary data-foundation-close" type="button" data-data-foundation-close aria-label="${html(t("dataFoundationClose"))}">${html(t("close"))}</button>
+        </div>
+        <div class="data-foundation-detail-body">
+          <div class="data-foundation-section-label">${html(t("activeAnalysis"))}</div>
+          <div class="data-foundation-source-list">
+            ${renderDataFoundationSourceRow("inventoryData", inventoryPackage, { roleKey: "inventoryDataRole" })}
           </div>
-        </details>
+          <div class="data-foundation-section-label">${html(t("extensions"))}</div>
+          <div class="data-foundation-source-list">
+            ${renderDataFoundationSourceRow("materialMaster", materialMasterPackage, {
+              showGranularity: true,
+              importAction: true,
+              roleKey: "materialMasterRole",
+              missingDescriptionKey: "materialMasterMissingAction"
+            })}
+            ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, {
+              showGranularity: true,
+              importAction: true,
+              importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE,
+              roleKey: "consumptionHistoryRole",
+              missingDescriptionKey: "consumptionHistoryMissingAction"
+            })}
+          </div>
+          ${canShowContextEnrichment ? `
+            <div class="data-foundation-section-label">${html(t("contextEnrichment"))}</div>
+            ${renderRelationshipReadinessItem(readiness)}
+          ` : ""}
+          ${canShowHistoricalAnalysis ? `
+            <div class="data-foundation-section-label">${html(t("historicalAnalysis"))}</div>
+            ${renderHistoryPreparationItem(presentationModel)}
+            ${renderInventoryHistoryRelationshipItem(historicalRuntimeState)}
+            ${renderHistoricalMetricsReadinessItem(historicalRuntimeState)}
+          ` : ""}
+          <details class="data-foundation-technical">
+            <summary>${html(t("technicalDetails"))}</summary>
+            <div class="data-foundation-technical-grid">
+              ${renderPackageTechnicalDetails(inventoryPackage, "inventoryData")}
+              ${renderPackageTechnicalDetails(materialMasterPackage, "materialMaster")}
+              ${renderPackageTechnicalDetails(consumptionHistoryPackage, "consumptionHistory")}
+              <div class="data-foundation-technical-row">
+                <span>${html(t("interpretationTrust"))}</span>
+                <strong>${html(presentationModel.interpretationTrust.label)}</strong>
+              </div>
+              <div class="data-foundation-technical-row">
+                <span>${html(t("historyReadiness"))}</span>
+                <strong>${html(presentationModel.historyReadiness.label)}</strong>
+              </div>
+              <div class="data-foundation-technical-row">
+                <span>${html(t("historicalMetricStatus"))}</span>
+                <strong>${html(presentationModel.historicalMetrics.label)}</strong>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     </details>
   `;
@@ -17333,12 +17506,20 @@ function runDownload() {
 let dataFoundationDisclosureControllerInitialized = false;
 let lastDataFoundationSummaryControl = null;
 
+function syncDataFoundationDisclosureState() {
+  document.querySelectorAll("[data-data-foundation]").forEach(details => {
+    const summary = details.querySelector(":scope > summary");
+    if (summary) summary.setAttribute("aria-expanded", details.open ? "true" : "false");
+  });
+}
+
 function closeDataFoundationDetail(options = {}) {
   let closed = false;
   document.querySelectorAll("[data-data-foundation][open]").forEach(details => {
     details.removeAttribute("open");
     closed = true;
   });
+  if (closed) syncDataFoundationDisclosureState();
   if (closed && options.focus !== false) {
     (lastDataFoundationSummaryControl || document.querySelector("[data-data-foundation] > summary"))?.focus?.({ preventScroll: true });
   }
@@ -17350,6 +17531,12 @@ function initDataFoundationDisclosureController() {
   dataFoundationDisclosureControllerInitialized = true;
   document.addEventListener("click", event => {
     if (!(event.target instanceof Element)) return;
+    const closeButton = event.target.closest("[data-data-foundation-close]");
+    if (closeButton) {
+      event.preventDefault();
+      closeDataFoundationDetail();
+      return;
+    }
     const retryButton = event.target.closest("[data-data-foundation-retry-history]");
     if (retryButton) {
       event.preventDefault();
@@ -17359,6 +17546,7 @@ function initDataFoundationDisclosureController() {
     const summary = event.target.closest("[data-data-foundation] > summary");
     if (summary) {
       lastDataFoundationSummaryControl = summary;
+      setTimeout(syncDataFoundationDisclosureState, 0);
       return;
     }
     const openPanel = document.querySelector("[data-data-foundation][open]");
@@ -17371,6 +17559,7 @@ function initDataFoundationDisclosureController() {
       event.preventDefault();
     }
   });
+  syncDataFoundationDisclosureState();
 }
 
 function addEventListenerIfPresent(id, eventName, handler, options = {}) {

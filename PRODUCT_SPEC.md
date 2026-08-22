@@ -50,6 +50,18 @@ Original Data, Enriched Data and Historical Metrics exports remain separate. His
 
 Recommended next work block remains AP 16.4d — Slow / Dead Stock Intelligence.
 
+### DF-UX-02 — Capability-Oriented Data Foundation
+
+The Data Foundation remains a product capability surface, not a technical Package-status widget. Its collapsed summary now communicates direct source and capability states only: Inventory Data drives active Inventory Analysis, Material Master unlocks Context Enrichment and Consumption History unlocks Historical Analysis.
+
+Visible aggregate counters such as Core Data Foundation and Optional Intelligence Sources are no longer part of the product summary because one count cannot safely represent imported, valid, trusted, ready and metrics-available states at the same time. Missing sources are shown once in the dependency tree, and dependent sections are hidden until their prerequisite source is present and valid enough to support them.
+
+The expanded Data Foundation separates Package presence, Package validity, Interpretation Trust, History Readiness, Relationship state and Historical Metrics state. Material Master Relationship remains part of Context Enrichment. Inventory-to-History Relationship remains separate from Historical Metrics. Available Historical Analysis shows at most four primary values, with match, coverage, exclusion, provenance and Package details kept secondary under Technical Details.
+
+The drawer has a clear title, Close action, scrim and bounded scroll owner. Opening, closing, resizing or scrolling it is presentation-only and must not request Historical Runtime builds, mutate the Registry, create Package revisions or change analytical calculations.
+
+AP 16.4d remains the next analytical block and is not implemented by DF-UX-02.
+
 ### AP 16.4b — Temporal, Movement & Unit Semantics
 
 Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.

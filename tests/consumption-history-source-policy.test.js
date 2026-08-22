@@ -167,7 +167,8 @@ Material Number,Consumption Quantity,Consumption Quantity,Posting Date
     assert.equal(result.status, "loaded", "Unknown movement package should still import");
     assert.equal(active.interpretationMetadata.trustState, "trusted", "Interpretation may be trusted");
     assert.equal(readiness.status, "limited", "Engine-produced History Readiness should be limited");
-    assert.ok(panel.textContent.includes("Optionale Intelligence-Quellen 1/1"), "Availability count should remain separate");
+    assert.equal(panel.textContent.includes("Optionale Intelligence-Quellen"), false, "Aggregate optional count should not be visible");
+    assert.ok(panel.textContent.includes("Historische Analyse") || panel.textContent.includes("Historie"), "History capability should remain visible");
     assert.ok(panel.textContent.includes("Historienbereitschaft: Eingeschränkt"), "Data Foundation should show translated readiness");
     assert.equal(panel.textContent.includes("History Readiness: limited"), false, "Raw readiness code should not be visible");
   });

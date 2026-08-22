@@ -90,6 +90,18 @@ Ownership is separated as follows:
 
 Render functions are side-effect-free regarding Historical analytics. Opening or closing Data Foundation, rendering Overview, opening Inventory Explorer, changing filters, sorting, pagination, language, currency, theme or the export dialog must not trigger a Historical Metrics build. Changed analytical inputs invalidate the current Runtime before a new lifecycle request is accepted. A stale calculation completion cannot overwrite a newer signature, and Runtime recalculation does not create Data Package revisions.
 
+## DF-UX-02 Capability-Oriented Data Foundation Presentation
+
+The Data Foundation presentation flow is:
+
+Existing Product / Runtime State -> Data Foundation Presentation Adapter -> Capability View Model -> Collapsed Summary -> Dependency-Based Drawer.
+
+The adapter lives in the existing Data Foundation presentation boundary in `app.js`. It reads explicit current state such as active Inventory, Material Master and Consumption History Packages, Material Master relationship readiness, Interpretation Trust, History Readiness and Historical Runtime state. It does not call Relationship Engines, Enrichment Engines, Consumption History Semantics, Aggregation, Historical Metrics Service builds, Registry mutation or Runtime coordinator `requestBuild()`.
+
+The collapsed summary is capability-oriented and bounded to three visible segments: Inventory Analysis, Context Enrichment and Historical Analysis. Mid-width and mobile summaries collapse those segments into active/missing extension text. The drawer is dependency-based: source rows are always visible, while Context Enrichment appears only with a usable Material Master source and Historical Analysis appears only with a usable Consumption History source.
+
+Relationship and Metrics rendering remain separate. Material Master relationship evidence is part of Context Enrichment. Inventory-to-History relationship evidence is rendered only when the current Historical Runtime provides it, while Historical Metrics state is rendered as its own card. Technical Package, provenance, readiness and runtime details remain collapsed in Technical Details.
+
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 
 The Pilot Review Service owns the complete Review contract and lifecycle boundary. It validates new Review identity, generates Review IDs, owns the monotonic `reviewSequence`, computes Case fingerprints, stores Review records, reconciles current/stale/orphaned lifecycle state, builds current and all-state summaries, exports Review rows, and snapshots/restores Review state.

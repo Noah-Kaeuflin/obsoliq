@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-08-22 - DF-UX-02:
+Capability-Oriented Data Foundation
+
+### Changed
+
+- Replaced visible Core Data Foundation and Optional Intelligence Source counters with direct capability/source states.
+- Reduced the collapsed Data Foundation summary to Inventory Analysis, Context Enrichment and Historical Analysis status segments.
+- Repositioned Inventory Data as the active analytical foundation, Material Master as Context Enrichment and Consumption History as Historical Analysis.
+- Rendered missing Material Master and missing Consumption History once as source rows, without dependent not-assessable Relationship or Metrics cards.
+- Kept Material Master relationship status separate from Inventory-to-History relationship and Historical Metrics status.
+- Hid dependent Context Enrichment and Historical Analysis sections until their source Package is present and valid enough to support them.
+- Moved Package presence, validity, History Readiness, Runtime and provenance details into collapsed Technical Details.
+- Added a titled Data Foundation drawer with visible Close action, scrim and one internal scroll owner.
+- Replaced nested summary pills and broad Data Foundation relationship descendant selectors with explicit structural classes.
+- Added German and English capability terminology for desktop, mid-width and mobile summaries.
+
+### Preserved
+
+- Inventory KPIs, Recovery, Data Quality, Actions, Excess, Opportunity Score, scenarios and Pilot Reviews.
+- Data Package Registry, Package Import, Package identity and Package revisions.
+- Material Master matching and enrichment.
+- Consumption History interpretation, History Readiness, Inventory-to-History relationship and Historical Metrics formulas.
+- Historical Runtime signatures, invalidation, scheduling, retry and lifecycle behavior.
+- Original, Enriched and Historical export separation.
+- Local `file://` MVP behavior.
+
+### Known Limitations
+
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Predictive Inventory Risk
+- no Snapshot History
+- no persistence
+- no SAP integration
+
 ## 2026-08-22 - AP 16.4c.1:
 Historical Runtime Orchestration & Data Foundation UX Closure
 
