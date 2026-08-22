@@ -196,6 +196,19 @@ Required Data Packages use only existing package types: `demand_forecast`, `purc
 
 The derived `SlowDeadRecoveryCaseRuntime` is session-local and downstream from Historical Metrics Runtime. It does not mutate Inventory rows, Historical Metric rows, existing Action rows, Registry records or exports. Inventory exposure is not Recovery Value, recognized value, realized value, cash release or P&L effect.
 
+`SlowDeadRecoveryCaseRuntimeState` is the authoritative application-level state for the derived Slow / Dead Recovery Case Runtime. It carries `status`, `inputSignature`, `requestedInputSignature`, `completedInputSignature`, `historicalMetricsInputSignature`, optional `result`, optional `summary`, `reasonCode`, `limitationCodes`, `errorCode`, `errorMessage`, `errorSource`, `generation`, `buildCount`, `requestedAt`, `startedAt`, `completedAt`, `updatedAt` and `durationMs`.
+
+Allowed Runtime states are:
+
+- `not_calculated`: no eligible current input has yet been evaluated or the input was explicitly reset before a dependency/build state exists.
+- `calculating`: Historical Metrics are calculating, or a Slow / Dead build for the current Historical signature is running.
+- `available`: a coherent current Slow / Dead Service result exists for the completed input signature.
+- `limited`: a coherent current result exists, but non-critical History/evidence limitations are present.
+- `unavailable`: required Historical input/result/signature is missing, stale, unavailable or the Service returned a coherent unavailable result.
+- `error`: the Historical dependency is in error or the Slow / Dead build failed unexpectedly.
+
+Coherence rules: `available` and `limited` require current `result` and `summary`; `calculating`, `unavailable` and `error` must not carry stale Case `result` or `summary`. Historical dependency errors use `errorSource: "historical_runtime"`; Slow / Dead Service exceptions use `errorSource: "slow_dead_runtime"`. Historical calculating, unavailable, missing-signature and stale-signature states never invoke the Slow / Dead Service and never create false Conditions. Runtime updates do not create Package revisions, Registry mutations, existing Action mutations or export changes. Existing text-based `slow_dead` Action logic remains outside the new Condition and Action Eligibility contract.
+
 ### DF-UX-02 Data Foundation Presentation Contract
 
 The Data Foundation presentation contract distinguishes these dimensions:

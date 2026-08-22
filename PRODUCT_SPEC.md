@@ -64,6 +64,16 @@ Each result exposes positive evidence, counter evidence, limitation codes, missi
 
 The derived Slow / Dead Case Runtime is isolated from Inventory KPIs, Recovery, Data Quality, existing Actions, Opportunity Score, scenarios, Pilot Reviews, Registry packages and exports. It creates no Package revision and does not mutate authoritative Inventory rows or Historical Metric rows.
 
+### AP 16.4d.1.1 — Slow / Dead Runtime Boundary & Final Acceptance Closure
+
+AP 16.4d.1.1 closes the technical acceptance boundary for the accepted Slow / Dead Condition & Evidence Engine without adding the visible Slow / Dead page. The derived Runtime now exposes six explicit states: `not_calculated`, `calculating`, `available`, `limited`, `unavailable` and `error`.
+
+Historical Runtime dependency states map explicitly into the Slow / Dead Runtime. Calculating History becomes `calculating`; missing, stale or unavailable History becomes `unavailable`; Historical Runtime errors become `error` with `errorSource: "historical_runtime"`; Slow / Dead Service exceptions become `error` with `errorSource: "slow_dead_runtime"`.
+
+The adapter validates the current Historical input signature before building, deduplicates repeated completed signatures and clears stale Case results whenever the derived Runtime is calculating, unavailable or errored. A Slow / Dead failure cannot mutate Historical Runtime, cannot convert Historical Runtime into error and cannot prevent the accepted Data Foundation / Historical Metrics presentation from updating.
+
+The existing text-based Action Cockpit `slow_dead` logic remains unchanged for current Actions, but it is not Condition truth and not Action Eligibility truth for AP 16.4d.2. The future Slow / Dead Recovery Case Page must consume the derived Recovery Case Runtime, its Condition & Evidence Engine result and its Action Eligibility contract.
+
 Recommended Next Work Block: AP 16.4d.2 — Slow / Dead Recovery Case Page. Then AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
 
 ### DF-UX-02 — Capability-Oriented Data Foundation

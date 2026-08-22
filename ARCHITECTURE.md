@@ -22,6 +22,9 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/consumption-history-relationship-engine.js` owns Inventory-to-Consumption-History entity matching, anti-fan-out diagnostics and relationship provenance.
 - `js/data/consumption-history-aggregation-engine.js` owns semantic-row-only rolling windows, monthly buckets, exclusions, historical metrics and metric provenance.
 - `js/application/historical-metrics-runtime-coordinator.js` owns Historical Metrics runtime scheduling, signature deduplication, explicit states, retry, stale-result rejection and state notifications.
+- `js/slow-dead/slow-dead-condition-engine.js` owns Slow / Dead condition policy, evidence, confidence, root-cause candidates and Action Eligibility.
+- `js/application/slow-dead-recovery-case-service.js` owns entity-authoritative Slow / Dead Recovery Case Candidate construction and summaries.
+- `js/application/slow-dead-runtime-state.js` owns the explicit Slow / Dead Recovery Case Runtime state shape and Historical dependency mapping.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -100,13 +103,26 @@ Ownership is separated as follows:
 
 - `js/slow-dead/slow-dead-condition-engine.js`: owns the versioned Slow / Dead Condition Policy, condition precedence, critical evidence gate, condition classification, positive evidence, counter evidence, Evidence Strength, Condition Confidence, Root-Cause candidates, Recovery Case Eligibility, Action Eligibility, missing evidence and required existing Data Packages.
 - `js/application/slow-dead-recovery-case-service.js`: owns input validation, entity-level Inventory evidence composition, deterministic Case IDs, Case fingerprints, provenance, entity-deduplicated summaries and service Runtime results.
-- `app.js`: owns only module guards, service instantiation, a minimal derived Runtime adapter triggered by Historical Runtime state changes and targeted test-bridge exposure.
+- `js/application/slow-dead-runtime-state.js`: owns the six-state Runtime contract, state coherence and Historical dependency-state mapping.
+- `app.js`: owns only module guards, service instantiation, signature checking, build deduplication, Slow / Dead error isolation and targeted test-bridge exposure.
 
 The Condition Engine and Recovery Case Service are classic-script modules without DOM, UI-filter, presentation or direct Registry dependencies. They do not parse Raw History, reinterpret movement semantics, recalculate Historical Metrics, mutate Inventory rows, mutate Historical Metric rows, create Registry Packages or create Package revisions.
 
 The derived Slow / Dead Runtime is downstream from Historical Metrics Runtime. It can build only from completed current Historical Runtime results and rejects stale or missing evidence as explicit unavailable or insufficient evidence. It is not triggered by Overview, Data Foundation, Inventory Explorer, filters, sorting, language, currency, theme or export-dialog presentation.
 
 AP 16.4d.1 does not implement a visible Slow / Dead page, worklist, detail view, export, Expected Recovery Value, finance-grade recognition, execution workflow, persistence, outcome learning or SAP integration. Existing Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios, Pilot Reviews, exports, Registry and Package revisions remain unchanged.
+
+### AP 16.4d.1.1 Slow / Dead Runtime Boundary
+
+The AP 16.4d.1.1 runtime boundary is:
+
+Historical Runtime State Change -> Slow / Dead Runtime Adapter -> Slow / Dead Recovery Case Service -> Coherent Derived Runtime -> Historical/Data Foundation presentation update.
+
+The Slow / Dead Runtime Adapter owns dependency-state mapping, current input-signature validation, build deduplication, Service-error isolation and the explicit derived Runtime state. It does not own rendering calculations, Condition thresholds, Condition precedence, Root-Cause rules or Action Eligibility rules.
+
+A Slow / Dead error cannot mutate Historical Runtime and cannot prevent the accepted Historical Metrics/Data Foundation presentation from updating. Historical dependency errors are represented with `errorSource: "historical_runtime"`, while Slow / Dead Service exceptions are represented with `errorSource: "slow_dead_runtime"`. Calculating, unavailable and error states do not retain stale Case results from another signature.
+
+The existing text-based Action Cockpit `slow_dead` signal may continue to support current Actions, but it is not Condition truth and is not Action Eligibility truth for the Slow / Dead Recovery Case Runtime. AP 16.4d.2 must consume the Recovery Case Runtime -> Condition & Evidence Engine result -> Action Eligibility path.
 
 ## DF-UX-02 Capability-Oriented Data Foundation Presentation
 

@@ -100,6 +100,9 @@ if (!ObsoliQModules.slowDead?.conditionEngine) {
 if (!ObsoliQModules.application?.slowDeadRecoveryCaseService) {
   throw new Error("ObsoliQ Slow / Dead Recovery Case Service failed to load.");
 }
+if (!ObsoliQModules.application?.slowDeadRuntimeState) {
+  throw new Error("ObsoliQ Slow / Dead Runtime State module failed to load.");
+}
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
 }
@@ -221,9 +224,12 @@ const historicalMetricsRuntimeCoordinator = ObsoliQModules.application.historica
 const slowDeadRecoveryCaseService = ObsoliQModules.application.slowDeadRecoveryCaseService.createSlowDeadRecoveryCaseService({
   conditionEngine: ObsoliQModules.slowDead.conditionEngine.createSlowDeadConditionEngine()
 });
+const slowDeadRuntimeState = ObsoliQModules.application.slowDeadRuntimeState;
 let slowDeadRecoveryCaseBuildCount = 0;
+let slowDeadRecoveryCaseFailedBuildCount = 0;
+let slowDeadRecoveryCaseDependencyNoBuildCount = 0;
 let slowDeadRecoveryCaseBuildLog = [];
-let slowDeadRecoveryCaseRuntime = createInitialSlowDeadRecoveryCaseRuntime();
+let slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState();
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -14315,22 +14321,25 @@ function historicalMetricsResultForCurrentSignature(runtimeState = historicalMet
   return runtimeState.result || null;
 }
 
-function createInitialSlowDeadRecoveryCaseRuntime(reason = "not_calculated") {
-  return {
-    status: "not_calculated",
-    reason,
-    inputSignature: "",
-    historicalMetricsInputSignature: "",
-    result: null,
-    summary: null,
-    updatedAt: "",
-    buildCount: slowDeadRecoveryCaseBuildCount || 0
-  };
+function commitSlowDeadRecoveryCaseRuntimeState(patch = {}) {
+  const generation = Object.prototype.hasOwnProperty.call(patch, "generation")
+    ? patch.generation
+    : (slowDeadRecoveryCaseRuntime?.generation || 0) + 1;
+  slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState({
+    ...patch,
+    generation,
+    buildCount: slowDeadRecoveryCaseBuildCount,
+    updatedAt: patch.updatedAt || new Date().toISOString()
+  });
+  return slowDeadRecoveryCaseRuntime;
 }
 
 function resetSlowDeadRecoveryCaseRuntime(reason = "input_changed") {
-  slowDeadRecoveryCaseRuntime = createInitialSlowDeadRecoveryCaseRuntime(reason);
-  return slowDeadRecoveryCaseRuntime;
+  return commitSlowDeadRecoveryCaseRuntimeState({
+    status: "not_calculated",
+    reasonCode: reason,
+    reason
+  });
 }
 
 function slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState = historicalMetricsRuntimeForPresentation()) {
@@ -14349,35 +14358,122 @@ function slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState = historical
 
 function updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(runtimeState = historicalMetricsRuntimeForPresentation(), options = {}) {
   if (!runtimeState || !["available", "limited"].includes(runtimeState.status)) {
-    return resetSlowDeadRecoveryCaseRuntime(runtimeState?.reasonCode || runtimeState?.status || "historical_runtime_not_ready");
+    const mapped = slowDeadRuntimeState.fromHistoricalDependency(runtimeState);
+    if (["calculating", "unavailable", "error"].includes(mapped.status)) {
+      slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    }
+    return commitSlowDeadRecoveryCaseRuntimeState(mapped);
+  }
+  const expectedHistoricalSignature = historicalMetricsInputSignatureForCurrentState();
+  if (!runtimeState.completedInputSignature) {
+    slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "unavailable",
+      reasonCode: "historical_signature_missing",
+      reason: "historical_signature_missing",
+      inputSignature: expectedHistoricalSignature,
+      requestedInputSignature: expectedHistoricalSignature,
+      historicalMetricsInputSignature: ""
+    });
+  }
+  if (runtimeState.completedInputSignature !== expectedHistoricalSignature) {
+    slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "unavailable",
+      reasonCode: "historical_signature_mismatch",
+      reason: "historical_signature_mismatch",
+      inputSignature: expectedHistoricalSignature,
+      requestedInputSignature: expectedHistoricalSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature
+    });
   }
   const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
-  if (!runtime) return resetSlowDeadRecoveryCaseRuntime("historical_runtime_stale_or_missing");
+  if (!runtime) {
+    slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "unavailable",
+      reasonCode: "historical_signature_mismatch",
+      reason: "historical_signature_mismatch",
+      inputSignature: expectedHistoricalSignature,
+      requestedInputSignature: expectedHistoricalSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || ""
+    });
+  }
   const buildInput = slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState);
   const inputSignature = slowDeadRecoveryCaseService.slowDeadRecoveryCaseInputSignature(buildInput);
-  if (!options.force && slowDeadRecoveryCaseRuntime.inputSignature === inputSignature && ["available", "limited", "unavailable"].includes(slowDeadRecoveryCaseRuntime.status)) {
+  if (!options.force && slowDeadRecoveryCaseRuntime.completedInputSignature === inputSignature && ["available", "limited"].includes(slowDeadRecoveryCaseRuntime.status)) {
     return slowDeadRecoveryCaseRuntime;
   }
-  const result = slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(buildInput);
-  slowDeadRecoveryCaseBuildCount += 1;
-  slowDeadRecoveryCaseBuildLog.push({
+  const generation = (slowDeadRecoveryCaseRuntime?.generation || 0) + 1;
+  const requestedAt = new Date().toISOString();
+  const startedMs = Date.now();
+  slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState({
+    status: "calculating",
+    reasonCode: "building_slow_dead_cases",
+    reason: options.reason || "building_slow_dead_cases",
     inputSignature,
+    requestedInputSignature: inputSignature,
     historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
-    reason: options.reason || "historical_runtime_changed",
-    requestedAt: new Date().toISOString(),
-    status: result.status
+    generation,
+    requestedAt,
+    startedAt: requestedAt,
+    updatedAt: requestedAt
   });
-  slowDeadRecoveryCaseRuntime = {
-    status: result.status,
-    reason: result.reason || "",
-    inputSignature,
-    historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
-    result,
-    summary: result.summary || null,
-    updatedAt: result.evaluatedAt || new Date().toISOString(),
-    buildCount: slowDeadRecoveryCaseBuildCount
-  };
-  return slowDeadRecoveryCaseRuntime;
+  try {
+    if (options.forceServiceErrorForTest) throw new Error("Forced Slow / Dead case build failure.");
+    const result = slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(buildInput);
+    const status = ["available", "limited"].includes(result?.status) ? result.status : "unavailable";
+    slowDeadRecoveryCaseBuildCount += 1;
+    slowDeadRecoveryCaseBuildLog.push({
+      inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      reason: options.reason || "historical_runtime_changed",
+      requestedAt,
+      status
+    });
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status,
+      reasonCode: result?.reason || (status === "unavailable" ? "slow_dead_result_unavailable" : ""),
+      reason: result?.reason || (status === "unavailable" ? "slow_dead_result_unavailable" : ""),
+      inputSignature,
+      requestedInputSignature: inputSignature,
+      completedInputSignature: status === "unavailable" ? "" : inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      result: status === "unavailable" ? null : result,
+      summary: status === "unavailable" ? null : result.summary || null,
+      generation,
+      requestedAt,
+      startedAt: requestedAt,
+      completedAt: result?.evaluatedAt || new Date().toISOString(),
+      durationMs: result?.durationMs ?? Math.max(0, Date.now() - startedMs)
+    });
+  } catch (error) {
+    slowDeadRecoveryCaseFailedBuildCount += 1;
+    slowDeadRecoveryCaseBuildLog.push({
+      inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      reason: options.reason || "historical_runtime_changed",
+      requestedAt,
+      status: "error",
+      errorCode: error?.code || "slow_dead_case_build_failed"
+    });
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "error",
+      reasonCode: "slow_dead_case_build_failed",
+      reason: "slow_dead_case_build_failed",
+      inputSignature,
+      requestedInputSignature: inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      errorCode: error?.code || "slow_dead_case_build_failed",
+      errorMessage: error?.message || String(error),
+      errorSource: "slow_dead_runtime",
+      generation,
+      requestedAt,
+      startedAt: requestedAt,
+      completedAt: new Date().toISOString(),
+      durationMs: Math.max(0, Date.now() - startedMs)
+    });
+  }
 }
 
 function slowDeadRecoveryCaseRuntimeForPresentation() {
@@ -14423,8 +14519,22 @@ function retryHistoricalMetricsRuntime() {
   return onHistoricalMetricInputsChanged({ reason: "retry", force: true });
 }
 
-function handleHistoricalMetricsRuntimeStateChange(state) {
-  updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state);
+function handleHistoricalMetricsRuntimeStateChange(state, options = {}) {
+  try {
+    updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state, options);
+  } catch (error) {
+    commitSlowDeadRecoveryCaseRuntimeState({
+      status: "error",
+      reasonCode: "slow_dead_case_build_failed",
+      reason: "slow_dead_case_build_failed",
+      inputSignature: state?.inputSignature || state?.requestedInputSignature || "",
+      requestedInputSignature: state?.requestedInputSignature || state?.inputSignature || "",
+      historicalMetricsInputSignature: state?.completedInputSignature || "",
+      errorCode: error?.code || "slow_dead_case_build_failed",
+      errorMessage: error?.message || String(error),
+      errorSource: "slow_dead_runtime"
+    });
+  }
   renderPackageAvailability();
   updateDownloadVariantAvailability();
   if (currentView === "inventory") {
@@ -18356,18 +18466,31 @@ function createObsoliqTestBridge() {
     getHistoricalMetricsRuntimeResultForTest: () => clonePlainRecord(historicalMetricsResultForCurrentSignature()),
     getSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(slowDeadRecoveryCaseRuntimeForPresentation()),
     resetSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(resetSlowDeadRecoveryCaseRuntime("test_reset")),
-    requestSlowDeadRecoveryCaseRuntimeForTest: options => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(historicalMetricsRuntimeForPresentation(), { reason: options?.reason || "test_request", force: options?.force === true })),
+    requestSlowDeadRecoveryCaseRuntimeForTest: options => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(historicalMetricsRuntimeForPresentation(), { reason: options?.reason || "test_request", force: options?.force === true, forceServiceErrorForTest: options?.forceServiceErrorForTest === true })),
+    updateSlowDeadRecoveryCaseRuntimeFromHistoricalStateForTest: (state, options = {}) => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state, options)),
+    handleHistoricalMetricsRuntimeStateChangeForTest: (state, options = {}) => {
+      handleHistoricalMetricsRuntimeStateChange(state, options);
+      return clonePlainRecord({
+        slowDeadRuntime: slowDeadRecoveryCaseRuntimeForPresentation(),
+        historicalRuntime: historicalMetricsRuntimeForPresentation(),
+        packageAvailabilityText: $("dataPackagesPanel")?.textContent || ""
+      });
+    },
     buildSlowDeadRecoveryCasesForTest: input => clonePlainRecord(slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(input)),
     getSlowDeadRecoveryCaseBuildCountersForTest: () => clonePlainRecord({
       buildCount: slowDeadRecoveryCaseBuildCount,
+      failedBuildCount: slowDeadRecoveryCaseFailedBuildCount,
+      dependencyNoBuildCount: slowDeadRecoveryCaseDependencyNoBuildCount,
       buildLog: slowDeadRecoveryCaseBuildLog,
       runtime: slowDeadRecoveryCaseRuntimeForPresentation()
     }),
     resetSlowDeadRecoveryCaseBuildCountersForTest: () => {
       slowDeadRecoveryCaseBuildCount = 0;
+      slowDeadRecoveryCaseFailedBuildCount = 0;
+      slowDeadRecoveryCaseDependencyNoBuildCount = 0;
       slowDeadRecoveryCaseBuildLog = [];
       slowDeadRecoveryCaseRuntime = { ...slowDeadRecoveryCaseRuntime, buildCount: 0 };
-      return { buildCount: slowDeadRecoveryCaseBuildCount, buildLog: [] };
+      return { buildCount: slowDeadRecoveryCaseBuildCount, failedBuildCount: 0, dependencyNoBuildCount: 0, buildLog: [] };
     },
     requestHistoricalMetricsRuntimeForTest: options => clonePlainRecord(onHistoricalMetricInputsChanged({
       reason: options?.reason || "test_request",

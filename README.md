@@ -24,6 +24,9 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - controlled historical inventory metrics with provenance
 - lifecycle-triggered Historical Metrics Runtime orchestration
 - presentation-independent Historical Data Foundation status
+- Slow / Dead Condition & Evidence Engine
+- entity-authoritative Slow / Dead Recovery Case Candidates
+- explicit session-only Slow / Dead Recovery Case Runtime
 - Input Trust
 - Data Quality and Remediation
 - Recovery calculation
@@ -72,7 +75,7 @@ inventory-recovery-mvp/
 
 - `prototype.html` is the local browser entry point.
 - `app.js` contains the current application orchestration.
-- `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence and Pilot Review.
+- `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence, Slow / Dead evidence and Pilot Review.
 - `tests/` contains the file-based structured test package.
 - `assets/` contains local UI assets.
 - `data/` is reserved for anonymized sample or test fixtures only.
@@ -119,7 +122,11 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - Inventory-to-History relationship and controlled 3M / 6M / 12M historical metrics are implemented as derived runtime evidence
 - Historical Metrics calculation is lifecycle-triggered and separated from rendering, filters, settings and export-dialog presentation
 - historical metrics remain outside authoritative Inventory rows and do not change Recovery, Actions or Data Quality
-- no Slow / Dead classification from Consumption History yet
+- Slow / Dead Condition & Evidence Engine and entity-authoritative Recovery Case Candidates exist
+- no visible Slow / Dead Recovery Case page yet
+- Slow / Dead thresholds are not yet pilot-calibrated
+- no final Slow / Dead Action recommendation or workflow approval exists
+- no financial Recognition, Execution Workflow, Expected Recovery Value or realized cash/P&L effect exists
 - no Snapshot History
 - no Purchase Order optimization
 - no predictive analytics

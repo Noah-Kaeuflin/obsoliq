@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-08-23 - AP 16.4d.1.1:
+Slow / Dead Runtime Boundary & Final Acceptance Closure
+
+### Fixed
+
+- Added an explicit six-state Slow / Dead Recovery Case Runtime contract.
+- Distinguished not-calculated, calculating, available, limited, unavailable and error states.
+- Mapped Historical Runtime dependency states explicitly into the Slow / Dead Runtime.
+- Prevented missing, calculating, unavailable or failed Historical inputs from becoming false Slow / Dead classifications.
+- Added a dedicated Slow / Dead application error boundary.
+- Prevented Slow / Dead Service failures from interrupting accepted Historical Metrics presentation updates.
+- Preserved Historical Runtime state, results and signatures after Slow / Dead failures.
+- Added stable Slow / Dead error codes and error-source ownership.
+- Cleared stale Case results from calculating, unavailable and error states.
+- Preserved input-signature build deduplication.
+- Added Runtime-state, Service-error, dependency-state, deduplication, Action-separation and isolation regression tests.
+- Verified the physical Slow / Dead Engine, Service and structured-test files through the complete file:// package.
+- Added the Slow / Dead modules to the central Architecture module list.
+- Clarified that the existing text-based slow/dead Action logic is not the source of truth for Recovery Case Conditions or Action Eligibility.
+- Preserved Recovery, Data Quality, current Actions, Opportunity Scores, scenarios, Pilot Reviews, Historical Metrics, Registry and Package revisions.
+
+### Known Limitations
+
+- no visible Slow / Dead Recovery Case page
+- no Worklist or Case Detail
+- no Slow / Dead export
+- no pilot-calibrated thresholds
+- no final Action recommendation
+- no Expected Recovery Value
+- no financial Recognition
+- no Execution Workflow
+- no persistence
+- no Predictive Analytics
+- no SAP integration
+
 ## 2026-08-22 - AP 16.4d.1:
 Slow / Dead Condition & Evidence Engine
 
