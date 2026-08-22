@@ -22,6 +22,58 @@ Analysis-as-of provenance is auditable. Inventory-snapshot-derived as-of dates r
 
 AP 16.4b.1 remains analytically isolated. It does not join Consumption History to Inventory, does not calculate rolling historical metrics, does not classify Slow / Dead Stock and does not change Recovery, Data Quality, Actions, Opportunity Score, scenarios or Pilot Reviews.
 
+### AP 16.4c — Inventory Relationship & Historical Metrics
+
+AP 16.4c connects the active Inventory Snapshot with the active semantically interpreted Consumption History Package to produce derived, auditable historical evidence. The relationship model first matches exact `material_id + plant`, then allows material-only fallback only when the assignment is unique. Plantless History is never copied across multiple plant-specific Inventory entities, and unmatched, ambiguous and invalid relationships remain explicit diagnostics. Leading-zero Material IDs remain unchanged.
+
+Historical aggregation consumes only AP 16.4b semantic fields such as `net_consumption_quantity`, normalized date or period evidence, temporal precision, movement semantics, unit context, aggregation eligibility and duplicate semantics. Raw Posting Date, Raw Period, raw Movement Type and raw quantity sign are not reinterpreted. Unknown movements, future movements, exact-source duplicate ambiguity, business-duplicate ambiguity and incompatible units are excluded with provenance.
+
+The metric windows are deterministic 3M, 6M and 12M calendar windows based on an explicit Analysis-as-of date. The browser or system date is not an analytical fallback. Day precision remains day evidence, month precision remains period evidence and an incomplete current month is flagged as partial.
+
+Current derived metrics include Last Consumption, Net Consumption 3M/6M/12M, Average Monthly Consumption, Active Consumption Months, Movement Frequency, Intermittency, Months Since Last Consumption, Consumption Trend, History Coverage, History Completeness, Inventory Coverage and Estimated Run-out Months. Coverage and run-out are calculated only when quantity evidence and compatible unit evidence exist; financial value is never used as a quantity substitute.
+
+Historical metrics are derived runtime evidence only. They do not mutate Registry records, do not create Package revisions and do not change authoritative Inventory analytical rows. Data Foundation shows historical relationship and metric status, Inventory Explorer can show `· CH` columns, and the Inventory export offers an explicit historical enriched variant. Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios and Pilot Reviews remain unchanged.
+
+Recommended next work block: AP 16.4d — Slow / Dead Stock Intelligence. AP 16.4c does not add predictive analytics.
+
+### AP 16.4c.1 — Historical Runtime Orchestration & Data Foundation UX Closure
+
+AP 16.4c.1 closes the boundary between historical analytics and presentation. Historical Metrics are now coordinated by an explicit runtime state with the statuses `not_calculated`, `calculating`, `available`, `limited`, `unavailable` and `error`. Runtime calculation is triggered by input lifecycle events such as Inventory changes, Consumption History import, semantic-policy changes and analysis-as-of changes, not by rendering Data Foundation, Overview, Inventory Explorer, filters, sorting, language, theme, currency or export-dialog presentation.
+
+Runtime requests use a deterministic input signature. Completed and in-flight signatures are deduplicated, changed signatures invalidate stale metrics before recomputation, and generation checks prevent late stale completions from overwriting the current Runtime. Calculation remains synchronously executed after controlled browser scheduling, so large 10k Inventory / 50k History builds are bounded by tests but still run on the main thread in this local MVP.
+
+Data Foundation separates Package presence, Package validity, Interpretation Trust, History Readiness and Historical Metrics availability. Missing Consumption History now shows one compact unavailable state instead of false zero match counts or false boolean values. Calculated zero and calculated false remain visible only after a successful calculation. Limited and invalid states are shown separately from fully available metrics.
+
+The open Data Foundation hierarchy now presents at most four primary Historical Analysis values: Calculation Status, Exact / Fallback Match Rate, History Coverage and Analysis-as-of. Secondary relationship, coverage, exclusion and provenance details move into technical disclosure sections with bounded internal scrolling and responsive drawer behavior on mobile.
+
+Original Data, Enriched Data and Historical Metrics exports remain separate. Historical export availability follows the current Runtime signature and does not trigger calculation. Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios, Pilot Reviews, Slow / Dead placeholders and Raw Source remain analytically isolated.
+
+Recommended next work block remains AP 16.4d — Slow / Dead Stock Intelligence.
+
+### DF-UX-02 — Capability-Oriented Data Foundation
+
+The Data Foundation remains a product capability surface, not a technical Package-status widget. Its collapsed summary now communicates direct source and capability states only: Inventory Data drives active Inventory Analysis, Material Master unlocks Context Enrichment and Consumption History unlocks Historical Analysis.
+
+Visible aggregate counters such as Core Data Foundation and Optional Intelligence Sources are no longer part of the product summary because one count cannot safely represent imported, valid, trusted, ready and metrics-available states at the same time. Missing sources are shown once in the dependency tree, and dependent sections are hidden until their prerequisite source is present and valid enough to support them.
+
+The expanded Data Foundation separates Package presence, Package validity, Interpretation Trust, History Readiness, Relationship state and Historical Metrics state. Material Master Relationship remains part of Context Enrichment. Inventory-to-History Relationship remains separate from Historical Metrics. Available Historical Analysis shows at most four primary values, with match, coverage, exclusion, provenance and Package details kept secondary under Technical Details.
+
+The drawer has a clear title, Close action, scrim and bounded scroll owner. Opening, closing, resizing or scrolling it is presentation-only and must not request Historical Runtime builds, mutate the Registry, create Package revisions or change analytical calculations.
+
+AP 16.4d remains the next analytical block and is not implemented by DF-UX-02.
+
+### DF-UX-02.1 — Data Foundation Visual Hierarchy & Data Quality Header Closure
+
+DF-UX-02.1 closes the visual hierarchy of the existing Data Foundation without changing analytical state. The collapsed control now shows one prioritized primary statement and one secondary exception statement, for example active Inventory Analysis plus missing extension count or review-source count. Full `sourceStates` remain available inside the open Data Foundation and Technical Details.
+
+The open Data Foundation uses three source-row variants: `compact-active` for active sources, `actionable-missing` for missing optional extensions and `diagnostic` for invalid, limited or review-required sources. Missing Material Master and Consumption History rows use short role descriptions plus Import actions, without redundant visible "Not Imported" labels beside those actions.
+
+Card nesting is reduced so the open surface owns the main border, radius and shadow. Technical Details is a muted secondary disclosure, and the text Close button is replaced with an accessible icon-only X control. Desktop behavior is a non-modal anchored Popover without a scrim. Mobile behavior remains a modal Bottom Drawer with scrim, focus containment and body-scroll locking.
+
+The Data Quality header now combines title, source and dataset metadata into one compact two-line block. Only the current source label, such as Sample Data or the uploaded filename, is shown as a badge. Row and column counts are inline muted metadata, and the redundant Data Loaded chip is removed from the Data Quality header.
+
+All DF-UX-02.1 changes are presentation-only. Opening, closing, scrolling and responsive mode changes do not trigger Historical Runtime builds, Registry mutation, Package revision changes or analytical recalculation.
+
 ### AP 16.4b — Temporal, Movement & Unit Semantics
 
 Consumption History now has a deterministic interpretation layer before future historical aggregation. The Mapping Assistant shows package-specific History Interpretation evidence for Consumption History uploads, including quantity locale/scale, Posting Date format, Period format and optional analysis-as-of date review.

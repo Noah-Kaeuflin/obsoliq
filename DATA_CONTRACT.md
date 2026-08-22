@@ -118,6 +118,80 @@ Explicit Quantity Scale requires `scaleSource = "explicit"`, a valid finite `sou
 
 Interpretation Trust and History Readiness are separate contracts. Trust describes whether the interpretation policy can be applied. History Readiness is produced by the Semantics Engine from temporal, movement, unit and event evidence. Data Foundation displays Consumption History Package availability separately from analytical History Readiness and does not calculate Readiness.
 
+### AP 16.4c Inventory Relationship & Historical Metrics Contract
+
+Inventory entity keys use `material_id` and `plant` exactly as normalized text tokens: `material:<material_id>|plant:<plant>`. History entity keys use the same shape. Material IDs are not numeric-coerced, so leading zeroes remain part of identity.
+
+Relationship states are `exact_material_plant`, `material_fallback`, `unmatched`, `ambiguous` and `invalid_key`. Exact Material + Plant matching has priority. Material-only fallback is allowed only when the Inventory side and History side each have one unique entity for the material. If plantless History could fan out to multiple plant-specific Inventory entities, the relationship is `ambiguous` with reason `material_history_fanout_blocked`.
+
+The relationship result stores model version, deterministic signature, package IDs, package revisions, entity counts, exact/fallback/unmatched/ambiguous/invalid counts, match indexes, unmatched entities, ambiguous diagnostics, invalid-key diagnostics and limitation codes.
+
+Historical aggregation consumes semantic Consumption History rows only. It uses `net_consumption_quantity`, `normalized_posting_date`, `normalized_period`, `temporal_precision`, `temporal_parse_status`, `movement_semantic`, `normalized_base_unit`, `aggregation_eligible`, `duplicate_semantic`, `event_identity_key` and `event_identity_status`. Raw Posting Date, Raw Period, Raw Movement Type and raw quantity sign are not reinterpreted.
+
+Exclusion provenance records the Package row key, source row index, History entity key, temporal reference, movement semantic, unit context, duplicate semantic and exclusion reasons. Known exclusions include future movements, unknown movement semantics, missing net quantity, missing unit, unit conflict, exact-source duplicate ambiguity, business-duplicate ambiguity, unmatched relationships, ambiguous relationships and invalid relationships. Excluded rows are not deleted.
+
+Rolling windows are calendar-month windows anchored by explicit `analysisAsOf.date`. The current browser or system date is not a fallback. A non-month-end as-of date sets `partial_current_period = true`. Day precision remains date evidence, month precision remains period evidence and month precision is not converted into an invented day.
+
+Historical metrics include Last Consumption date/period/precision, Net Consumption 3M/6M/12M, Average Monthly Consumption, Active Consumption Months, Movement Frequency, Intermittency, Months Since Last Consumption, Consumption Trend, History Coverage start/end, History Completeness, Inventory Coverage Months and Estimated Run-out Months.
+
+Metric status is `available`, `limited` or `unavailable`. Coverage and run-out require stock quantity, Inventory unit, History unit, compatible unit tokens, positive average consumption and sufficient covered months. There is no unit conversion and no financial-value substitute for missing quantity evidence.
+
+Metric provenance includes Inventory Package ID/revision, History Package ID/revision, semantic-policy signature, relationship model version, aggregation model version, historical metric model version, window model version, Analysis-as-of date/source/provenance, relationship state, unit status, included/excluded row counts, coverage range and limitation codes.
+
+The Historical Metrics Runtime is derived and session-local. It indexes metrics by Inventory entity and exposes shared row-level views for repeated Inventory rows. Entity-level metric authority prevents row-level portfolio double counting. Runtime signatures include Package identity, revisions, semantic policy, model versions and Analysis-as-of evidence; changed inputs invalidate stale metrics. Metric calculation does not create Package revisions and does not mutate Raw Source or authoritative Inventory analytical rows.
+
+### AP 16.4c.1 Historical Metrics Runtime State Contract
+
+`HistoricalMetricsRuntimeState` is the authoritative application-level state for derived Historical Metrics. Allowed statuses are:
+
+- `not_calculated`: the current eligible input has not produced a Runtime yet or was invalidated.
+- `calculating`: a build for the current input signature was accepted and scheduled.
+- `available`: a successful Runtime exists for the current input signature and metrics are fully available.
+- `limited`: a successful Runtime exists for the current input signature, but relationship, coverage, readiness or evidence limitations apply.
+- `unavailable`: required evidence is missing, invalid or not analytically usable.
+- `error`: an unexpected build, relationship, aggregation or commit exception occurred.
+
+The state carries `inputSignature`, `requestedInputSignature`, `completedInputSignature`, `generation`, optional `result`, `relationshipResult`, `summary`, `reasonCode`, `limitationCodes`, `errorCode`, `errorMessage`, `requestedAt`, `startedAt`, `completedAt` and `durationMs`. Runtime results are current only when the completed signature equals the active input signature. Changed analytical inputs invalidate the previous completed signature before recomputation, and generation checks reject stale completions.
+
+Build lifecycle is request-driven. Inventory Package changes, Consumption History Package changes, semantic-policy changes and Analysis-as-of changes are valid invalidation/build triggers. Rendering Data Foundation, Overview or Inventory Explorer, opening or closing disclosures, language changes, theme changes, currency changes, filters, sorting, pagination and export-dialog opening are non-triggers.
+
+Build deduplication is signature-based. One completed signature is not rebuilt by repeated requests, and one in-flight signature cannot start a second concurrent build. Explicit retry is allowed only for an error or forced retry path. Runtime calculation is derived and session-local; it must not create a Package, Package revision or Raw Source mutation.
+
+Package presence, Package validity, Interpretation Trust, History Readiness and Historical Metrics availability are separate contracts. A package record can exist while being invalid, limited or analytically unavailable. An imported limited source is displayed as imported plus limited, not as fully ready. An invalid package is not counted as available or usable.
+
+Data Foundation reads a presentation model derived from these states only. It does not calculate analytics. Missing evidence is not zero: unavailable numeric values render as `n. v.` / `n/a` or are omitted, while calculated numeric zero renders as `0`. Unavailable Boolean values render as `n. v.` / `n/a`, while calculated `false` renders as `Nein` / `No`.
+
+### DF-UX-02 Data Foundation Presentation Contract
+
+The Data Foundation presentation contract distinguishes these dimensions:
+
+- Package Presence: whether a source Package record exists.
+- Package Validity: whether the Package can be considered structurally usable.
+- Interpretation Trust: whether reviewed Consumption History source semantics can be applied.
+- History Readiness: whether interpreted History evidence is aggregation-ready or limited.
+- Relationship State: whether Inventory can be related to Material Master or Consumption History.
+- Historical Metrics Runtime State: whether derived historical metrics for the current signature are available, limited, calculating, unavailable or errored.
+
+Presence is not readiness. Validity is not readiness. Relationship State is not Metrics State. A missing source suppresses dependent presentation instead of creating separate unavailable Relationship or Metrics cards. A presentation count must not imply several dimensions at once, so visible aggregate source counters are not part of the contract.
+
+Unavailable is not numeric zero. Missing or unsupported evidence is omitted or shown as `n. v.` / `n/a`, while calculated zero and calculated false remain valid calculated values after Runtime completion.
+
+Historical export availability is tied to the current Runtime signature. Historical export is disabled for `not_calculated`, `calculating`, `unavailable` and `error` states and enabled only for current `available` or `limited` Runtime results.
+
+### DF-UX-02.1 Presentation Projection Contract
+
+The collapsed Data Foundation Summary is a presentation projection only. `primaryText`, `secondaryText`, `missingExtensionCount` and `reviewSourceCount` communicate the prioritized visible state, but they do not replace the full source-state contract.
+
+`sourceStates` remains the complete presentation contract for Inventory, Material Master and Consumption History source states. Missing, invalid, review-required, limited and error states remain distinct. A visible missing source may omit the text "Not Imported" when an Import action is present; this does not change Package presence semantics or Registry state.
+
+Source-row variants are visual only:
+
+- `compact-active`: active imported source evidence.
+- `actionable-missing`: missing optional source with an Import action.
+- `diagnostic`: invalid, limited, not-ready, review-required or error evidence.
+
+The Data Quality source badge reflects the current Dataset source label, including uploaded filenames. Row and column metadata reflect current Dataset Meta counts. Header presentation does not create analytical truth, mutate Data Quality issues or write Package records.
+
 ## AP 16.3b.1.1 Pilot Review Record Contract
 
 New Pilot Review records require the following identity fields before any Service mutation:

@@ -19,6 +19,9 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/material-master-builder.js` validates and builds Material Master package payloads.
 - `js/data/consumption-history-semantics-engine.js` owns deterministic Consumption History temporal, movement, unit, event and readiness semantics.
 - `js/data/consumption-history-builder.js` validates and builds optional Consumption History package payloads without touching UI or analytical state.
+- `js/data/consumption-history-relationship-engine.js` owns Inventory-to-Consumption-History entity matching, anti-fan-out diagnostics and relationship provenance.
+- `js/data/consumption-history-aggregation-engine.js` owns semantic-row-only rolling windows, monthly buckets, exclusions, historical metrics and metric provenance.
+- `js/application/historical-metrics-runtime-coordinator.js` owns Historical Metrics runtime scheduling, signature deduplication, explicit states, retry, stale-result rejection and state notifications.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -29,6 +32,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/package-import-service.js` prepares, validates, builds and transactionally commits non-Inventory Data Packages.
 - `js/application/input-trust-service.js` orchestrates source profiling, mapping evidence, normalization policy and trust-state decisions.
 - `js/application/consumption-history-interpretation-service.js` prepares and revalidates package-specific Consumption History interpretation policy and diagnostics.
+- `js/application/historical-inventory-metrics-service.js` validates active Inventory and Consumption History inputs, orchestrates relationship and aggregation, assembles derived runtime metrics and owns metric invalidation signatures.
 - `js/application/inventory-enrichment-service.js` orchestrates Inventory-to-Material-Master matching and enrichment outside the UI layer.
 - `js/application/excess-analysis-service.js` composes Excess cases, owner context, relationship quality, scoring and scenarios for the UI.
 - `js/application/excess-pilot-review-service.js` owns session-only Excess Pilot Review records, case fingerprints, lifecycle reconciliation, summaries, export rows and snapshot/restore behavior.
@@ -57,6 +61,60 @@ The Interpretation Service owns source-bound Quantity, Posting Date and Period p
 The Builder remains responsible for package rows, package validation and build metadata. It reuses the effective source-bound semantic policy and exposes the Builder-side semantic-policy signature for the Package Import Service invariant. The Registry remains responsible for immutable package identity, revision, committed metadata and active package state. Data Foundation is presentation-only for Consumption History availability and History Readiness; it does not calculate readiness.
 
 AP 16.4b explicitly does not create an Inventory relationship, historical metrics, rolling buckets, coverage, run-out, Slow / Dead classification or current KPI impact.
+
+## AP 16.4c Inventory Relationship And Historical Metrics
+
+The AP 16.4c flow is:
+
+Inventory Package + Semantically Interpreted Consumption History Package -> Historical Metrics Service -> Relationship Engine -> Entity Relationship Result -> Aggregation Engine -> Historical Metric Result -> Derived Historical Runtime -> Data Foundation / Inventory Explorer / Export.
+
+The Relationship Engine owns entity-key construction, exact Material + Plant matching, controlled unique Material fallback, anti-fan-out enforcement, unmatched/ambiguous/invalid diagnostics, package provenance and relationship signatures. It does not parse dates, interpret Movement Types, convert units, render UI, read Registry directly or mutate Package or Inventory rows.
+
+The Aggregation Engine owns calendar windows, semantic eligible-row selection, exclusion classification, unit-safe monthly aggregation, Last Consumption, 3M/6M/12M net consumption, average monthly consumption, active months, movement frequency, intermittency, trend, coverage, run-out, metric status and provenance. It consumes AP 16.4b semantic rows and does not reinterpret raw source fields.
+
+The Historical Metrics Service owns package validation, semantic acceptance, explicit Analysis-as-of validation, orchestration, deterministic input signatures, invalidation and coherent unavailable runtimes. Derived metrics remain outside the authoritative Inventory analytical rows and outside Registry mutation. Data Foundation presents status only; Inventory Explorer composes a read-only `· CH` view; export includes historical columns only when the historical variant is selected.
+
+AP 16.4c does not implement Slow / Dead classification, predictive logic, Snapshot History, Purchase Order optimization, SAP integration, persistence or changes to Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios or Pilot Reviews.
+
+## AP 16.4c.1 Historical Runtime Orchestration
+
+The AP 16.4c.1 runtime flow is:
+
+Inventory / History Input Change -> Historical Input Signature -> Runtime Invalidation -> Runtime Coordinator -> Calculating State -> Historical Metrics Service -> Relationship Engine -> Aggregation Engine -> Coherent Runtime Commit -> Targeted Presentation Update.
+
+Ownership is separated as follows:
+
+- Runtime Coordinator: controlled scheduling, deterministic input-signature deduplication, generation-based stale-result protection, explicit Runtime states, retry and subscriber notification.
+- Historical Metrics Service: Package validation, semantic acceptance, relationship/aggregation orchestration, metric result assembly and coherent unavailable/error Runtime payloads.
+- Data Foundation: presentation model only. It reads Package presence, Package validity, Interpretation Trust, History Readiness and Runtime availability; it does not build Runtime metrics, relationships or aggregations.
+
+Render functions are side-effect-free regarding Historical analytics. Opening or closing Data Foundation, rendering Overview, opening Inventory Explorer, changing filters, sorting, pagination, language, currency, theme or the export dialog must not trigger a Historical Metrics build. Changed analytical inputs invalidate the current Runtime before a new lifecycle request is accepted. A stale calculation completion cannot overwrite a newer signature, and Runtime recalculation does not create Data Package revisions.
+
+## DF-UX-02 Capability-Oriented Data Foundation Presentation
+
+The Data Foundation presentation flow is:
+
+Existing Product / Runtime State -> Data Foundation Presentation Adapter -> Capability View Model -> Collapsed Summary -> Dependency-Based Drawer.
+
+The adapter lives in the existing Data Foundation presentation boundary in `app.js`. It reads explicit current state such as active Inventory, Material Master and Consumption History Packages, Material Master relationship readiness, Interpretation Trust, History Readiness and Historical Runtime state. It does not call Relationship Engines, Enrichment Engines, Consumption History Semantics, Aggregation, Historical Metrics Service builds, Registry mutation or Runtime coordinator `requestBuild()`.
+
+The collapsed summary is capability-oriented and bounded to three visible segments: Inventory Analysis, Context Enrichment and Historical Analysis. Mid-width and mobile summaries collapse those segments into active/missing extension text. The drawer is dependency-based: source rows are always visible, while Context Enrichment appears only with a usable Material Master source and Historical Analysis appears only with a usable Consumption History source.
+
+Relationship and Metrics rendering remain separate. Material Master relationship evidence is part of Context Enrichment. Inventory-to-History relationship evidence is rendered only when the current Historical Runtime provides it, while Historical Metrics state is rendered as its own card. Technical Package, provenance, readiness and runtime details remain collapsed in Technical Details.
+
+## DF-UX-02.1 Data Foundation Presentation Closure
+
+The DF-UX-02.1 presentation flow is:
+
+Existing Product State -> Data Foundation Presentation Adapter -> Prioritized Summary -> Source Row Variants -> Desktop Popover / Mobile Drawer -> Presentation Only.
+
+`sourceStates` remain the authoritative source-state projection for open content, Technical Details and tests. The collapsed Summary is only a prioritization projection with `primaryText`, `secondaryText`, missing-extension count and review-source count. It does not replace Package presence, Package validity, Interpretation Trust, History Readiness, Relationship state or Historical Metrics Runtime state.
+
+Source rows use explicit presentation variants: `compact-active`, `actionable-missing` and `diagnostic`. The variants change visual hierarchy only. They do not alter Package semantics, Relationship results, Runtime results or Data Quality behavior.
+
+The Data Foundation interaction controller owns Popover/Drawer semantics. Desktop mode uses a non-modal anchored Popover with `role="region"` and no scrim. Mobile mode uses `role="dialog"`, `aria-modal="true"`, a scrim, focus containment and body-scroll locking. Opening, closing, pressing Escape, outside-click closing, scrolling or breakpoint switching never calls Historical Runtime build, Package import, Registry mutation or analytical engines.
+
+The Data Quality header reads current Dataset Meta only. It renders the source label as a title-row badge and row/column counts as inline metadata. It does not mutate Dataset Meta, Data Quality issues or Package records.
 
 ## AP 16.3b.1.1 Pilot Review Lifecycle Ownership
 

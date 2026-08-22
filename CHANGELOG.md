@@ -1,5 +1,198 @@
 # Changelog
 
+## 2026-08-22 - DF-UX-02.1:
+Data Foundation Visual Hierarchy & Data Quality Header Closure
+
+### Changed
+
+- Replaced equal-weight Data Foundation source statements with one prioritized primary status and one secondary exception status.
+- Retained complete source states for the open Data Foundation and Technical Details.
+- Reduced the collapsed Summary to a calmer visual hierarchy with singular and plural extension and review-source summaries.
+- Replaced nested source cards with compact rows and subtle dividers.
+- Reduced the active Inventory source to row count and source-date evidence.
+- Shortened Material Master copy to planning, organizational and owner context.
+- Shortened Consumption History copy to 3/6/12-month consumption, coverage and trend.
+- Removed redundant visible "Not Imported" text where an Import action is already present.
+- Preserved distinct invalid, review-required, not-ready, limited and error states.
+- Replaced the text Close button with an accessible icon-only X action.
+- Separated desktop Data Foundation behavior into a non-modal anchored Popover without a scrim.
+- Preserved a modal, focus-contained and scroll-locked Bottom Drawer on mobile.
+- Added responsive Popover/Drawer semantic switching without analytical recalculation.
+- Reduced Technical Details to a muted secondary disclosure.
+- Preserved the four-value Historical Analysis hierarchy.
+- Integrated the Data Quality source badge into the title row.
+- Moved Data Quality row and column counts into the subtitle metadata line.
+- Removed the redundant Data Loaded chip from the Data Quality header.
+- Preserved the actual uploaded filename as the primary source label.
+- Consolidated obsolete nested Data Foundation CSS.
+- Added Summary, source-row, Popover/Drawer, Data Quality header, localization, responsive and render-purity tests.
+- Preserved Registry, Package imports, Material Master enrichment, Consumption History semantics, Historical Runtime and all analytical calculations.
+
+### Preserved
+
+- Inventory KPIs
+- Recovery
+- Data Quality calculations
+- Remediation
+- Actions
+- Excess
+- Opportunity Score
+- scenarios
+- Pilot Reviews
+- Material Master Relationship
+- Material Master enrichment
+- Consumption History interpretation
+- History Readiness
+- Inventory-to-History Relationship
+- Historical Metrics
+- Historical Runtime signatures and invalidation
+- Package IDs and revisions
+- all export variants
+- Formula Injection protection
+- German / English
+- Light / Dark Mode
+- file:// MVP
+
+### Known Limitations
+
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Predictive Inventory Risk
+- no Snapshot History
+- no persistence
+- no SAP integration
+
+## 2026-08-22 - DF-UX-02:
+Capability-Oriented Data Foundation
+
+### Changed
+
+- Replaced visible Core Data Foundation and Optional Intelligence Source counters with direct capability/source states.
+- Reduced the collapsed Data Foundation summary to Inventory Analysis, Context Enrichment and Historical Analysis status segments.
+- Repositioned Inventory Data as the active analytical foundation, Material Master as Context Enrichment and Consumption History as Historical Analysis.
+- Rendered missing Material Master and missing Consumption History once as source rows, without dependent not-assessable Relationship or Metrics cards.
+- Kept Material Master relationship status separate from Inventory-to-History relationship and Historical Metrics status.
+- Hid dependent Context Enrichment and Historical Analysis sections until their source Package is present and valid enough to support them.
+- Moved Package presence, validity, History Readiness, Runtime and provenance details into collapsed Technical Details.
+- Added a titled Data Foundation drawer with visible Close action, scrim and one internal scroll owner.
+- Replaced nested summary pills and broad Data Foundation relationship descendant selectors with explicit structural classes.
+- Added German and English capability terminology for desktop, mid-width and mobile summaries.
+
+### Preserved
+
+- Inventory KPIs, Recovery, Data Quality, Actions, Excess, Opportunity Score, scenarios and Pilot Reviews.
+- Data Package Registry, Package Import, Package identity and Package revisions.
+- Material Master matching and enrichment.
+- Consumption History interpretation, History Readiness, Inventory-to-History relationship and Historical Metrics formulas.
+- Historical Runtime signatures, invalidation, scheduling, retry and lifecycle behavior.
+- Original, Enriched and Historical export separation.
+- Local `file://` MVP behavior.
+
+### Known Limitations
+
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Predictive Inventory Risk
+- no Snapshot History
+- no persistence
+- no SAP integration
+
+## 2026-08-22 - AP 16.4c.1:
+Historical Runtime Orchestration & Data Foundation UX Closure
+
+### Fixed
+
+- Removed Historical Metrics calculation from Data Foundation and Overview render paths.
+- Added explicit Historical Runtime states for not calculated, calculating, available, limited, unavailable and error.
+- Added input-signature-based build deduplication and generation-based stale-result rejection.
+- Prevented repeated builds for the same completed or in-flight signature.
+- Added controlled browser scheduling before the synchronous Historical Metrics build.
+- Added lifecycle triggers after Inventory and Consumption History input changes.
+- Prevented language, theme, currency, filter, sort, pagination, disclosure and export-dialog interactions from triggering builds.
+- Invalidated stale Historical Metrics before rebuilding changed inputs.
+- Kept changed-signature failures from restoring metrics from an older signature.
+- Added a compact unavailable state when Consumption History is missing.
+- Removed false zero Match counts and false "No" partial-period values from unavailable states.
+- Preserved real calculated zero and false values after successful calculation.
+- Separated Package presence, Package validity, Interpretation Trust, History Readiness and Metrics availability.
+- Prevented invalid Packages from being counted as available.
+- Added imported-plus-limited presentation for limited Consumption History evidence.
+- Replaced the long Data Foundation summary with compact source status chips.
+- Reduced Historical Analysis to four primary values and moved secondary relationship, coverage and provenance values into technical details.
+- Added controlled viewport height, internal Data Foundation scrolling and responsive drawer behavior.
+- Added Escape and outside-click close behavior without expanding the central click router materially.
+- Completed German and English Historical Metrics terminology cleanup.
+- Preserved Original, Enriched and Historical export separation.
+- Added Runtime orchestration, presentation-state, lifecycle and export-availability regression tests.
+- Preserved Recovery, Data Quality, Actions, Opportunity Scores, scenarios, Pilot Reviews and Slow / Dead behavior.
+
+### Known Limitations
+
+- Historical calculation remains synchronous after controlled scheduling.
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Snapshot History
+- no Predictive Analytics
+- no persistence
+- no SAP integration
+
+## 2026-08-21 - AP 16.4c:
+Inventory Relationship & Historical Metrics
+
+### Changed
+
+- Added a DOM-independent Inventory-to-Consumption-History Relationship Engine.
+- Added exact Material + Plant relationship matching.
+- Added controlled unique Material fallback.
+- Added an anti-fan-out invariant preventing plantless History from being duplicated across plant-specific Inventory entities.
+- Added unmatched, ambiguous and invalid relationship diagnostics.
+- Preserved leading-zero Material identifiers.
+- Added a DOM-independent Consumption History Aggregation Engine.
+- Reused AP 16.4b semantic rows without reparsing Raw dates, periods, Movement Types or quantity signs.
+- Added explicit exclusion provenance for non-aggregable History rows.
+- Added unit-safe monthly aggregation without unit conversion.
+- Added Analysis-as-of-based 3M, 6M and 12M calendar windows.
+- Preserved day and month temporal precision.
+- Added partial-current-period evidence.
+- Added Last Consumption evidence.
+- Added Net Consumption 3M, 6M and 12M.
+- Added Average Monthly Consumption.
+- Added Active Consumption Months.
+- Added Movement Frequency.
+- Added Intermittency.
+- Added Months Since Last Consumption.
+- Added explainable Consumption Trend.
+- Added History Coverage and History Completeness.
+- Added evidence-bound Inventory Coverage and Estimated Run-out Months.
+- Prevented Coverage calculations without quantity and compatible unit evidence.
+- Added per-metric available, limited and unavailable states.
+- Added complete Package, model, relationship, unit and exclusion provenance.
+- Added derived Historical Metric Runtime outside authoritative Inventory analytical rows.
+- Added controlled invalidation after Inventory, History, semantic-policy or Analysis-as-of changes.
+- Added Data Foundation Historical Relationship and Metric status.
+- Added derived Consumption History columns to Inventory Explorer.
+- Added explicit historical enriched export while preserving Original Data export.
+- Added Relationship, aggregation, metric, provenance, invalidation, transaction, isolation and performance tests.
+- Clarified History Interpretation Trust labels as Vertrauenswürdig / Trusted.
+- Added separate Consumption History processing state fields for raw source received, semantic interpretation and aggregation status.
+- Preserved Inventory KPIs, Recovery, Data Quality, Actions, Opportunity Scores, scenarios and Pilot Reviews.
+
+### Known Limitations
+
+- no Slow Moving classification
+- no Non-Moving classification
+- no Dead Stock Candidate classification
+- no Predictive Inventory Risk
+- no demand forecast
+- no Purchase Order optimization
+- no unit conversion
+- no Snapshot History
+- no persistence
+- no SAP integration
+
 ## 2026-08-21 - AP 16.4b.1:
 Source-Bound Interpretation & History Readiness Closure
 

@@ -68,7 +68,7 @@
     const applyButton = app.document.getElementById("mappingApplyButton");
 
     assert.equal(result.status, "mapping", "Ambiguous date should open Mapping Assistant");
-    assert.ok(modal.textContent.includes("History Interpretation"), "Mapping Assistant should show History Interpretation");
+    assert.ok(modal.textContent.includes("Historien-Interpretation"), "Mapping Assistant should show localized History Interpretation");
     assert.equal(applyButton.disabled, true, "Apply should remain disabled before semantic review");
 
     const dateSelect = modal.querySelector('[data-history-policy][data-policy-section="postingDate"][data-policy-key="dateFormat"]');

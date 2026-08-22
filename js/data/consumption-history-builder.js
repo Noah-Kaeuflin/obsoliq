@@ -463,6 +463,9 @@
     };
     const freshness = {
       importedAt: buildTimestamp,
+      sourceFreshnessStatus: "raw_history_received",
+      interpretationStatus: "semantically_interpreted",
+      aggregationStatus: "not_aggregated",
       temporalCoverage: "semantic_history_interpreted_no_aggregation",
       temporalReferenceFields: [...validation.temporalReferenceFields],
       rawTemporalSamples: temporalSamples,

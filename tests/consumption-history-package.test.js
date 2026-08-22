@@ -246,8 +246,9 @@
     details.open = true;
     const afterText = app.document.getElementById("dataPackagesPanel").textContent;
     assert.equal(result.status, "loaded", "Consumption History import should complete");
-    assert.ok(afterText.includes("Kern-Datenbasis 1/2"), "Data Foundation summary should keep core data status separate");
-    assert.ok(afterText.includes("Optionale Intelligence-Quellen 1/1"), "Data Foundation summary should count optional imported intelligence source");
+    assert.equal(afterText.includes("Kern-Datenbasis"), false, "Data Foundation should no longer expose aggregate core counters");
+    assert.equal(afterText.includes("Optionale Intelligence-Quellen"), false, "Data Foundation should no longer expose optional aggregate counters");
+    assert.ok(afterText.includes("Historische Analyse") || afterText.includes("Historie"), "Imported Consumption History should surface historical analysis capability");
     assert.ok(afterText.includes("Aktiv"), "Imported optional source should show active state");
   });
 
