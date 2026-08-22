@@ -90,6 +90,24 @@ Ownership is separated as follows:
 
 Render functions are side-effect-free regarding Historical analytics. Opening or closing Data Foundation, rendering Overview, opening Inventory Explorer, changing filters, sorting, pagination, language, currency, theme or the export dialog must not trigger a Historical Metrics build. Changed analytical inputs invalidate the current Runtime before a new lifecycle request is accepted. A stale calculation completion cannot overwrite a newer signature, and Runtime recalculation does not create Data Package revisions.
 
+## AP 16.4d.1 Slow / Dead Condition And Evidence Engine
+
+The AP 16.4d.1 flow is:
+
+Inventory Entity + Historical Metrics Runtime + Material Master / Owner Context -> Slow / Dead Recovery Case Service -> Condition Engine -> Evidence -> Confidence -> Root-Cause Candidates -> Recovery Eligibility -> Action Eligibility -> Derived Case Runtime.
+
+Ownership is separated as follows:
+
+- `js/slow-dead/slow-dead-condition-engine.js`: owns the versioned Slow / Dead Condition Policy, condition precedence, critical evidence gate, condition classification, positive evidence, counter evidence, Evidence Strength, Condition Confidence, Root-Cause candidates, Recovery Case Eligibility, Action Eligibility, missing evidence and required existing Data Packages.
+- `js/application/slow-dead-recovery-case-service.js`: owns input validation, entity-level Inventory evidence composition, deterministic Case IDs, Case fingerprints, provenance, entity-deduplicated summaries and service Runtime results.
+- `app.js`: owns only module guards, service instantiation, a minimal derived Runtime adapter triggered by Historical Runtime state changes and targeted test-bridge exposure.
+
+The Condition Engine and Recovery Case Service are classic-script modules without DOM, UI-filter, presentation or direct Registry dependencies. They do not parse Raw History, reinterpret movement semantics, recalculate Historical Metrics, mutate Inventory rows, mutate Historical Metric rows, create Registry Packages or create Package revisions.
+
+The derived Slow / Dead Runtime is downstream from Historical Metrics Runtime. It can build only from completed current Historical Runtime results and rejects stale or missing evidence as explicit unavailable or insufficient evidence. It is not triggered by Overview, Data Foundation, Inventory Explorer, filters, sorting, language, currency, theme or export-dialog presentation.
+
+AP 16.4d.1 does not implement a visible Slow / Dead page, worklist, detail view, export, Expected Recovery Value, finance-grade recognition, execution workflow, persistence, outcome learning or SAP integration. Existing Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios, Pilot Reviews, exports, Registry and Package revisions remain unchanged.
+
 ## DF-UX-02 Capability-Oriented Data Foundation Presentation
 
 The Data Foundation presentation flow is:

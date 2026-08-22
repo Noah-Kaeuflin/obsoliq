@@ -94,6 +94,12 @@ if (!ObsoliQModules.application?.historicalInventoryMetricsService) {
 if (!ObsoliQModules.application?.historicalMetricsRuntimeCoordinator) {
   throw new Error("ObsoliQ Historical Metrics Runtime Coordinator module failed to load.");
 }
+if (!ObsoliQModules.slowDead?.conditionEngine) {
+  throw new Error("ObsoliQ Slow / Dead Condition Engine failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadRecoveryCaseService) {
+  throw new Error("ObsoliQ Slow / Dead Recovery Case Service failed to load.");
+}
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
 }
@@ -212,6 +218,12 @@ const historicalMetricsRuntimeCoordinator = ObsoliQModules.application.historica
   clock: () => new Date().toISOString(),
   onStateChange: state => handleHistoricalMetricsRuntimeStateChange(state)
 });
+const slowDeadRecoveryCaseService = ObsoliQModules.application.slowDeadRecoveryCaseService.createSlowDeadRecoveryCaseService({
+  conditionEngine: ObsoliQModules.slowDead.conditionEngine.createSlowDeadConditionEngine()
+});
+let slowDeadRecoveryCaseBuildCount = 0;
+let slowDeadRecoveryCaseBuildLog = [];
+let slowDeadRecoveryCaseRuntime = createInitialSlowDeadRecoveryCaseRuntime();
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -14303,6 +14315,75 @@ function historicalMetricsResultForCurrentSignature(runtimeState = historicalMet
   return runtimeState.result || null;
 }
 
+function createInitialSlowDeadRecoveryCaseRuntime(reason = "not_calculated") {
+  return {
+    status: "not_calculated",
+    reason,
+    inputSignature: "",
+    historicalMetricsInputSignature: "",
+    result: null,
+    summary: null,
+    updatedAt: "",
+    buildCount: slowDeadRecoveryCaseBuildCount || 0
+  };
+}
+
+function resetSlowDeadRecoveryCaseRuntime(reason = "input_changed") {
+  slowDeadRecoveryCaseRuntime = createInitialSlowDeadRecoveryCaseRuntime(reason);
+  return slowDeadRecoveryCaseRuntime;
+}
+
+function slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
+  return {
+    inventoryPackage: currentInventoryPackage(),
+    historyPackage: currentConsumptionHistoryPackage(),
+    inventoryRows: enrichedRows,
+    historicalRuntime: runtimeState,
+    relationshipResult: runtime?.inventoryHistoryRelationshipResult || null,
+    historicalMetricsByInventoryEntityKey: runtime?.historicalMetricsByInventoryEntityKey || {},
+    historicalMetricProvenanceByInventoryEntityKey: runtime?.historicalMetricProvenanceByInventoryEntityKey || {},
+    datasetId: currentDatasetId()
+  };
+}
+
+function updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(runtimeState = historicalMetricsRuntimeForPresentation(), options = {}) {
+  if (!runtimeState || !["available", "limited"].includes(runtimeState.status)) {
+    return resetSlowDeadRecoveryCaseRuntime(runtimeState?.reasonCode || runtimeState?.status || "historical_runtime_not_ready");
+  }
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
+  if (!runtime) return resetSlowDeadRecoveryCaseRuntime("historical_runtime_stale_or_missing");
+  const buildInput = slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState);
+  const inputSignature = slowDeadRecoveryCaseService.slowDeadRecoveryCaseInputSignature(buildInput);
+  if (!options.force && slowDeadRecoveryCaseRuntime.inputSignature === inputSignature && ["available", "limited", "unavailable"].includes(slowDeadRecoveryCaseRuntime.status)) {
+    return slowDeadRecoveryCaseRuntime;
+  }
+  const result = slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(buildInput);
+  slowDeadRecoveryCaseBuildCount += 1;
+  slowDeadRecoveryCaseBuildLog.push({
+    inputSignature,
+    historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+    reason: options.reason || "historical_runtime_changed",
+    requestedAt: new Date().toISOString(),
+    status: result.status
+  });
+  slowDeadRecoveryCaseRuntime = {
+    status: result.status,
+    reason: result.reason || "",
+    inputSignature,
+    historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+    result,
+    summary: result.summary || null,
+    updatedAt: result.evaluatedAt || new Date().toISOString(),
+    buildCount: slowDeadRecoveryCaseBuildCount
+  };
+  return slowDeadRecoveryCaseRuntime;
+}
+
+function slowDeadRecoveryCaseRuntimeForPresentation() {
+  return slowDeadRecoveryCaseRuntime;
+}
+
 function invalidateHistoricalMetricsRuntime(options = {}) {
   const nextInputSignature = options.nextInputSignature || "";
   return historicalMetricsRuntimeCoordinator.invalidate({
@@ -14342,7 +14423,8 @@ function retryHistoricalMetricsRuntime() {
   return onHistoricalMetricInputsChanged({ reason: "retry", force: true });
 }
 
-function handleHistoricalMetricsRuntimeStateChange() {
+function handleHistoricalMetricsRuntimeStateChange(state) {
+  updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state);
   renderPackageAvailability();
   updateDownloadVariantAvailability();
   if (currentView === "inventory") {
@@ -18259,6 +18341,8 @@ function createObsoliqTestBridge() {
     consumptionHistoryInterpretationServiceForTest: consumptionHistoryInterpretationService,
     consumptionHistoryBuilderForTest: ObsoliQModules.data.consumptionHistoryBuilder,
     historicalInventoryMetricsServiceForTest: historicalMetricsService,
+    slowDeadConditionEngineForTest: ObsoliQModules.slowDead.conditionEngine,
+    slowDeadRecoveryCaseServiceForTest: slowDeadRecoveryCaseService,
     getRegistrySnapshot: () => clonePlainRecord(dataPackageRegistry.snapshot()),
     getRegistryStats: () => clonePlainRecord(dataPackageRegistry.getStats()),
     getActiveInventoryPackage: () => clonePlainRecord(currentInventoryPackage()),
@@ -18270,6 +18354,21 @@ function createObsoliqTestBridge() {
     getActivePackageByType: packageType => clonePlainRecord(dataPackageRegistry.getActivePackage(packageType)),
     getHistoricalMetricsRuntimeForTest: () => clonePlainRecord(historicalMetricsRuntimeForPresentation()),
     getHistoricalMetricsRuntimeResultForTest: () => clonePlainRecord(historicalMetricsResultForCurrentSignature()),
+    getSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(slowDeadRecoveryCaseRuntimeForPresentation()),
+    resetSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(resetSlowDeadRecoveryCaseRuntime("test_reset")),
+    requestSlowDeadRecoveryCaseRuntimeForTest: options => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(historicalMetricsRuntimeForPresentation(), { reason: options?.reason || "test_request", force: options?.force === true })),
+    buildSlowDeadRecoveryCasesForTest: input => clonePlainRecord(slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(input)),
+    getSlowDeadRecoveryCaseBuildCountersForTest: () => clonePlainRecord({
+      buildCount: slowDeadRecoveryCaseBuildCount,
+      buildLog: slowDeadRecoveryCaseBuildLog,
+      runtime: slowDeadRecoveryCaseRuntimeForPresentation()
+    }),
+    resetSlowDeadRecoveryCaseBuildCountersForTest: () => {
+      slowDeadRecoveryCaseBuildCount = 0;
+      slowDeadRecoveryCaseBuildLog = [];
+      slowDeadRecoveryCaseRuntime = { ...slowDeadRecoveryCaseRuntime, buildCount: 0 };
+      return { buildCount: slowDeadRecoveryCaseBuildCount, buildLog: [] };
+    },
     requestHistoricalMetricsRuntimeForTest: options => clonePlainRecord(onHistoricalMetricInputsChanged({
       reason: options?.reason || "test_request",
       force: options?.force === true

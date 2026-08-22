@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-08-22 - AP 16.4d.1:
+Slow / Dead Condition & Evidence Engine
+
+### Changed
+
+- Added a DOM-independent Slow / Dead Condition Engine.
+- Added a Slow / Dead Recovery Case Service.
+- Added one central versioned Slow / Dead Condition Policy.
+- Added controlled conditions for Insufficient Evidence, Intermittent Expected, Slow-Moving Candidate, Non-Moving Candidate, Dead Stock Candidate and Strategic Reserve.
+- Prevented age alone from creating a Dead Stock Candidate.
+- Required an independent Demand, Planning or Lifecycle signal for Dead Stock Candidate classification.
+- Protected explicit Strategic Reserve evidence from false Slow / Dead classification.
+- Separated intermittent recurring demand from Slow / Dead conditions.
+- Required multiple evidence dimensions for Slow-Moving Candidate classification.
+- Added positive evidence, counter evidence and limitation codes.
+- Added categorical Evidence Strength and Condition Confidence.
+- Added evidence-backed Root-Cause candidates without pseudo-probabilities.
+- Added Recovery Case Eligibility.
+- Added Action Eligibility without modifying current Action recommendations.
+- Prevented Disposal from becoming automatically approved.
+- Added missing-evidence and existing-Data-Package requirements.
+- Added deterministic entity-level Case IDs and full Package/model provenance.
+- Added an entity-deduplicated Slow / Dead Case Runtime and Summary.
+- Added Condition, precedence, evidence, confidence, Root-Cause, Action Eligibility, provenance, isolation and performance tests.
+- Preserved Historical Metrics, Inventory KPIs, Recovery, Data Quality, Actions, Opportunity Scores, scenarios, Pilot Reviews, Registry and all existing exports.
+
+### Known Limitations
+
+- no visible Slow / Dead Recovery Case page
+- no Worklist or Case Detail
+- no Slow / Dead export
+- no pilot-calibrated thresholds
+- no full Root Cause & Feasibility Engine
+- no optimized Action Portfolio
+- no Expected Recovery Value
+- no finance-grade recognition
+- no execution workflow
+- no persistence
+- no Predictive Inventory Risk
+- no SAP integration
+
 ## 2026-08-22 - DF-UX-02.1:
 Data Foundation Visual Hierarchy & Data Quality Header Closure
 

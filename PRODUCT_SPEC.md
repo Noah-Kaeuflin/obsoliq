@@ -50,6 +50,22 @@ Original Data, Enriched Data and Historical Metrics exports remain separate. His
 
 Recommended next work block remains AP 16.4d — Slow / Dead Stock Intelligence.
 
+### AP 16.4d.1 — Slow / Dead Condition & Evidence Engine
+
+AP 16.4d.1 adds the first controlled Slow / Dead domain layer in the Recovery Chain: Detect -> Diagnose -> preparation of Decide. It creates auditable Slow / Dead Recovery Case Candidates from accepted Inventory entities and accepted Historical Metrics Runtime output. It does not add the final Slow / Dead page, worklist, detail view, export, financial recognition, workflow execution, persistence or predictive analytics.
+
+The authoritative evaluation level is the Inventory entity created by the Inventory-to-Consumption-History relationship model. Multiple Inventory rows for the same entity produce one Case Candidate. Missing, stale, ambiguous or unit-unreliable evidence produces `insufficient_evidence`; it never becomes a false zero-risk, Slow-Moving or Dead-Stock conclusion.
+
+The central policy is versioned as `slow-dead-condition-policy-v1` and keeps all thresholds explicit MVP hypotheses: 12 months minimum history coverage, 0.80 minimum completeness, 0.90 strong completeness, 6 months for Slow-Moving recency, 12 months for Non-Moving, 18 months for Dead Stock Candidate, two active months for recurring demand, 0.75 intermittency threshold and a mandatory independent demand, planning or lifecycle signal for Dead Stock Candidate.
+
+Controlled condition classes are `insufficient_evidence`, `intermittent_expected`, `slow_moving_candidate`, `non_moving_candidate`, `dead_stock_candidate` and `strategic_reserve`. Precedence protects critical evidence gaps first, then explicit Strategic Reserve, then intermittent recurring demand, then Dead Stock Candidate, Non-Moving Candidate and Slow-Moving Candidate. Age alone cannot create a Dead Stock Candidate. Strategic Reserve is never inferred from age, value, coverage or zero movement; it requires explicit evidence.
+
+Each result exposes positive evidence, counter evidence, limitation codes, missing evidence, categorical Evidence Strength, categorical Condition Confidence, evidence-backed Root-Cause candidates, Recovery Case Eligibility and Action Eligibility. Action Eligibility remains pre-decisional and uses only existing package types such as demand forecast, purchase orders, planning parameters, quality, finance and actions outcomes. Disposal is never automatically recommended or approved.
+
+The derived Slow / Dead Case Runtime is isolated from Inventory KPIs, Recovery, Data Quality, existing Actions, Opportunity Score, scenarios, Pilot Reviews, Registry packages and exports. It creates no Package revision and does not mutate authoritative Inventory rows or Historical Metric rows.
+
+Recommended Next Work Block: AP 16.4d.2 — Slow / Dead Recovery Case Page. Then AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
+
 ### DF-UX-02 — Capability-Oriented Data Foundation
 
 The Data Foundation remains a product capability surface, not a technical Package-status widget. Its collapsed summary now communicates direct source and capability states only: Inventory Data drives active Inventory Analysis, Material Master unlocks Context Enrichment and Consumption History unlocks Historical Analysis.

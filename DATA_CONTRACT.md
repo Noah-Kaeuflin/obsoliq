@@ -161,6 +161,41 @@ Package presence, Package validity, Interpretation Trust, History Readiness and 
 
 Data Foundation reads a presentation model derived from these states only. It does not calculate analytics. Missing evidence is not zero: unavailable numeric values render as `n. v.` / `n/a` or are omitted, while calculated numeric zero renders as `0`. Unavailable Boolean values render as `n. v.` / `n/a`, while calculated `false` renders as `Nein` / `No`.
 
+### AP 16.4d.1 Slow / Dead Recovery Case Contract
+
+`SlowDeadConditionPolicy` is versioned as `slow-dead-condition-policy-v1` and owned by `js/slow-dead/slow-dead-condition-engine.js`. It includes explicit MVP thresholds for minimum History coverage, minimum History completeness, strong completeness, Slow-Moving months since last consumption, Slow-Moving coverage, minimum Slow evidence dimensions, Non-Moving age, Dead Candidate age, minimum active months for recurring demand, intermittency threshold, recent intermittent consumption and the mandatory independent Dead-Stock signal requirement.
+
+Condition codes are:
+
+- `insufficient_evidence`
+- `intermittent_expected`
+- `slow_moving_candidate`
+- `non_moving_candidate`
+- `dead_stock_candidate`
+- `strategic_reserve`
+
+Condition status values are `insufficient_evidence`, `candidate`, `intermittent_expected`, `strategic_reserve` and `no_case`. Precedence is deterministic: insufficient evidence, Strategic Reserve, intermittent expected demand, Dead Stock Candidate, Non-Moving Candidate, Slow-Moving Candidate, no case.
+
+Critical evidence gates require a current Historical Runtime, usable Inventory-to-History relationship, sufficient History coverage, sufficient History completeness, Months Since Last Consumption, rolling 12-month consumption evidence and usable unit context. Failed gates produce `insufficient_evidence`; missing evidence is not treated as zero demand.
+
+Dead Stock Candidate requires age, no recent consumption, strong History completeness and an independent demand, planning or lifecycle signal. Age alone can never create a Dead Stock Candidate. Dead Stock Candidate is not a disposal approval, a write-down approval or a recognized financial value.
+
+Strategic Reserve requires explicit reserve evidence. It is not inferred from age, high stock value, high Inventory Coverage or zero movement alone. Strategic Reserve suppresses Slow / Dead conclusions and makes disposal not recommendable.
+
+Evidence Strength is categorical: `high`, `medium`, `low`, `insufficient` or `not_applicable`. Condition Confidence is categorical: `high`, `medium`, `low`, `unavailable` or `not_applicable`. No pseudo-probability is part of this contract.
+
+Each Condition result includes `positive_evidence`, `counter_evidence`, `limitation_codes`, `missing_evidence`, `root_cause_candidates`, `recovery_case_eligibility`, `action_eligibility`, `required_data_packages`, model versions, policy and a deterministic condition signature. Root-Cause Candidates remain hypotheses backed by evidence codes; they are not asserted facts.
+
+Action Eligibility is pre-decisional. It may expose actions such as `COLLECT_EVIDENCE`, `IMPORT_MISSING_DATA`, `OWNER_REVIEW`, `MONITOR`, `CONSUME_NATURALLY`, `PLANNING_PARAMETER_REVIEW`, `INTERNAL_TRANSFER`, `SUPPLIER_RETURN`, `ALTERNATIVE_USE`, `EXTERNAL_SALE`, `WRITE_DOWN_REVIEW`, `DISPOSAL_REVIEW` and `PO_REDUCE`. Eligibility status is not a final recommendation or workflow approval. Disposal is never automatically approved.
+
+Required Data Packages use only existing package types: `demand_forecast`, `purchase_orders`, `planning_parameters`, `quality`, `finance` and `actions_outcomes`. AP 16.4d.1 creates no new Package type and no Package revision.
+
+`SlowDeadRecoveryCase` is entity-authoritative. It contains `case_id`, `case_fingerprint`, `inventory_entity_key`, `inventory_row_keys`, material and plant context, stock quantity/unit/value, condition fields, evidence, candidates, eligibility, required packages and provenance. The Case ID is deterministic from dataset identity and Inventory entity key, so repeated rows for one entity do not duplicate Cases.
+
+`SlowDeadRecoveryCaseServiceResult` contains `status`, `reason`, `serviceModelVersion`, `runtimeModelVersion`, `inputSignature`, `cases`, `casesById`, `caseIdByInventoryEntityKey`, `summary`, `diagnostics`, `evaluatedAt` and `durationMs`. Summary counts and values are deduplicated by Inventory entity, not by row.
+
+The derived `SlowDeadRecoveryCaseRuntime` is session-local and downstream from Historical Metrics Runtime. It does not mutate Inventory rows, Historical Metric rows, existing Action rows, Registry records or exports. Inventory exposure is not Recovery Value, recognized value, realized value, cash release or P&L effect.
+
 ### DF-UX-02 Data Foundation Presentation Contract
 
 The Data Foundation presentation contract distinguishes these dimensions:
