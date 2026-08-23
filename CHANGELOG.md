@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-08-24 - EX-UX-01:
+Excess Workspace View Ownership, Scroll & Decision Hierarchy Closure
+
+### Fixed
+
+- Isolated the Excess route from Overview-owned header, KPI, Data Foundation and Overview-filter regions.
+- Restored the dedicated Excess page header and functional shared toolbar.
+- Added bounded desktop Worklist/Detail scroll ownership.
+- Removed the large empty-space failure below the Excess Worklist.
+- Kept Worklist header, pagination and Detail header visible.
+- Added progressive disclosure for secondary scenario, evidence, context and Pilot Review content.
+- Removed redundant Portfolio Context when portfolio and filtered scope are identical.
+- Reduced the primary Excess Worklist width while retaining full detail and export evidence.
+- Replaced material-only Excess -> Actions navigation with entity-safe target resolution.
+- Preserved Excess calculations, Opportunity Scores, scenarios, Pilot Reviews, Recovery, Data Quality, current Actions, Registry and Package revisions.
+
+### Preserved
+
+- Excess formulas, opportunity-score weights, scenario formulas and relationship-quality thresholds.
+- Upload, parsing, sample data, package registry behavior and existing export data contracts.
+- Recovery, Data Quality, current Actions, Slow / Dead Runtime, Pilot Review lifecycle and package revisions.
+- Local `file://` browser MVP behavior.
+
+### Known Limitations
+
+- Excess remains a local MVP workspace without persistence, SAP write-back, approval workflow or realized financial tracking.
+- Scenario values remain deterministic decision-support estimates, not predictive analytics.
+- Relationship / Enrichment quality is transparent context only and does not automatically remediate source data.
+
 ## 2026-08-23 - AP 16.4d.2.1:
 Entity-Exact Navigation, Case Contract & Final Acceptance Closure
 

@@ -263,6 +263,10 @@ Excess page/detail ownership:
 - The Excess worklist owns the current visible page rows.
 - Active detail selection is reconciled after pagination, page-size, filter, sort and dataset changes.
 - A detail card cannot remain bound to a case outside the current visible page.
+- The Excess route owns its own page header, shared toolbar slot and active filter chips. Overview KPIs, Overview filters and Data Foundation remain Overview-owned.
+- The Excess runtime/view model separates the full portfolio model from the filtered presentation model. Filtering, sorting, pagination, scrolling, disclosure toggles, language, theme, currency and export-dialog opening must not rebuild Excess analytics.
+- The bounded Excess workspace gives Worklist and Detail independent scroll ownership while keeping Worklist header, pagination and Detail header reachable.
+- Excess -> Actions navigation uses scoped navigation adapters with row key, entity key, exact Material/Plant identity and unique-material fallback only; it does not mutate Actions, filters, Registry or Package revisions.
 
 Only the active `inventory_snapshot` package drives financial KPIs, Recovery and Data Quality. AP 16.2a added Material Master as the first importable non-Inventory package. AP 16.2b connects the active Inventory Snapshot with the active valid Material Master package for contextual matching and fill-missing-only enrichment. Material Master never owns Recovery values and does not recalculate Inventory KPIs.
 
@@ -319,6 +323,12 @@ The Owner Context Engine does not import or overwrite `owner_function`. The exis
 The Relationship Quality Engine is read-only. It classifies relationship quality as complete, limited, critical or unavailable from match rate, ambiguous rows, invalid keys and relationship/enrichment conflicts using the versioned `mvp-1` threshold contract. It supports Data Foundation and Excess decision transparency, but does not block analysis or change enrichment behavior.
 
 The Opportunity Score and Scenario engines are deterministic MVP decision-support layers. They provide explainable prioritization and scenario estimates; they are not predictive analytics and do not claim automated outcome certainty.
+
+EX-UX-01 closes the presentation ownership around this analytical model:
+
+Excess Runtime/View Model -> filtered presentation model -> bounded Worklist/Detail workspace -> scoped navigation adapters.
+
+The Excess page renders the full analytical portfolio once for the active Inventory dataset, then applies common and Excess-only filters as presentation filters. The visible Worklist is reduced to Material, Net Addressable, Gross Excess, Opportunity Score, Owner Reference, Match Quality and Details. Overlap, Owner assignment confidence, Owner source and technical relationship details remain in Case Detail and exports. Scroll containers and disclosure state are presentation-only and do not create analytical rebuilds, Registry writes or Package revisions.
 
 ## AP 16.3b Excess Pilot Review Boundary
 

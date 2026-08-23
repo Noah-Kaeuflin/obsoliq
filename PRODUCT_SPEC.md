@@ -1476,8 +1476,8 @@ Visible MVP capability:
 
 - Excess Stock opens a real decision page instead of a placeholder.
 - Summary cards show Excess case count, gross excess, net addressable excess, overlap / double counting and average opportunity score.
-- The Excess decision list shows material, net addressable excess, gross excess, overlap, opportunity score, owner reference, owner confidence and Material Master match type.
-- Selecting a case opens decision details with score components, score drivers, deterministic scenarios, evidence and known limitations.
+- The Excess decision list is a compact Worklist showing material, net addressable excess, gross excess, opportunity score, owner reference, match quality and details.
+- Selecting a case opens decision details with score components, score drivers, overlap transparency, owner/source confidence, deterministic scenarios, evidence and known limitations.
 - Scenarios include excess reduction by percent, excess reduction by absolute amount, safety-stock adjustment, purchase-order review and demand validation.
 - Relationship and Enrichment quality are shown as read-only decision context with a compact issue worklist.
 - Inventory export can now choose original source data, enriched analytical data or enriched data with provenance.
@@ -1504,6 +1504,9 @@ Product rules:
 - `owner_source` is transparent context only: `inventory`, `material_master` or `none`.
 - Relationship Quality uses the documented `mvp-1` thresholds and remains separate from the Inventory Data Quality Score.
 - Opportunity scoring and scenarios are deterministic MVP decision support, not predictive analytics.
+- The Excess page is a self-contained workspace. It does not show Overview KPIs, Overview filters or Data Foundation content while the Excess route is active.
+- Excess filters are presentation filters over the current Excess portfolio and must not rebuild analytics, scores, scenarios, Pilot Reviews, Registry records or Package revisions.
+- Excess -> Actions navigation resolves by row key, entity key or exact Material/Plant identity, with material-only fallback only when unique.
 
 Not included beyond AP 16.3a:
 

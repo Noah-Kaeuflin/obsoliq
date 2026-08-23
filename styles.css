@@ -1271,6 +1271,10 @@ main {
 .workspace[data-view="check"] > .overview-top,
 .workspace[data-view="check"] > #overviewGlobalFilterBlock,
 .workspace[data-view="check"] > #overviewToolbarSlot,
+.workspace[data-view="excess"] > .overview-header,
+.workspace[data-view="excess"] > .overview-top,
+.workspace[data-view="excess"] > #overviewGlobalFilterBlock,
+.workspace[data-view="excess"] > #overviewToolbarSlot,
 .workspace[data-view="slow-dead"] > .overview-header,
 .workspace[data-view="slow-dead"] > .overview-top,
 .workspace[data-view="slow-dead"] > #overviewGlobalFilterBlock,
@@ -7712,7 +7716,15 @@ body.is-scrolled .main-nav {
 }
 
 .excess-control-card {
+  display: grid;
   margin-bottom: 12px;
+}
+
+.excess-page-header .control-toolbar-slot .filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(142px, 0.72fr)) minmax(118px, 0.46fr);
+  gap: 8px;
+  align-items: end;
 }
 
 .excess-summary-grid {
@@ -7767,9 +7779,11 @@ body.is-scrolled .main-nav {
 
 .excess-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(360px, 0.85fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(400px, 0.9fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+  height: clamp(560px, calc(100dvh - 330px), 760px);
+  min-height: 0;
 }
 
 .excess-worklist-panel,
@@ -7778,8 +7792,21 @@ body.is-scrolled .main-nav {
   border-radius: 12px;
 }
 
+.excess-worklist-panel,
+.excess-detail-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.excess-worklist-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
 .excess-table-wrap {
-  max-height: clamp(360px, 52vh, 620px);
+  height: 100%;
+  min-height: 0;
+  max-height: none;
   overflow: auto;
 }
 
@@ -7799,7 +7826,20 @@ body.is-scrolled .main-nav {
 }
 
 .excess-table {
-  min-width: 1120px;
+  min-width: 880px;
+}
+
+.excess-detail-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.excess-detail-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 3px;
 }
 
 .excess-table tbody tr.selected {
@@ -7834,7 +7874,7 @@ body.is-scrolled .main-nav {
 
 .excess-detail-card {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .excess-detail-head {
@@ -7948,6 +7988,61 @@ body.is-scrolled .main-nav {
   display: grid;
   gap: 2px;
   margin-top: 6px;
+}
+
+.excess-detail-disclosure,
+.scenario-detail-disclosure {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.excess-detail-disclosure > summary,
+.scenario-detail-disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.excess-detail-disclosure > summary::-webkit-details-marker,
+.scenario-detail-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.excess-detail-disclosure > summary::after,
+.scenario-detail-disclosure > summary::after {
+  content: "›";
+  float: right;
+  color: var(--muted);
+  transition: transform 0.16s ease;
+}
+
+.excess-detail-disclosure[open] > summary::after,
+.scenario-detail-disclosure[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.excess-disclosure-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.scenario-detail-disclosure {
+  margin-top: 8px;
+  background: transparent;
+}
+
+.scenario-detail-disclosure > summary {
+  padding: 7px 0 0;
+  color: var(--muted);
+}
+
+.scenario-detail-disclosure .scenario-detail-list {
+  padding-bottom: 2px;
 }
 
 .excess-scenario.unavailable {
@@ -8225,5 +8320,23 @@ body.is-scrolled .main-nav {
 @media (max-width: 1180px) {
   .excess-layout {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .excess-table-wrap {
+    height: auto;
+    max-height: clamp(360px, 56vh, 620px);
+  }
+
+  .excess-detail-panel {
+    max-height: min(760px, 82dvh);
+  }
+
+  .excess-detail-scroll {
+    max-height: clamp(420px, 68vh, 680px);
+  }
+
+  .excess-page-header .control-toolbar-slot .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

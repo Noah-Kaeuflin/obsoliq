@@ -249,6 +249,7 @@ let slowDeadPageController = null;
 let currentSlowDeadPageModel = null;
 let slowDeadInventoryRevealTarget = null;
 let slowDeadActionRevealTarget = null;
+let excessActionRevealTarget = null;
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -729,8 +730,8 @@ const translations = {
     openAction: "Details →",
     topOwner: "Verantwortlich",
     topAction: "Aktion",
-    excessTitle: "Excess Intelligence",
-    excessSubtitle: "Operative Entscheidungsseite für Überbestand, Netto-Potenzial, Owner-Kontext und Szenarien.",
+    excessTitle: "Überbestand",
+    excessSubtitle: "Priorisierte Überbestandsfälle mit Netto-Potenzial, Evidenz, Owner-Kontext und Szenarien.",
     excessSummaryCases: "Excess-Fälle",
     excessSummaryGross: "Brutto-Überbestand",
     excessSummaryNet: "Netto adressierbar",
@@ -754,6 +755,14 @@ const translations = {
     excessScoreDrivers: "Score-Treiber",
     excessLimitations: "Bekannte Grenzen",
     excessEvidence: "Evidenz",
+    excessDecisionBasis: "Entscheidungsbasis",
+    excessScenarioEvidence: "Szenario-Evidenz",
+    excessEvidenceLimitations: "Evidenz & Grenzen",
+    excessPilotReviewDisclosure: "Pilotbewertung",
+    excessTechnicalRelationshipDetails: "Technische Relationship-Details",
+    excessFilteredContext: "Gefilterte Sicht: {filteredCases} von {portfolioCases} Fällen · {filteredNet} von {portfolioNet} netto adressierbar",
+    excessNoLinkedAction: "Für diesen Überbestandsfall existiert aktuell keine verknüpfte Maßnahme.",
+    matchQuality: "Match-Qualität",
     whyPrioritized: "Warum priorisiert",
     whyNotHigher: "Warum nicht höher",
     grossNetExplanation: "Brutto-zu-Netto-Erklärung",
@@ -2227,8 +2236,8 @@ const translations = {
     openAction: "Details →",
     topOwner: "Owner",
     topAction: "Action",
-    excessTitle: "Excess Intelligence",
-    excessSubtitle: "Operational decision page for excess inventory, net potential, owner context and scenarios.",
+    excessTitle: "Excess Inventory",
+    excessSubtitle: "Prioritized excess cases with net addressable exposure, evidence, owner context and scenarios.",
     excessSummaryCases: "Excess cases",
     excessSummaryGross: "Gross excess",
     excessSummaryNet: "Net addressable",
@@ -2252,6 +2261,14 @@ const translations = {
     excessScoreDrivers: "Score drivers",
     excessLimitations: "Known limitations",
     excessEvidence: "Evidence",
+    excessDecisionBasis: "Decision basis",
+    excessScenarioEvidence: "Scenario evidence",
+    excessEvidenceLimitations: "Evidence & limitations",
+    excessPilotReviewDisclosure: "Pilot Review",
+    excessTechnicalRelationshipDetails: "Technical relationship details",
+    excessFilteredContext: "Filtered view: {filteredCases} of {portfolioCases} cases · {filteredNet} of {portfolioNet} net addressable",
+    excessNoLinkedAction: "No linked action exists for this excess case in the current action worklist.",
+    matchQuality: "Match quality",
     whyPrioritized: "Why Prioritized",
     whyNotHigher: "Why Not Higher",
     grossNetExplanation: "Gross-to-net explanation",
@@ -3814,6 +3831,8 @@ let currentExcessViewModel = null;
 let currentExcessVisibleRows = [];
 let currentExcessPageRows = [];
 let currentActiveExcessCase = null;
+let currentExcessPortfolioRowsRef = null;
+let currentExcessPortfolioModel = null;
 let pilotReviewPackageIdentityOverrideForTest = null;
 let excessPageNumber = 1;
 const excessPageSize = 25;
@@ -5554,14 +5573,22 @@ function getInventoryRows() {
 }
 
 function currentExcessPageModel(rows = applyGlobalBusinessFilters(enrichedRows)) {
+  if (rows === enrichedRows && currentExcessPortfolioRowsRef === enrichedRows && currentExcessPortfolioModel) {
+    return currentExcessPortfolioModel;
+  }
   if (obsoliqTestMode) excessPageModelBuildCountForTest += 1;
-  return excessAnalysisService.buildExcessPageModel({
+  const model = excessAnalysisService.buildExcessPageModel({
     rows,
     datasetMeta: currentDatasetMeta,
     relationshipResult: currentInventoryMaterialMasterRelationship,
     enrichmentDiagnostics: currentInventoryEnrichmentDiagnostics,
     enrichmentProvenance: currentInventoryEnrichmentProvenance
   });
+  if (rows === enrichedRows) {
+    currentExcessPortfolioRowsRef = enrichedRows;
+    currentExcessPortfolioModel = model;
+  }
+  return model;
 }
 
 function decorateExcessCases(cases = []) {
@@ -5599,7 +5626,7 @@ function excessCaseRows(data = applyGlobalBusinessFilters(enrichedRows)) {
 
 function getExcessRows() {
   updateFilterStateFromControls();
-  return filteredExcessRowsFromCases(currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows)).cases);
+  return filteredExcessRowsFromCases(applyGlobalBusinessFilters(currentExcessPageModel(enrichedRows).cases));
 }
 
 function getFilteredRows(scope = "overview") {
@@ -6680,9 +6707,12 @@ function renderScenarioDetails(scenario = {}) {
     [t("excessLimitations"), limitations]
   ].filter(([, values]) => values.length && values.some(value => value !== t("notAvailable")));
   return details.length ? `
-    <div class="scenario-detail-list">
+    <details class="scenario-detail-disclosure">
+      <summary>${html(t("excessScenarioEvidence"))}</summary>
+      <div class="scenario-detail-list">
       ${details.map(([label, values]) => `<small><b>${html(label)}:</b> ${html(values.join("; "))}</small>`).join("")}
-    </div>
+      </div>
+    </details>
   ` : "";
 }
 
@@ -6861,8 +6891,19 @@ function renderExcessSummaryCards(model) {
   const summary = model.summary || {};
   const portfolioSummary = model.portfolioSummary || summary;
   const quality = model.relationshipQuality || {};
-  const portfolioContext = model.portfolioSummary && model.portfolioSummary !== summary
-    ? `<div class="excess-summary-context">${html(t("portfolioContext"))}: ${html(formatCount(portfolioSummary.caseCount || 0))} ${html(t("excessSummaryCases"))} · ${html(formatCompactMoney(portfolioSummary.netAddressableExcessValue || 0))}</div>`
+  const scopeDiffers = [
+    "caseCount",
+    "grossExcessValue",
+    "netAddressableExcessValue",
+    "overlapValue",
+    "averageOpportunityScore"
+  ].some(key => Number(summary[key] || 0) !== Number(portfolioSummary[key] || 0));
+  const portfolioContext = scopeDiffers
+    ? `<div class="excess-summary-context">${html(t("excessFilteredContext")
+      .replace("{filteredCases}", formatCount(summary.caseCount || 0))
+      .replace("{portfolioCases}", formatCount(portfolioSummary.caseCount || 0))
+      .replace("{filteredNet}", formatCompactMoney(summary.netAddressableExcessValue || 0))
+      .replace("{portfolioNet}", formatCompactMoney(portfolioSummary.netAddressableExcessValue || 0)))}</div>`
     : "";
   const cards = [
     [t("excessSummaryCases"), formatCount(summary.caseCount || 0), ""],
@@ -6924,10 +6965,46 @@ function renderExcessScenarios(item = {}) {
   `;
 }
 
+function renderExcessDisclosure(titleKey, bodyHtml, options = {}) {
+  return `
+    <details class="excess-detail-disclosure" ${options.open ? "open" : ""}>
+      <summary>${html(t(titleKey))}</summary>
+      <div class="excess-disclosure-body">
+        ${bodyHtml}
+      </div>
+    </details>
+  `;
+}
+
 function renderExcessDetail(item) {
   if (!item) {
     return `<div class="empty">${html(t("excessNoSelection"))}</div>`;
   }
+  const decisionBasis = `
+    <section class="excess-detail-section">
+      <h4>${html(t("excessScoreDrivers"))}</h4>
+      ${renderExcessScoreComponents(item)}
+      <ul>${excessTextList((item.opportunity_score_drivers || []).map(key => `evidence_${key}`))}</ul>
+    </section>
+    ${renderTextList("whyPrioritized", item.whyPrioritized || [])}
+    ${renderTextList("whyNotHigher", item.whyNotHigher || [])}
+    ${renderGrossNetExplanation(item)}
+  `;
+  const evidenceLimitations = `
+    <section class="excess-detail-section">
+      <h4>${html(t("excessLimitations"))}</h4>
+      <ul>${excessTextList((item.limitations || []).map(key => `limitation_${key}`))}</ul>
+    </section>
+    ${renderEvidenceRecords(item)}
+  `;
+  const technicalDetails = `
+    <div class="pilot-context-grid">
+      <div><span>${html(t("colRelationshipMatchType"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
+      <div><span>${html(t("colOwnerSource"))}</span><strong>${html(displayOwnerSource(item.owner_source))}</strong></div>
+      <div><span>${html(t("colOwnerConfidence"))}</span><strong>${html(displayActionValue(item.owner_assignment_confidence))}</strong></div>
+      <div><span>${html(t("colExcessOverlap"))}</span><strong>${html(formatCompactMoney(item.excess_overlap_value || 0))}</strong></div>
+    </div>
+  `;
   return `
     <div class="excess-detail-card">
       <div class="excess-detail-head">
@@ -6935,30 +7012,20 @@ function renderExcessDetail(item) {
           <span>${html(item.material_id || "-")}</span>
           <strong>${html(item.material_description || "-")}</strong>
         </div>
-        <button class="secondary" type="button" data-open-actions="${html(item.material_id || "")}">${html(t("excessOpenActions"))}</button>
+        <button class="secondary" type="button" data-open-excess-actions="${html(item.case_id || "")}">${html(t("excessOpenActions"))}</button>
       </div>
       <div class="excess-detail-kpis">
         <div><span>${html(t("colNetExcess"))}</span><strong title="${html(money(item.net_addressable_excess_value))}">${html(formatCompactMoney(item.net_addressable_excess_value))}</strong></div>
         <div><span>${html(t("colOpportunityScore"))}</span><strong>${html(formatCount(item.excess_opportunity_score))}/100</strong></div>
         <div><span>${html(t("colOwnerReference"))}</span><strong>${html(item.owner_reference || t("notAvailable"))}</strong></div>
-        <div><span>${html(t("colRelationshipMatchType"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
+        <div><span>${html(t("matchQuality"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
       </div>
-      <section class="excess-detail-section">
-        <h4>${html(t("excessScoreDrivers"))}</h4>
-        ${renderExcessScoreComponents(item)}
-        <ul>${excessTextList((item.opportunity_score_drivers || []).map(key => `evidence_${key}`))}</ul>
-      </section>
-      ${renderTextList("whyPrioritized", item.whyPrioritized || [])}
-      ${renderTextList("whyNotHigher", item.whyNotHigher || [])}
-      ${renderGrossNetExplanation(item)}
+      ${renderExcessDisclosure("excessDecisionBasis", decisionBasis, { open: true })}
       ${renderExcessScenarios(item)}
-      <section class="excess-detail-section">
-        <h4>${html(t("excessLimitations"))}</h4>
-        <ul>${excessTextList((item.limitations || []).map(key => `limitation_${key}`))}</ul>
-      </section>
-      ${renderEvidenceRecords(item)}
-      ${renderOwnerActionContext(item)}
-      ${renderPilotReviewForm(item)}
+      ${renderExcessDisclosure("excessEvidenceLimitations", evidenceLimitations)}
+      ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
+      ${renderExcessDisclosure("excessPilotReviewDisclosure", renderPilotReviewForm(item))}
+      ${renderExcessDisclosure("excessTechnicalRelationshipDetails", technicalDetails)}
     </div>
   `;
 }
@@ -6969,11 +7036,9 @@ function renderExcessCaseTable(rows) {
     ["material_action", "Material"],
     ["net_addressable_excess_value", t("colNetExcess")],
     ["gross_excess_value", t("colGrossExcess")],
-    ["excess_overlap_value", t("colExcessOverlap")],
     ["excess_opportunity_score", t("colOpportunityScore")],
     ["owner_reference", t("colOwnerReference")],
-    ["owner_assignment_confidence", t("colOwnerConfidence")],
-    ["relationship_match_type", t("colRelationshipMatchType")],
+    ["relationship_match_type", t("matchQuality")],
     ["action", t("topAction")]
   ];
   return `
@@ -6995,13 +7060,11 @@ function renderExcessCaseTable(rows) {
             </td>
             <td title="${html(money(row.net_addressable_excess_value))}">${html(formatCompactMoney(row.net_addressable_excess_value))}</td>
             <td title="${html(money(row.gross_excess_value))}">${html(formatCompactMoney(row.gross_excess_value))}</td>
-            <td title="${html(money(row.excess_overlap_value))}">${html(formatCompactMoney(row.excess_overlap_value))}</td>
             <td><span class="score-badge">${html(formatCount(row.excess_opportunity_score))}</span></td>
             <td>
               <strong>${html(row.owner_reference || t("notAvailable"))}</strong>
-              <small>${html(displayOwnerSource(row.owner_source))}</small>
+              <small>${html(displayActionValue(row.owner_function || t("notAvailable")))}</small>
             </td>
-            <td>${actionBadge("confidence", row.owner_assignment_confidence)}</td>
             <td>${html(relationshipMatchTypeLabel(row.relationship_match_type))}</td>
             <td><button class="secondary" type="button" data-excess-case-detail="${html(row.case_id)}">${html(t("excessViewDetails"))}</button></td>
           </tr>
@@ -7079,8 +7142,8 @@ function renderExcessPagination(totalRows, pageNumber, pageCount) {
 function openExcessCaseById(caseId, options = {}) {
   const targetCaseId = String(caseId || "");
   if (!targetCaseId) return { status: "missing" };
-  const model = currentExcessViewModel || currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows));
-  const cases = model.cases || [];
+  const portfolioCases = currentExcessPageModel(enrichedRows).cases || [];
+  const cases = currentExcessViewModel?.cases?.length ? currentExcessViewModel.cases : applyGlobalBusinessFilters(portfolioCases);
   const targetCase = cases.find(row => row.case_id === targetCaseId);
   if (!targetCase) {
     setFeedback(t("excessTargetCaseMissing"), "warning", { autoReset: true });
@@ -7113,13 +7176,46 @@ function openExcessCaseById(caseId, options = {}) {
   };
 }
 
+function excessCaseNavigationTarget(caseRecord = {}) {
+  const inventoryRowKeys = [
+    ...(Array.isArray(caseRecord.inventory_row_keys) ? caseRecord.inventory_row_keys : []),
+    caseRecord.inventory_row_key,
+    caseRecord.inventoryRowKey
+  ].map(slowDeadText).filter(Boolean);
+  return {
+    inventory_row_keys: [...new Set(inventoryRowKeys)],
+    inventory_entity_key: slowDeadText(caseRecord.inventory_entity_key || caseRecord.inventoryEntityKey) || slowDeadInventoryEntityKeyFor(caseRecord),
+    material_id: slowDeadText(caseRecord.material_id),
+    plant: slowDeadPlantFor(caseRecord),
+    case_id: slowDeadText(caseRecord.case_id)
+  };
+}
+
+function excessActionRowForCase(caseRecord = {}) {
+  const target = excessCaseNavigationTarget(caseRecord);
+  return slowDeadRowsMatchingTarget(topRecoveryRows(enrichedRows), target)[0] || null;
+}
+
+function openActionsForExcessCase(caseId) {
+  const targetCase = excessCaseById(caseId);
+  const actionRow = targetCase ? excessActionRowForCase(targetCase) : null;
+  if (!targetCase || !actionRow) {
+    setFeedback(t("excessNoLinkedAction"), "error", { autoReset: true });
+    return { status: "missing" };
+  }
+  excessActionRevealTarget = excessCaseNavigationTarget(targetCase);
+  switchProcessTab("actions", t("navActions"));
+  return { status: "opened", target: excessActionRevealTarget };
+}
+
 function renderExcessPage() {
-  const globalRows = applyGlobalBusinessFilters(enrichedRows);
-  const model = currentExcessPageModel(globalRows);
-  const rows = filteredExcessRowsFromCases(model.cases);
+  const model = currentExcessPageModel(enrichedRows);
+  const commonFilteredCases = applyGlobalBusinessFilters(model.cases);
+  const rows = filteredExcessRowsFromCases(commonFilteredCases);
   const filteredSummary = excessSummaryFromCases(rows);
   const viewModel = {
     ...model,
+    cases: commonFilteredCases,
     portfolioSummary: model.summary,
     summary: filteredSummary
   };
@@ -7127,7 +7223,7 @@ function renderExcessPage() {
   if (!target) return;
   const toolbar = $("sharedToolbar");
   const parkingSlot = $("overviewToolbarSlot");
-  if (toolbar && parkingSlot && target.contains(toolbar)) parkingSlot.appendChild(toolbar);
+  if (toolbar && parkingSlot && target.contains(toolbar)) moveSharedToolbarToSlot(parkingSlot);
   const pageCount = Math.max(1, Math.ceil(rows.length / excessPageSize));
   excessPageNumber = Math.min(Math.max(1, excessPageNumber), pageCount);
   const pageStart = (excessPageNumber - 1) * excessPageSize;
@@ -7144,7 +7240,7 @@ function renderExcessPage() {
   currentActiveExcessCase = activeCase;
   updateVisibleDatasetChipsForView("excess", rows.length);
   target.innerHTML = `
-    <section class="tab-page-header control-card excess-control-card">
+    <section class="control-card excess-control-card excess-page-header">
       <div class="control-card-top">
         <div class="overview-heading">
           <h2>${html(t("excessTitle"))}</h2>
@@ -7182,7 +7278,9 @@ function renderExcessPage() {
             <small>${html(t("excessDetailsSubtitle"))}</small>
           </div>
         </div>
-        ${renderExcessDetail(activeCase)}
+        <div class="excess-detail-scroll">
+          ${renderExcessDetail(activeCase)}
+        </div>
       </aside>
     </section>
     ${renderRelationshipIssueWorklist(viewModel)}
@@ -14350,11 +14448,13 @@ function renderActions() {
   const actionData = getActionRows();
   updateVisibleDatasetChipsForView("actions", actionData.length);
   renderActionSummary(actionData);
-  if (slowDeadActionRevealTarget) {
+  const actionRevealTarget = slowDeadActionRevealTarget || excessActionRevealTarget;
+  if (actionRevealTarget) {
     const baseRows = sortRowsForScope(topRecoveryRows(actionData), "actions");
-    const displayRows = slowDeadPrependRevealRows(baseRows, topRecoveryRows(enrichedRows), slowDeadActionRevealTarget);
+    const displayRows = slowDeadPrependRevealRows(baseRows, topRecoveryRows(enrichedRows), actionRevealTarget);
     $("actionsTable").innerHTML = renderActionCockpit(displayRows, { columnFilters: true, preparedRows: true, preserveOrder: true });
     slowDeadActionRevealTarget = null;
+    excessActionRevealTarget = null;
     return;
   }
   $("actionsTable").innerHTML = renderActionCockpit(actionData, { columnFilters: true });
@@ -16130,7 +16230,6 @@ async function loadTextDataset(text, sourceLabel, options = {}) {
 }
 
 function placeSharedToolbar(view = currentView) {
-  const toolbar = $("sharedToolbar");
   const slotId = view === "inventory"
     ? "inventoryToolbarSlot"
     : view === "actions"
@@ -16139,7 +16238,19 @@ function placeSharedToolbar(view = currentView) {
         ? "excessToolbarSlot"
       : "overviewToolbarSlot";
   const slot = $(slotId);
-  if (toolbar && slot && toolbar.parentElement !== slot) {
+  if (slot) {
+    moveSharedToolbarToSlot(slot);
+  }
+}
+
+function moveSharedToolbarToSlot(slot) {
+  const toolbar = $("sharedToolbar");
+  if (!toolbar || !slot || toolbar.parentElement === slot) return;
+  const activeElement = document.activeElement;
+  if (activeElement && toolbar.contains(activeElement) && typeof activeElement.blur === "function") {
+    activeElement.blur();
+  }
+  if (toolbar.parentElement !== slot) {
     slot.appendChild(toolbar);
   }
 }
@@ -19007,6 +19118,13 @@ document.addEventListener("click", event => {
     openExcessCaseById(excessDetailButton.dataset.excessCaseDetail || "");
     return;
   }
+  const openExcessActionsButton = event.target.closest("[data-open-excess-actions]");
+  if (openExcessActionsButton) {
+    event.preventDefault();
+    closeColumnFilterPopover();
+    openActionsForExcessCase(openExcessActionsButton.dataset.openExcessActions || "");
+    return;
+  }
   const openActionsButton = event.target.closest("[data-open-actions]");
   if (openActionsButton) {
     event.preventDefault();
@@ -19437,16 +19555,19 @@ function createObsoliqTestBridge() {
     restorePilotReviewsForTest: snapshot => clonePlainRecord(excessPilotReviewService.restore(snapshot)),
     exportPilotReviewsUiForTest: (scope = "current") => exportPilotReviews(scope),
     openExcessCaseByIdForTest: (caseId, options = {}) => clonePlainRecord(openExcessCaseById(caseId, options)),
+    openActionsForExcessCaseForTest: caseId => clonePlainRecord(openActionsForExcessCase(caseId)),
+    excessActionRowForCaseForTest: caseRecord => clonePlainRecord(excessActionRowForCase(caseRecord)),
+    excessCaseNavigationTargetForTest: caseRecord => clonePlainRecord(excessCaseNavigationTarget(caseRecord)),
     savePilotReviewFromButtonForTest: button => savePilotReviewFromButton(button),
     renderExcessPageForTest: () => {
       renderExcessPage();
       return $("excessPage")?.textContent || "";
     },
-    currentExcessPageModelForTest: () => clonePlainRecord(currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows))),
+    currentExcessPageModelForTest: () => clonePlainRecord(currentExcessPageModel(enrichedRows)),
     getExcessPageStateForTest: () => {
       const rows = currentExcessVisibleRows.length
         ? currentExcessVisibleRows
-        : filteredExcessRowsFromCases(currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows)).cases);
+        : filteredExcessRowsFromCases(applyGlobalBusinessFilters(currentExcessPageModel(enrichedRows).cases));
       const pageCount = Math.max(1, Math.ceil(rows.length / excessPageSize));
       const pageNumber = Math.min(Math.max(1, excessPageNumber), pageCount);
       const pageStart = (pageNumber - 1) * excessPageSize;
@@ -19462,7 +19583,11 @@ function createObsoliqTestBridge() {
       });
     },
     getExcessRowsForTest: () => clonePlainArray(getExcessRows()),
+    getActionRowsForTest: () => clonePlainArray(getActionRows()),
+    getFilteredRowsForTest: scope => clonePlainArray(getFilteredRows(scope || "overview")),
     resetExcessPageModelBuildCountForTest: () => {
+      currentExcessPortfolioRowsRef = null;
+      currentExcessPortfolioModel = null;
       excessPageModelBuildCountForTest = 0;
       return excessPageModelBuildCountForTest;
     },
