@@ -247,6 +247,8 @@ let slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState();
 let slowDeadPageView = null;
 let slowDeadPageController = null;
 let currentSlowDeadPageModel = null;
+let slowDeadInventoryRevealTarget = null;
+let slowDeadActionRevealTarget = null;
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -626,6 +628,7 @@ const translations = {
     slowDeadDownload: "Slow-/Dead-Cases exportieren",
     slowDeadDownloadSubtitle: "Exportiere die aktuell gefilterten oder alle aktuellen Slow-/Dead-Recovery-Cases mit Evidenz und Provenance.",
     slowDeadNoLinkedAction: "Für diesen Case existiert aktuell keine verknüpfte Maßnahme.",
+    slowDeadInventoryTargetMissing: "Der exakte Inventory-Zielcase ist im aktuellen Bestand nicht verfügbar.",
     slowDeadEmpty_no_filtered_cases: "Keine Slow-/Dead-Cases passen zu den aktuellen Filtern.",
     slowDeadEmpty_no_cases: "Die aktuelle Runtime enthält keine Slow-/Dead-Cases.",
     slowDeadEmpty_not_calculated: "Slow-/Dead-Cases wurden noch nicht berechnet.",
@@ -910,6 +913,7 @@ const translations = {
     colExcessOverlap: "Überlappung",
     colOpportunityScore: "Score",
     colOwnerReference: "Owner-Referenz",
+    ownerReferenceField: "Owner-Referenzfeld",
     colOwnerSource: "Owner-Quelle",
     colOwnerConfidence: "Owner-Zuordnungssicherheit",
     colRelationshipStatus: "MM-Match",
@@ -2121,6 +2125,7 @@ const translations = {
     slowDeadDownload: "Export Slow / Dead Cases",
     slowDeadDownloadSubtitle: "Export the currently filtered or all current Slow / Dead Recovery Cases with evidence and provenance.",
     slowDeadNoLinkedAction: "No linked action exists for this case in the current action worklist.",
+    slowDeadInventoryTargetMissing: "The exact inventory target is not available in the current inventory dataset.",
     slowDeadEmpty_no_filtered_cases: "No Slow / Dead Cases match the current filters.",
     slowDeadEmpty_no_cases: "The current runtime does not contain Slow / Dead Cases.",
     slowDeadEmpty_not_calculated: "Slow / Dead Cases have not been calculated yet.",
@@ -2406,6 +2411,7 @@ const translations = {
     colExcessOverlap: "Overlap",
     colOpportunityScore: "Score",
     colOwnerReference: "Owner reference",
+    ownerReferenceField: "Owner reference field",
     colOwnerSource: "Owner source",
     colOwnerConfidence: "Owner assignment confidence",
     colRelationshipStatus: "MM match",
@@ -6449,7 +6455,7 @@ function renderTable(data, columns, options = {}) {
   `;
 }
 
-function renderRawInventory(data) {
+function renderRawInventory(data, options = {}) {
   const limitValue = rowLimitValue();
   const limit = limitValue === "all" ? data.length : Number(limitValue);
   const enrichedFieldKeys = activeEnrichedInventoryFieldKeys();
@@ -6483,7 +6489,7 @@ function renderRawInventory(data) {
       </thead>
       <tbody>
         ${rows.map(({ row, analyticalRow }) => `
-          <tr>
+          <tr class="${slowDeadRowsMatchingTarget([analyticalRow], options.revealTarget).length ? "inventory-reveal-target" : ""}">
             ${originalHeaders.map(header => `<td>${html(row[header])}</td>`).join("")}
             ${enrichedFieldKeys.map(fieldKey => {
               const value = analyticalRow?.[fieldKey] ?? "";
@@ -6535,7 +6541,8 @@ function renderActionSummary(data) {
 function renderActionCockpit(data, options = {}) {
   const scope = options.columnFilters ? "actions" : "";
   const rows = options.preparedRows ? data : topRecoveryRows(data);
-  return renderTable(scope ? sortRowsForScope(rows, scope) : rows, actionCockpitColumns(), {
+  const displayRows = options.preserveOrder ? rows : scope ? sortRowsForScope(rows, scope) : rows;
+  return renderTable(displayRows, actionCockpitColumns(), {
     wide: true,
     actionTable: true,
     editableStatus: true,
@@ -14343,12 +14350,29 @@ function renderActions() {
   const actionData = getActionRows();
   updateVisibleDatasetChipsForView("actions", actionData.length);
   renderActionSummary(actionData);
+  if (slowDeadActionRevealTarget) {
+    const baseRows = sortRowsForScope(topRecoveryRows(actionData), "actions");
+    const displayRows = slowDeadPrependRevealRows(baseRows, topRecoveryRows(enrichedRows), slowDeadActionRevealTarget);
+    $("actionsTable").innerHTML = renderActionCockpit(displayRows, { columnFilters: true, preparedRows: true, preserveOrder: true });
+    slowDeadActionRevealTarget = null;
+    return;
+  }
   $("actionsTable").innerHTML = renderActionCockpit(actionData, { columnFilters: true });
 }
 
 function renderInventoryExplorer() {
   const inventoryData = getInventoryRows();
   updateVisibleDatasetChipsForView("inventory", inventoryData.length);
+  if (slowDeadInventoryRevealTarget) {
+    const displayRows = slowDeadPrependRevealRows(
+      inventoryData,
+      composeHistoricalInventoryRows(enrichedRows),
+      slowDeadInventoryRevealTarget
+    );
+    $("inventoryTable").innerHTML = renderRawInventory(displayRows, { revealTarget: slowDeadInventoryRevealTarget });
+    slowDeadInventoryRevealTarget = null;
+    return;
+  }
   $("inventoryTable").innerHTML = renderRawInventory(inventoryData);
 }
 
@@ -14360,10 +14384,118 @@ function renderDataQuality() {
   $("dataCheck").innerHTML = renderDataCheck(dataQualityRows);
 }
 
-function slowDeadLinkedActionMaterials() {
-  return topRecoveryRows(enrichedRows)
-    .map(row => String(row.material_id || "").trim())
-    .filter(Boolean);
+function slowDeadText(value) {
+  return String(value ?? "").trim();
+}
+
+function slowDeadInventoryRowKey(row = {}) {
+  return slowDeadText(row.inventory_row_key || row.inventoryRowKey || `INV-${row.__sourceRowIndex || row.row_number || ""}`);
+}
+
+function slowDeadPlantFor(row = {}) {
+  return slowDeadText(row.plant || row.profit_center);
+}
+
+function slowDeadInventoryEntityKeyFor(row = {}) {
+  return slowDeadText(row.inventory_entity_key || row.inventoryEntityKey)
+    || (slowDeadText(row.material_id) ? `material:${slowDeadText(row.material_id)}|plant:${slowDeadPlantFor(row)}` : "");
+}
+
+function slowDeadIdentityTargetFor(row = {}) {
+  return {
+    inventory_row_key: slowDeadInventoryRowKey(row),
+    inventory_entity_key: slowDeadInventoryEntityKeyFor(row),
+    material_id: slowDeadText(row.material_id),
+    plant: slowDeadPlantFor(row)
+  };
+}
+
+function slowDeadCaseTarget(caseRecord = {}) {
+  return {
+    inventory_row_keys: Array.isArray(caseRecord.inventory_row_keys) ? caseRecord.inventory_row_keys.map(slowDeadText).filter(Boolean) : [],
+    inventory_entity_key: slowDeadText(caseRecord.inventory_entity_key),
+    material_id: slowDeadText(caseRecord.material_id),
+    plant: slowDeadPlantFor(caseRecord),
+    case_id: slowDeadText(caseRecord.case_id)
+  };
+}
+
+function slowDeadMaterialEntityCount(rows = []) {
+  const entitiesByMaterial = new Map();
+  rows.forEach(row => {
+    const material = slowDeadText(row.material_id);
+    if (!material) return;
+    const entities = entitiesByMaterial.get(material) || new Set();
+    entities.add(slowDeadInventoryEntityKeyFor(row) || slowDeadInventoryRowKey(row));
+    entitiesByMaterial.set(material, entities);
+  });
+  return new Map([...entitiesByMaterial.entries()].map(([material, entities]) => [material, entities.size]));
+}
+
+function slowDeadRowsMatchingTarget(rows = [], target = {}) {
+  const normalized = slowDeadCaseTarget(target);
+  const rowKeySet = new Set(normalized.inventory_row_keys || []);
+  const entityKey = normalized.inventory_entity_key;
+  const material = normalized.material_id;
+  const plant = normalized.plant;
+  const materialEntityCounts = slowDeadMaterialEntityCount(rows);
+  const exactMatches = rows.filter(row => {
+    const rowKey = slowDeadInventoryRowKey(row);
+    if (rowKey && rowKeySet.has(rowKey)) return true;
+    const rowEntityKey = slowDeadInventoryEntityKeyFor(row);
+    if (entityKey && rowEntityKey === entityKey) return true;
+    return Boolean(material && plant && slowDeadText(row.material_id) === material && slowDeadPlantFor(row) === plant);
+  });
+  if (exactMatches.length) return exactMatches;
+  if (!material || plant) return [];
+  const materialMatches = rows.filter(row => slowDeadText(row.material_id) === material);
+  return (materialEntityCounts.get(material) || 0) === 1 ? materialMatches : [];
+}
+
+function slowDeadLinkedActionTargets() {
+  return topRecoveryRows(enrichedRows).map(slowDeadIdentityTargetFor);
+}
+
+function slowDeadOwnerContextByInventoryEntityKey(relationshipResult = null) {
+  const entities = relationshipResult?.inventoryEntitiesByKey || {};
+  const rowsByKey = new Map(enrichedRows.map(row => [slowDeadInventoryRowKey(row), row]));
+  return Object.fromEntries(Object.values(entities).map(entity => {
+    const rows = (entity.rowKeys || []).map(key => rowsByKey.get(key)).filter(Boolean);
+    const row = rows[0] || enrichedRows.find(item => slowDeadInventoryEntityKeyFor(item) === entity.inventoryEntityKey) || null;
+    if (!row) {
+      return [entity.inventoryEntityKey, {
+        owner_function: "",
+        owner_reference: "",
+        owner_reference_field: "",
+        owner_source: "none",
+        owner_assignment_confidence: "Low"
+      }];
+    }
+    const actionFields = buildActionFields(row);
+    return [entity.inventoryEntityKey, {
+      owner_function: actionFields.owner_function || "",
+      owner_reference: actionFields.owner_reference || "",
+      owner_reference_field: actionFields.owner_reference_field || "",
+      owner_source: actionFields.owner_source || "none",
+      owner_assignment_confidence: actionFields.owner_assignment_confidence || "Low"
+    }];
+  }).filter(([key]) => Boolean(key)));
+}
+
+function slowDeadPrependRevealRows(visibleRows = [], fullRows = [], target = null) {
+  if (!target) return visibleRows;
+  const revealRows = slowDeadRowsMatchingTarget(fullRows, target);
+  if (!revealRows.length) return visibleRows;
+  const visibleKeys = new Set(visibleRows.map(slowDeadInventoryRowKey));
+  return [
+    ...revealRows.filter(row => !visibleKeys.has(slowDeadInventoryRowKey(row))),
+    ...visibleRows
+  ];
+}
+
+function slowDeadActionRowForCase(caseRecord = {}) {
+  const candidates = topRecoveryRows(enrichedRows);
+  return slowDeadRowsMatchingTarget(candidates, caseRecord)[0] || null;
 }
 
 function buildSlowDeadPageModel() {
@@ -14374,7 +14506,7 @@ function buildSlowDeadPageModel() {
     page: slowDeadPageState.page,
     pageSize: slowDeadPageState.pageSize,
     selectedCaseId: slowDeadPageState.selectedCaseId,
-    linkedActionMaterials: slowDeadLinkedActionMaterials()
+    linkedActionTargets: slowDeadLinkedActionTargets()
   });
   slowDeadPageState = {
     ...slowDeadPageState,
@@ -14441,21 +14573,23 @@ function slowDeadCaseById(caseId) {
 function openInventoryForSlowDeadCase(caseId) {
   const targetCase = slowDeadCaseById(caseId);
   if (!targetCase) return;
-  const material = targetCase.material_id || "";
-  setControlValue("searchInput", material);
-  setControlValue("rowLimit", "all");
-  updateFilterState("common", { search: material, rowLimit: "all" });
+  const targetRows = slowDeadRowsMatchingTarget(composeHistoricalInventoryRows(enrichedRows), targetCase);
+  if (!targetRows.length) {
+    setFeedback(t("slowDeadInventoryTargetMissing"), "error", { autoReset: true });
+    return;
+  }
+  slowDeadInventoryRevealTarget = slowDeadCaseTarget(targetCase);
   switchProcessTab("inventory-explorer", t("navInventoryExplorer"));
 }
 
 function openActionsForSlowDeadCase(caseId) {
   const targetCase = slowDeadCaseById(caseId);
-  if (!targetCase?.has_linked_action) {
+  const actionRow = targetCase ? slowDeadActionRowForCase(targetCase) : null;
+  if (!targetCase?.has_linked_action || !actionRow) {
     setFeedback(t("slowDeadNoLinkedAction"), "error", { autoReset: true });
     return;
   }
-  setControlValue("searchInput", targetCase.material_id || "");
-  updateFilterState("common", { search: targetCase.material_id || "" });
+  slowDeadActionRevealTarget = slowDeadCaseTarget(targetCase);
   switchProcessTab("actions", t("navActions"));
 }
 
@@ -14839,14 +14973,16 @@ function resetSlowDeadRecoveryCaseRuntime(reason = "input_changed") {
 
 function slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState = historicalMetricsRuntimeForPresentation()) {
   const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
+  const relationshipResult = runtime?.inventoryHistoryRelationshipResult || null;
   return {
     inventoryPackage: currentInventoryPackage(),
     historyPackage: currentConsumptionHistoryPackage(),
     inventoryRows: enrichedRows,
     historicalRuntime: runtimeState,
-    relationshipResult: runtime?.inventoryHistoryRelationshipResult || null,
+    relationshipResult,
     historicalMetricsByInventoryEntityKey: runtime?.historicalMetricsByInventoryEntityKey || {},
     historicalMetricProvenanceByInventoryEntityKey: runtime?.historicalMetricProvenanceByInventoryEntityKey || {},
+    ownerContextByInventoryEntityKey: slowDeadOwnerContextByInventoryEntityKey(relationshipResult),
     datasetId: currentDatasetId()
   };
 }
@@ -18012,11 +18148,14 @@ function slowDeadExportLabel(key) {
     program: t("colProgram"),
     owner_function: t("colOwnerFunction"),
     owner_reference: t("colOwnerReference"),
+    owner_reference_field: t("ownerReferenceField"),
+    owner_source: t("colOwnerSource"),
+    owner_assignment_confidence: t("colOwnerConfidence"),
     condition_code: t("slowDeadCondition"),
     condition_label: t("slowDeadCondition"),
     evidence_strength: t("slowDeadEvidenceStrength"),
     condition_confidence: t("slowDeadConditionConfidence"),
-    inventory_exposure_value: `${t("slowDeadInventoryExposure")} (EUR)`,
+    inventory_exposure_value: t("slowDeadInventoryExposure"),
     stock_quantity: t("stockQuantity"),
     base_unit: t("baseUnit"),
     currency: t("currencyTitle"),
@@ -19073,7 +19212,7 @@ function createObsoliqTestBridge() {
       page: slowDeadPageState.page,
       pageSize: slowDeadPageState.pageSize,
       selectedCaseId: slowDeadPageState.selectedCaseId,
-      linkedActionMaterials: slowDeadLinkedActionMaterials()
+      linkedActionTargets: slowDeadLinkedActionTargets()
     })),
     renderSlowDeadPageForTest: () => {
       renderSlowDeadPage();
@@ -19094,6 +19233,17 @@ function createObsoliqTestBridge() {
       return clonePlainRecord(slowDeadPageState);
     },
     slowDeadRowsForExportForTest: scope => clonePlainArray(slowDeadRowsForExport(scope || "filtered")),
+    openInventoryForSlowDeadCaseForTest: caseId => {
+      openInventoryForSlowDeadCase(caseId);
+      return clonePlainRecord({ currentView, activeProcessKey, revealTarget: slowDeadInventoryRevealTarget });
+    },
+    openActionsForSlowDeadCaseForTest: caseId => {
+      openActionsForSlowDeadCase(caseId);
+      return clonePlainRecord({ currentView, activeProcessKey, revealTarget: slowDeadActionRevealTarget });
+    },
+    slowDeadActionRowForCaseForTest: caseRecord => clonePlainRecord(slowDeadActionRowForCase(caseRecord)),
+    slowDeadRowsMatchingTargetForTest: (rows, target) => clonePlainArray(slowDeadRowsMatchingTarget(rows || enrichedRows, target || {})),
+    slowDeadOwnerContextByInventoryEntityKeyForTest: relationshipResult => clonePlainRecord(slowDeadOwnerContextByInventoryEntityKey(relationshipResult)),
     resetSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(resetSlowDeadRecoveryCaseRuntime("test_reset")),
     requestSlowDeadRecoveryCaseRuntimeForTest: options => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(historicalMetricsRuntimeForPresentation(), { reason: options?.reason || "test_request", force: options?.force === true, forceServiceErrorForTest: options?.forceServiceErrorForTest === true })),
     updateSlowDeadRecoveryCaseRuntimeFromHistoricalStateForTest: (state, options = {}) => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state, options)),

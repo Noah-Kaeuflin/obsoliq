@@ -78,13 +78,15 @@
   }
 
   function finiteNumber(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" && !text(value)) return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
   }
 
-  function positiveNumberOrNull(value) {
+  function finiteNumberOrNull(value) {
     const number = finiteNumber(value);
-    return number !== null && number > 0 ? number : null;
+    return number !== null ? number : null;
   }
 
   function normalizeFilterValue(value, fallback = "all") {
@@ -158,7 +160,7 @@
   }
 
   function inventoryExposureValue(caseRecord = {}) {
-    return positiveNumberOrNull(caseRecord.stock_value);
+    return finiteNumberOrNull(caseRecord.stock_value);
   }
 
   function serializeCaseKey(caseRecord = {}) {
@@ -177,17 +179,87 @@
     return result;
   }
 
-  function linkedActionMaterialSet(input = {}) {
-    const source = input.linkedActionMaterials || input.linkedActionMaterialIds || [];
-    if (source instanceof Set) return new Set([...source].map(value => text(value)).filter(Boolean));
-    return new Set(list(source).map(value => text(value)).filter(Boolean));
+  function inventoryRowKeys(caseRecord = {}) {
+    return list(caseRecord.inventory_row_keys).map(text).filter(Boolean);
+  }
+
+  function entityKeyFor(record = {}) {
+    return text(record.inventory_entity_key || record.inventoryEntityKey);
+  }
+
+  function materialPlantKeyFor(record = {}) {
+    const material = text(record.material_id || record.materialId);
+    const plant = text(record.plant);
+    return material && plant ? `${material}::${plant}` : "";
+  }
+
+  function materialIdFor(record = {}) {
+    return text(record.material_id || record.materialId);
+  }
+
+  function mapCounts(records = [], keyGetter) {
+    const counts = new Map();
+    records.forEach(record => {
+      const key = keyGetter(record);
+      if (!key) return;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }
+
+  function linkedActionTargets(input = {}) {
+    const targets = list(input.linkedActionTargets).map(target => ({
+      inventory_row_key: text(target.inventory_row_key || target.inventoryRowKey),
+      inventory_row_keys: list(target.inventory_row_keys).map(text).filter(Boolean),
+      inventory_entity_key: entityKeyFor(target),
+      material_id: materialIdFor(target),
+      plant: text(target.plant)
+    }));
+    const legacyMaterials = input.linkedActionMaterials || input.linkedActionMaterialIds || [];
+    const legacyTargets = legacyMaterials instanceof Set
+      ? [...legacyMaterials].map(value => ({ material_id: text(value) }))
+      : list(legacyMaterials).map(value => ({ material_id: text(value) }));
+    return [...targets, ...legacyTargets].filter(target => (
+      target.inventory_row_key
+      || target.inventory_row_keys?.length
+      || target.inventory_entity_key
+      || target.material_id
+    ));
+  }
+
+  function createLinkedActionContext(input = {}, caseRecords = []) {
+    const targets = linkedActionTargets(input);
+    const targetRowKeys = new Set(targets.flatMap(target => [
+      target.inventory_row_key,
+      ...list(target.inventory_row_keys)
+    ].map(text).filter(Boolean)));
+    const targetEntityKeys = new Set(targets.map(entityKeyFor).filter(Boolean));
+    const targetMaterialPlantKeys = new Set(targets.map(materialPlantKeyFor).filter(Boolean));
+    return {
+      targetRowKeys,
+      targetEntityKeys,
+      targetMaterialPlantKeys,
+      targetMaterialCounts: mapCounts(targets, materialIdFor),
+      caseMaterialCounts: mapCounts(caseRecords, materialIdFor)
+    };
+  }
+
+  function caseHasLinkedAction(caseRecord = {}, context = {}) {
+    if (inventoryRowKeys(caseRecord).some(key => context.targetRowKeys?.has(key))) return true;
+    const entityKey = entityKeyFor(caseRecord);
+    if (entityKey && context.targetEntityKeys?.has(entityKey)) return true;
+    const materialPlantKey = materialPlantKeyFor(caseRecord);
+    if (materialPlantKey && context.targetMaterialPlantKeys?.has(materialPlantKey)) return true;
+    const material = materialIdFor(caseRecord);
+    const plant = text(caseRecord.plant);
+    if (!material || plant) return false;
+    return (context.targetMaterialCounts?.get(material) || 0) === 1
+      && (context.caseMaterialCounts?.get(material) || 0) === 1;
   }
 
   function createCaseView(caseRecord = {}, context = {}) {
     const exposureValue = inventoryExposureValue(caseRecord);
     const stockQuantity = finiteNumber(caseRecord.stock_quantity);
-    const linkedMaterials = context.linkedActionMaterials instanceof Set ? context.linkedActionMaterials : new Set();
-    const materialId = text(caseRecord.material_id);
     const recoveryEligibility = caseRecord.recovery_case_eligibility?.eligibility || "";
     const requiredPackages = unique([
       ...list(caseRecord.required_data_packages),
@@ -225,7 +297,7 @@
       inventory_coverage_months: finiteNumber(caseRecord.inventory_coverage_months ?? evidenceMetric(caseRecord, ["coverage", "inventory_coverage_months"])),
       history_completeness: finiteNumber(caseRecord.history_completeness ?? evidenceMetric(caseRecord, ["completeness", "history_completeness"])),
       history_coverage_months: finiteNumber(caseRecord.history_coverage_months ?? evidenceMetric(caseRecord, ["history_coverage_months"])),
-      has_linked_action: linkedMaterials.has(materialId)
+      has_linked_action: caseHasLinkedAction(caseRecord, context)
     };
   }
 
@@ -291,6 +363,10 @@
     return cases.reduce((total, item) => total + (finiteNumber(item.inventory_exposure_value) || 0), 0);
   }
 
+  function availableExposureCases(cases = []) {
+    return cases.filter(item => !item.inventory_exposure_missing);
+  }
+
   function conditionSummary(cases = []) {
     return CONDITION_CODES.map(code => {
       const rows = cases.filter(item => item.condition_code === code);
@@ -298,6 +374,9 @@
         code,
         count: rows.length,
         inventoryExposureValue: sumExposure(rows),
+        inventoryExposureAvailableValue: sumExposure(rows),
+        inventoryExposureAvailableCaseCount: availableExposureCases(rows).length,
+        inventoryExposureUnavailableCaseCount: rows.filter(item => item.inventory_exposure_missing).length,
         missingExposureCount: rows.filter(item => item.inventory_exposure_missing).length
       };
     });
@@ -314,6 +393,9 @@
     return {
       caseCount: cases.length,
       inventoryExposureValue: sumExposure(cases),
+      inventoryExposureAvailableValue: sumExposure(cases),
+      inventoryExposureAvailableCaseCount: availableExposureCases(cases).length,
+      inventoryExposureUnavailableCaseCount: cases.filter(item => item.inventory_exposure_missing).length,
       missingExposureCount: cases.filter(item => item.inventory_exposure_missing).length,
       conditionSummary: conditionSummary(cases),
       primaryItems: groups.map(group => {
@@ -323,6 +405,9 @@
           conditions: [...group.conditions],
           count: rows.length,
           inventoryExposureValue: sumExposure(rows),
+          inventoryExposureAvailableValue: sumExposure(rows),
+          inventoryExposureAvailableCaseCount: availableExposureCases(rows).length,
+          inventoryExposureUnavailableCaseCount: rows.filter(item => item.inventory_exposure_missing).length,
           missingExposureCount: rows.filter(item => item.inventory_exposure_missing).length
         };
       })
@@ -379,9 +464,10 @@
 
   function createSlowDeadPageModel(input = {}) {
     const runtimeState = cloneData(input.runtimeState || {});
-    const linkedMaterials = linkedActionMaterialSet(input);
-    const allCases = deduplicateCases(runtimeCases(runtimeState))
-      .map(caseRecord => createCaseView(caseRecord, { linkedActionMaterials: linkedMaterials }))
+    const caseRecords = deduplicateCases(runtimeCases(runtimeState));
+    const linkedActionContext = createLinkedActionContext(input, caseRecords);
+    const allCases = caseRecords
+      .map(caseRecord => createCaseView(caseRecord, linkedActionContext))
       .sort(defaultCompare);
     const filters = normalizeFilters(input.filters || {});
     const sort = normalizeSort(input.sort || {});

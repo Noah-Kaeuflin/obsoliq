@@ -140,7 +140,9 @@ The View renders Runtime state, Portfolio Summary, controlled Condition chips, W
 
 The Controller is scoped to `#slowDeadPage`. Search, filters, sorting, pagination, language, theme, currency, selected Case changes, Inventory navigation, Actions navigation and export-dialog opening do not rebuild Slow / Dead Cases and do not create Package revisions.
 
-The Slow / Dead export uses one row per Recovery Case, includes evidence and provenance, preserves text identities such as leading-zero material numbers and reuses the existing spreadsheet/CSV download path. Inventory Exposure remains exposure only; it is not Recovery Potential, cash release, P&L effect, Expected Recovery Value or realized value.
+Slow / Dead -> Inventory and Slow / Dead -> Actions navigation is entity-exact. `app.js` resolves targets by row key, entity key and Material/Plant identity, then uses temporary reveal state only to display a hidden target. Reveal state is consumed by the target view render, does not mutate persistent filters and does not change Summary or Export scope.
+
+The Slow / Dead Recovery Case Service keeps Inventory Exposure nullable, projects operational Owner Context into Cases and exposes available/unavailable exposure summary counts. The Slow / Dead export uses one row per Recovery Case, includes evidence and provenance, preserves text identities such as leading-zero material numbers and reuses the existing spreadsheet/CSV download path. Inventory Exposure remains exposure only; it is exported separately from Currency and is not Recovery Potential, cash release, P&L effect, Expected Recovery Value or realized value.
 
 AP 16.4d.2 does not change Condition rules, thresholds, precedence, Historical Metrics formulas, Recovery, Data Quality, existing Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry or Package revisions.
 

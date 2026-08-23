@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-23 - AP 16.4d.2.1:
+Entity-Exact Navigation, Case Contract & Final Acceptance Closure
+
+### Fixed
+
+- Replaced material-only Slow / Dead -> Inventory navigation with entity-exact target resolution by `inventory_row_keys`, `inventory_entity_key`, exact `material_id + plant` and unique material fallback only.
+- Replaced material-set Action linking with identity-safe linked Action targets so one plant does not mark another plant of the same material as linked.
+- Added temporary reveal state for Inventory and Actions navigation that makes hidden targets visible without changing Summary or Export scope.
+- Preserved nullable Inventory Exposure: missing or invalid `stock_value` remains unavailable, while actual numeric zero remains `0`.
+- Added available/unavailable Inventory Exposure summary counts to the Slow / Dead Page Model and Service summaries.
+- Projected operational Owner Context fields into Slow / Dead Recovery Cases without changing Condition, Evidence, Action status or workflow assignment logic.
+- Removed the hard-coded `(EUR)` suffix from the Slow / Dead Inventory Exposure export label and kept Currency as a separate export column.
+- Added structured tests for entity-exact navigation, same-material/multi-plant Action linking, nullable exposure, Owner Context projection, export owner/currency fields and non-mutating reveal behavior.
+
+### Preserved
+
+- Slow / Dead thresholds, Condition precedence, Evidence Strength, Condition Confidence, Root-Cause candidates and Action Eligibility logic.
+- Historical Metrics formulas and Runtime build boundaries.
+- Recovery, Data Quality, existing Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry semantics and Package revisions.
+- Upload, parsing, sample data and existing Inventory/Action export behavior.
+- Local `file://` browser MVP behavior.
+
+### Known Limitations
+
+- Slow / Dead thresholds remain uncalibrated MVP hypotheses.
+- Slow / Dead Action Eligibility is pre-decisional and not workflow execution or approval.
+- No persistent Slow / Dead review workflow, SAP integration, database, authentication, Expected Recovery Value, financial Recognition or realized cash/P&L tracking.
+
 ## 2026-08-23 - AP 16.4d.2:
 Slow / Dead Recovery Case Page
 

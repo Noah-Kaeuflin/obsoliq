@@ -28,6 +28,8 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - entity-authoritative Slow / Dead Recovery Case Candidates
 - explicit session-only Slow / Dead Recovery Case Runtime
 - visible Slow / Dead Recovery Case Workbench
+- entity-exact Slow / Dead navigation to Inventory and linked Actions
+- nullable Slow / Dead Inventory Exposure with unavailable-state presentation
 - dedicated Slow / Dead Recovery Case export
 - Input Trust
 - Data Quality and Remediation
@@ -126,6 +128,7 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - historical metrics remain outside authoritative Inventory rows and do not change Recovery, Actions or Data Quality
 - Slow / Dead Condition & Evidence Engine and entity-authoritative Recovery Case Candidates exist
 - Slow / Dead Recovery Case Workbench is visible and consumes the derived Slow / Dead Runtime
+- Slow / Dead Inventory/Action navigation uses temporary reveal state instead of persistent analytical filter mutation
 - Slow / Dead export is available for current Recovery Cases
 - Slow / Dead thresholds are not yet pilot-calibrated
 - no final Slow / Dead Action recommendation or workflow approval exists

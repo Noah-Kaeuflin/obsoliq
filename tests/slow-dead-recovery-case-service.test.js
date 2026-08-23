@@ -151,6 +151,42 @@
     assert.ok(Boolean(caseRecord.case_fingerprint), "Case fingerprint should be deterministic and present");
   });
 
+  test("AP 16.4d.2.1 Recovery Case Service preserves nullable exposure and Owner Context", async assert => {
+    const app = await helpers.loadProductionApp();
+    const engine = app.ObsoliQ.slowDead.conditionEngine.createSlowDeadConditionEngine();
+    const service = app.ObsoliQ.application.slowDeadRecoveryCaseService.createSlowDeadRecoveryCaseService({ conditionEngine: engine });
+    const missingInput = runtimeFixture({ entityCount: 1 });
+    const entityKey = Object.keys(missingInput.relationshipResult.inventoryEntitiesByKey)[0];
+    missingInput.inventoryRows.forEach(row => {
+      row.stock_value = "";
+      row.mrp_controller = "MRP-17";
+    });
+    missingInput.ownerContextByInventoryEntityKey = {
+      [entityKey]: {
+        owner_function: "Material Planning",
+        owner_reference: "MRP-17",
+        owner_reference_field: "mrp_controller",
+        owner_source: "inventory",
+        owner_assignment_confidence: "High"
+      }
+    };
+    const missingResult = service.buildSlowDeadRecoveryCases(missingInput);
+    const zeroInput = runtimeFixture({ datasetId: "DS-SD-ZERO", entityCount: 1 });
+    zeroInput.inventoryRows.forEach(row => {
+      row.stock_value = 0;
+    });
+    const zeroResult = service.buildSlowDeadRecoveryCases(zeroInput);
+
+    assert.equal(missingResult.cases[0].stock_value, null, "Missing stock value should remain nullable on the Case contract");
+    assert.equal(missingResult.summary.inventoryExposureAvailableCaseCount, 0, "Missing exposure should not count as available");
+    assert.equal(missingResult.summary.inventoryExposureUnavailableCaseCount, 1, "Missing exposure should count as unavailable");
+    assert.equal(missingResult.cases[0].owner_function, "Material Planning", "Owner Function should be projected into the Case");
+    assert.equal(missingResult.cases[0].owner_reference, "MRP-17", "Owner reference should be projected into the Case");
+    assert.equal(missingResult.cases[0].owner_source, "inventory", "Owner source should stay transparent context");
+    assert.equal(zeroResult.cases[0].stock_value, 0, "Actual calculated zero should remain zero");
+    assert.equal(zeroResult.summary.inventoryExposureAvailableCaseCount, 1, "Actual zero should count as available numeric exposure");
+  });
+
   test("AP 16.4d.1 Recovery Case Service scales to 10k entity-level evaluations", async assert => {
     const app = await helpers.loadProductionApp();
     const engine = app.ObsoliQ.slowDead.conditionEngine.createSlowDeadConditionEngine();

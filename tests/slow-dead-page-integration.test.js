@@ -69,7 +69,7 @@
     assert.equal(counters.buildCount, 0, "Search, sort, pagination and render should not rebuild Slow / Dead Cases");
   });
 
-  test("AP 16.4d.2 Case navigation filters Inventory Explorer without mutating Actions", async assert => {
+  test("AP 16.4d.2.1 Case navigation reveals exact Inventory entity without mutating filters or Actions", async assert => {
     const app = await helpers.loadSampleApp();
     const bridge = app.__obsoliqTestBridge;
     const row = bridge.getEnrichedRowsForTest().find(item => item.material_id && item.plant) || bridge.getEnrichedRowsForTest()[0];
@@ -100,11 +100,32 @@
       assert.ok(true, "No Case navigation button exists when runtime is unavailable");
       return;
     }
+    app.document.getElementById("searchInput").value = "NO-SUCH-MATERIAL";
     inventoryButton.click();
     const afterActions = actionSignature();
 
     assert.equal(bridge.getState().currentView, "inventory", "Inventory navigation should open Inventory Explorer");
-    assert.equal(app.document.getElementById("searchInput").value, selectedMaterial, "Inventory navigation should filter by exact material identity");
+    assert.equal(app.document.getElementById("searchInput").value, "NO-SUCH-MATERIAL", "Inventory reveal should not mutate persistent analytical filters");
+    assert.ok(app.document.getElementById("inventoryTable").textContent.includes(selectedMaterial), "Exact target should be visible even when existing filters would hide it");
     assert.equal(afterActions, beforeActions, "Inventory navigation should not create or mutate Action rows");
+  });
+
+  test("AP 16.4d.2.1 Slow / Dead target matching is entity-exact for same material in two plants", async assert => {
+    const app = await helpers.loadSampleApp();
+    const bridge = app.__obsoliqTestBridge;
+    const rows = [
+      { inventory_row_key: "INV-MAT-X-P1", material_id: "MAT-X", plant: "P1", profit_center: "PC-A", row_number: 1 },
+      { inventory_row_key: "INV-MAT-X-P2", material_id: "MAT-X", plant: "P2", profit_center: "PC-B", row_number: 2 }
+    ];
+    const target = {
+      inventory_row_keys: ["INV-MAT-X-P1"],
+      inventory_entity_key: "material:MAT-X|plant:P1",
+      material_id: "MAT-X",
+      plant: "P1"
+    };
+    const matches = bridge.slowDeadRowsMatchingTargetForTest(rows, target);
+
+    assert.equal(matches.length, 1, "Exact target matching should return one entity");
+    assert.equal(matches[0].inventory_row_key, "INV-MAT-X-P1", "Target matching should not fan out to the second plant");
   });
 })();

@@ -2109,6 +2109,11 @@ body.data-foundation-modal-open {
   box-shadow: var(--shadow-xs);
 }
 
+.inventory-reveal-target td {
+  background: rgba(25, 113, 245, 0.08);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
 .overview-top-list-panel {
   padding: 14px 16px 16px;
 }

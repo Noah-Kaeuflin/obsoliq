@@ -23,14 +23,17 @@
     }
 
     function displayMoney(value, compact = false) {
+      if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return t("notAvailable");
       return Number.isFinite(Number(value)) ? (compact ? formatCompactMoney(value) : formatMoney(value)) : t("notAvailable");
     }
 
     function displayQuantity(value, unit = "") {
+      if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return t("notAvailable");
       return Number.isFinite(Number(value)) ? `${formatNumber(value)} ${unit || ""}`.trim() : t("notAvailable");
     }
 
     function displayPercent(value) {
+      if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return t("notAvailable");
       if (!Number.isFinite(Number(value))) return t("notAvailable");
       return `${formatNumber(Number(value) * 100, { maximumFractionDigits: 0 })} %`;
     }

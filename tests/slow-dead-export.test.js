@@ -14,6 +14,9 @@
       program: `PRG-${index}`,
       owner_function: "Supply Chain",
       owner_reference: "Planner A",
+      owner_reference_field: "mrp_controller",
+      owner_source: "inventory",
+      owner_assignment_confidence: "High",
       condition_code: index === 1 ? "dead_stock_candidate" : "slow_moving_candidate",
       evidence_strength: "high",
       condition_confidence: "high",
@@ -68,7 +71,7 @@
   test("AP 16.4d.2 Export builder writes one deterministic row per Recovery Case with provenance", async assert => {
     const app = await helpers.loadProductionApp();
     const builder = app.ObsoliQ.slowDead.exportBuilder;
-    const cases = [caseRecord(1), caseRecord(2, { stock_value: 0 })];
+    const cases = [caseRecord(1), caseRecord(2, { stock_value: null })];
     const exportData = builder.buildSlowDeadExportRows({
       cases,
       conditionLabel: code => `Label:${code}`
@@ -78,6 +81,9 @@
     assert.equal(exportData.rows[0][columnIndex(exportData, "material_id")], "00001", "Material IDs with leading zeros should remain text identities");
     assert.equal(exportData.rows[0][columnIndex(exportData, "condition_label")], "Label:dead_stock_candidate", "Condition label should be supplied by presentation");
     assert.equal(exportData.rows[1][columnIndex(exportData, "inventory_exposure_value")], "", "Missing exposure should stay unavailable, not false zero");
+    assert.equal(exportData.columns.includes("currency"), true, "Export should keep currency as a separate column");
+    assert.equal(exportData.columns.includes("owner_source"), true, "Export should include Owner Context source");
+    assert.equal(exportData.rows[0][columnIndex(exportData, "owner_source")], "inventory", "Owner Context source should be exported");
     assert.ok(String(exportData.rows[0][columnIndex(exportData, "positive_evidence")]).includes("dead_stock_evidence"), "Positive evidence should be serialized");
     assert.ok(String(exportData.rows[0][columnIndex(exportData, "action_eligibility")]).includes("DISPOSAL_REVIEW"), "Action eligibility should be serialized");
     assert.equal(exportData.rows[0][columnIndex(exportData, "condition_model_version")], "slow-dead-condition-v1", "Condition model provenance should be exported");

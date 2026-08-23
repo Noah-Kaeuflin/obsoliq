@@ -27,8 +27,26 @@
     return Number.isFinite(number) ? number : null;
   }
 
+  function nullableNumber(value) {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string" && !normalizeText(value)) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
   function sumNumbers(rows = [], key) {
     return rows.reduce((total, row) => total + (finiteNumber(row?.[key]) || 0), 0);
+  }
+
+  function sumNullableNumbers(rows = [], key) {
+    let hasNumericValue = false;
+    const total = rows.reduce((sum, row) => {
+      const number = nullableNumber(row?.[key]);
+      if (number === null) return sum;
+      hasNumericValue = true;
+      return sum + number;
+    }, 0);
+    return hasNumericValue ? total : null;
   }
 
   function firstMeaningful(rows = [], keys = []) {
@@ -141,7 +159,7 @@
       program: firstMeaningful(rows, ["program", "group", "material_group"]),
       stock_quantity: stockQuantity !== null ? stockQuantity : sumNumbers(rows, "stock_quantity"),
       stock_unit: entity.inventoryUnit || firstMeaningful(rows, ["base_unit", "inventory_unit", "stock_unit"]),
-      stock_value: sumNumbers(rows, "stock_value"),
+      stock_value: sumNullableNumbers(rows, "stock_value"),
       currency: firstMeaningful(rows, ["currency", "currency_code"]) || "EUR",
       excess_value: sumNumbers(rows, "excess_value"),
       no_need_value: sumNumbers(rows, "no_need_value"),
@@ -196,6 +214,17 @@
     return cloneData(input.ownerContextByInventoryEntityKey?.[entity.inventoryEntityKey] || {});
   }
 
+  function normalizeOwnerContext(ownerContext = {}) {
+    const source = normalizeText(ownerContext.owner_source || "none") || "none";
+    return {
+      owner_function: normalizeText(ownerContext.owner_function),
+      owner_reference: normalizeText(ownerContext.owner_reference),
+      owner_reference_field: normalizeText(ownerContext.owner_reference_field),
+      owner_source: ["inventory", "material_master", "none"].includes(source) ? source : "none",
+      owner_assignment_confidence: normalizeText(ownerContext.owner_assignment_confidence) || "Low"
+    };
+  }
+
   function conditionInputFor(entity = {}, input = {}, runtime = {}, relationshipResult = {}, rowsByKey = new Map()) {
     const rows = rowsForEntity(entity, rowsByKey);
     const evidence = inventoryEvidenceFor(entity, rows);
@@ -222,6 +251,7 @@
 
   function caseForCondition(entity = {}, conditionInput = {}, conditionResult = {}, input = {}, runtime = {}, relationshipResult = {}) {
     const inventoryEvidence = conditionInput.inventoryEvidence || {};
+    const ownerContext = normalizeOwnerContext(conditionInput.ownerContext || {});
     const inventoryPackage = packageIdentity(input.inventoryPackage || {});
     const historyPackage = packageIdentity(input.historyPackage || {});
     const datasetId = inventoryPackage.datasetId || input.datasetId || "dataset";
@@ -250,9 +280,14 @@
       plant: inventoryEvidence.plant || entity.plant || "",
       profit_center: inventoryEvidence.profit_center || "",
       program: inventoryEvidence.program || "",
+      owner_function: ownerContext.owner_function || "",
+      owner_reference: ownerContext.owner_reference || "",
+      owner_reference_field: ownerContext.owner_reference_field || "",
+      owner_source: ownerContext.owner_source || "none",
+      owner_assignment_confidence: ownerContext.owner_assignment_confidence || "Low",
       stock_quantity: finiteNumber(inventoryEvidence.stock_quantity),
       stock_unit: inventoryEvidence.stock_unit || "",
-      stock_value: finiteNumber(inventoryEvidence.stock_value) || 0,
+      stock_value: nullableNumber(inventoryEvidence.stock_value),
       currency: inventoryEvidence.currency || "EUR",
       recovery_potential_input: finiteNumber(inventoryEvidence.recovery_potential) || 0,
       positive_evidence: cloneData(conditionResult.positive_evidence || []),
@@ -301,7 +336,7 @@
       confidenceCounts[item.condition_confidence] = (confidenceCounts[item.condition_confidence] || 0) + 1;
       const eligibility = item.recovery_case_eligibility?.eligibility || "unknown";
       eligibilityCounts[eligibility] = (eligibilityCounts[eligibility] || 0) + 1;
-      stockValueByCondition[item.condition_code] = (stockValueByCondition[item.condition_code] || 0) + (finiteNumber(item.stock_value) || 0);
+      stockValueByCondition[item.condition_code] = (stockValueByCondition[item.condition_code] || 0) + (nullableNumber(item.stock_value) ?? 0);
       const quantityKey = `${item.condition_code}|${item.stock_unit || ""}`;
       quantityByConditionAndUnit[quantityKey] = (quantityByConditionAndUnit[quantityKey] || 0) + (finiteNumber(item.stock_quantity) || 0);
     });
@@ -313,6 +348,9 @@
       confidenceCounts,
       eligibilityCounts,
       stockValueByCondition,
+      inventoryExposureAvailableValue: cases.reduce((total, item) => total + (nullableNumber(item.stock_value) ?? 0), 0),
+      inventoryExposureAvailableCaseCount: cases.filter(item => nullableNumber(item.stock_value) !== null).length,
+      inventoryExposureUnavailableCaseCount: cases.filter(item => nullableNumber(item.stock_value) === null).length,
       quantityByConditionAndUnit
     };
   }
@@ -372,7 +410,7 @@
       let evaluatedEntityCount = 0;
       entities.forEach(entity => {
         const conditionInput = conditionInputFor(entity, input, runtime, relationshipResult, rowsByKey);
-        const stockValue = finiteNumber(conditionInput.inventoryEvidence.stock_value);
+        const stockValue = nullableNumber(conditionInput.inventoryEvidence.stock_value);
         const stockQuantity = finiteNumber(conditionInput.inventoryEvidence.stock_quantity);
         if (!(stockValue > 0 || stockQuantity > 0)) return;
         evaluatedEntityCount += 1;
