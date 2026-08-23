@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-08-23 - AP 16.4d.2:
+Slow / Dead Recovery Case Page
+
+### Added
+
+- Replaced the Slow / Dead placeholder with a dedicated Recovery Case Workbench.
+- Added `js/slow-dead/slow-dead-page-model.js` for page-only filters, sorting, pagination, selected Case identity and summaries.
+- Added `js/slow-dead/slow-dead-export-builder.js` for deterministic Slow / Dead Recovery Case export rows.
+- Added `js/application/slow-dead-page-view.js` for Runtime-state, Worklist, detail, evidence, eligibility and provenance rendering.
+- Added `js/application/slow-dead-page-controller.js` for scoped Slow / Dead interactions.
+- Added a dedicated `#view-slow-dead` page root and route wiring for `slow-dead-stock`.
+- Added a truthful Runtime-state banner for not-calculated, calculating, available, limited, unavailable and error states.
+- Added Portfolio Summary, Condition chips, Worklist search, filters, deterministic sorting and pagination.
+- Added selected Case Detail with Positive Evidence, Counter Evidence, limitations, missing evidence and stronger-conclusion explanations.
+- Added Root-Cause hypotheses, Recovery Case Eligibility, pre-decisional Action Eligibility and required Data Packages.
+- Added exact Inventory Explorer navigation and controlled non-mutating Actions navigation.
+- Added dedicated Slow / Dead export through the existing local Excel/CSV download path.
+- Added structured tests for page model, View/Controller, export and route/presentation isolation.
+
+### Preserved
+
+- Slow / Dead Condition rules, thresholds, precedence, Evidence Strength, Condition Confidence, Root-Cause and Action Eligibility logic.
+- Historical Metrics formulas, runtime signatures and dependency isolation.
+- Inventory KPIs, Recovery, Data Quality, current Actions, Excess, Opportunity Scores, scenarios and Pilot Reviews.
+- Package Registry identity, Package revisions and existing export variants.
+- Local `file://` browser MVP behavior.
+
+### Known Limitations
+
+- thresholds remain uncalibrated MVP hypotheses.
+- no AP 16.4d.3 Pilot Calibration yet.
+- no final Action recommendation, approval or execution.
+- no Expected Recovery Value, financial Recognition, realized value or P&L effect.
+- no persistent Case review, multi-user workflow, SAP integration, database or authentication.
+- no Predictive Analytics.
+
 ## 2026-08-23 - AP 16.4d.1.1:
 Slow / Dead Runtime Boundary & Final Acceptance Closure
 

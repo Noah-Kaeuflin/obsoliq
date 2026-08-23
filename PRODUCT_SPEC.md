@@ -76,6 +76,22 @@ The existing text-based Action Cockpit `slow_dead` logic remains unchanged for c
 
 Recommended Next Work Block: AP 16.4d.2 — Slow / Dead Recovery Case Page. Then AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
 
+### AP 16.4d.2 — Slow / Dead Recovery Case Page
+
+AP 16.4d.2 turns the accepted Slow / Dead Runtime into a visible Recovery Case Workbench. The page replaces the former placeholder in the Slow / Dead Stock tab and consumes the authoritative path: Historical Metrics Runtime -> Slow / Dead Runtime State -> Slow / Dead Recovery Case Service -> entity-authoritative Recovery Cases.
+
+The page shows a dedicated header, truthful Runtime-state banner, compact Portfolio Summary, controlled Condition filters, searchable/filterable Worklist, deterministic sorting and pagination, selected Case detail, positive and counter evidence, limitations, missing evidence, stronger-conclusion explanations, Root-Cause hypotheses, Recovery Case Eligibility, pre-decisional Action Eligibility, required Data Packages and Package/model provenance.
+
+Inventory Exposure is shown as exposure only. It is not labelled or treated as Recovery Potential, Expected Recovery Value, cash release, working-capital release, P&L effect, recognized value or realized value. Missing exposure remains unavailable rather than false zero. Dead-Stock Candidate remains a candidate, not disposal, scrapping or write-down approval.
+
+The page supports exact Inventory Explorer navigation by material identity and controlled navigation to existing Actions when a linked action exists. Navigation does not create Action rows, mutate Action status or write Registry Packages.
+
+A dedicated Slow / Dead export writes one row per Recovery Case with evidence and provenance. It reuses the existing local Excel-compatible and CSV-for-Google-Sheets export path and preserves text identifiers such as leading-zero material numbers.
+
+AP 16.4d.2 is presentation and export enablement only. It does not change Condition thresholds, Condition precedence, Historical Metrics formulas, Recovery, Data Quality, current Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry state, Package revisions, SAP integration, persistence or financial Recognition.
+
+Recommended Next Work Block: AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
+
 ### DF-UX-02 — Capability-Oriented Data Foundation
 
 The Data Foundation remains a product capability surface, not a technical Package-status widget. Its collapsed summary now communicates direct source and capability states only: Inventory Data drives active Inventory Analysis, Material Master unlocks Context Enrichment and Consumption History unlocks Historical Analysis.

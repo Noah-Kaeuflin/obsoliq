@@ -23,8 +23,12 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/consumption-history-aggregation-engine.js` owns semantic-row-only rolling windows, monthly buckets, exclusions, historical metrics and metric provenance.
 - `js/application/historical-metrics-runtime-coordinator.js` owns Historical Metrics runtime scheduling, signature deduplication, explicit states, retry, stale-result rejection and state notifications.
 - `js/slow-dead/slow-dead-condition-engine.js` owns Slow / Dead condition policy, evidence, confidence, root-cause candidates and Action Eligibility.
+- `js/slow-dead/slow-dead-page-model.js` owns Slow / Dead page-only filtering, sorting, pagination, selected Case identity and display summaries.
+- `js/slow-dead/slow-dead-export-builder.js` owns deterministic Slow / Dead Recovery Case export rows and provenance serialization.
 - `js/application/slow-dead-recovery-case-service.js` owns entity-authoritative Slow / Dead Recovery Case Candidate construction and summaries.
 - `js/application/slow-dead-runtime-state.js` owns the explicit Slow / Dead Recovery Case Runtime state shape and Historical dependency mapping.
+- `js/application/slow-dead-page-view.js` owns the Slow / Dead Recovery Case Workbench markup.
+- `js/application/slow-dead-page-controller.js` owns scoped Slow / Dead page interactions.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -123,6 +127,22 @@ The Slow / Dead Runtime Adapter owns dependency-state mapping, current input-sig
 A Slow / Dead error cannot mutate Historical Runtime and cannot prevent the accepted Historical Metrics/Data Foundation presentation from updating. Historical dependency errors are represented with `errorSource: "historical_runtime"`, while Slow / Dead Service exceptions are represented with `errorSource: "slow_dead_runtime"`. Calculating, unavailable and error states do not retain stale Case results from another signature.
 
 The existing text-based Action Cockpit `slow_dead` signal may continue to support current Actions, but it is not Condition truth and is not Action Eligibility truth for the Slow / Dead Recovery Case Runtime. AP 16.4d.2 must consume the Recovery Case Runtime -> Condition & Evidence Engine result -> Action Eligibility path.
+
+## AP 16.4d.2 Slow / Dead Recovery Case Page
+
+The AP 16.4d.2 presentation flow is:
+
+Historical Metrics Runtime -> Slow / Dead Runtime State -> Slow / Dead Recovery Case Service -> entity-authoritative Recovery Cases -> Page Model -> View / Controller -> local export.
+
+The Page Model consumes an already completed or unavailable Runtime state. It may deduplicate Cases by Inventory entity, normalize page filters, build filter options, sort, paginate and preserve selected Case identity. It does not build Cases, classify Conditions, calculate Evidence Strength, calculate Condition Confidence, create Root-Cause candidates, calculate Action Eligibility or access the DOM.
+
+The View renders Runtime state, Portfolio Summary, controlled Condition chips, Worklist, mobile Case cards, selected Case detail, positive evidence, counter evidence, limitations, missing evidence, stronger-conclusion boundaries, Root-Cause hypotheses, Recovery Case Eligibility, pre-decisional Action Eligibility, required Data Packages and provenance. It is presentation-only and must not call the Slow / Dead Service.
+
+The Controller is scoped to `#slowDeadPage`. Search, filters, sorting, pagination, language, theme, currency, selected Case changes, Inventory navigation, Actions navigation and export-dialog opening do not rebuild Slow / Dead Cases and do not create Package revisions.
+
+The Slow / Dead export uses one row per Recovery Case, includes evidence and provenance, preserves text identities such as leading-zero material numbers and reuses the existing spreadsheet/CSV download path. Inventory Exposure remains exposure only; it is not Recovery Potential, cash release, P&L effect, Expected Recovery Value or realized value.
+
+AP 16.4d.2 does not change Condition rules, thresholds, precedence, Historical Metrics formulas, Recovery, Data Quality, existing Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry or Package revisions.
 
 ## DF-UX-02 Capability-Oriented Data Foundation Presentation
 

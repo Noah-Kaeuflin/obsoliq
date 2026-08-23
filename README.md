@@ -27,6 +27,8 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - Slow / Dead Condition & Evidence Engine
 - entity-authoritative Slow / Dead Recovery Case Candidates
 - explicit session-only Slow / Dead Recovery Case Runtime
+- visible Slow / Dead Recovery Case Workbench
+- dedicated Slow / Dead Recovery Case export
 - Input Trust
 - Data Quality and Remediation
 - Recovery calculation
@@ -75,7 +77,7 @@ inventory-recovery-mvp/
 
 - `prototype.html` is the local browser entry point.
 - `app.js` contains the current application orchestration.
-- `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence, Slow / Dead evidence and Pilot Review.
+- `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence, Slow / Dead evidence, Slow / Dead page presentation and Pilot Review.
 - `tests/` contains the file-based structured test package.
 - `assets/` contains local UI assets.
 - `data/` is reserved for anonymized sample or test fixtures only.
@@ -123,7 +125,8 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - Historical Metrics calculation is lifecycle-triggered and separated from rendering, filters, settings and export-dialog presentation
 - historical metrics remain outside authoritative Inventory rows and do not change Recovery, Actions or Data Quality
 - Slow / Dead Condition & Evidence Engine and entity-authoritative Recovery Case Candidates exist
-- no visible Slow / Dead Recovery Case page yet
+- Slow / Dead Recovery Case Workbench is visible and consumes the derived Slow / Dead Runtime
+- Slow / Dead export is available for current Recovery Cases
 - Slow / Dead thresholds are not yet pilot-calibrated
 - no final Slow / Dead Action recommendation or workflow approval exists
 - no financial Recognition, Execution Workflow, Expected Recovery Value or realized cash/P&L effect exists

@@ -74,14 +74,16 @@
     assert.ok(Boolean(slowDeadAfter.result), "Forced derived runtime rebuild should return a result");
   });
 
-  test("AP 16.4d.1 Slow / Dead navigation remains the existing placeholder", async assert => {
+  test("AP 16.4d.2 Slow / Dead navigation now opens the dedicated Recovery Case page", async assert => {
     const app = await helpers.loadSampleApp();
     const button = app.document.querySelector('[data-process="slow-dead-stock"]');
     button.click();
-    const placeholderText = app.document.getElementById("placeholderPage")?.textContent || "";
-    const workspaceVisible = !app.document.getElementById("overviewWorkspace")?.classList.contains("hidden");
+    const pageText = app.document.getElementById("slowDeadPage")?.textContent || "";
+    const placeholderActive = app.document.getElementById("placeholderPage")?.classList.contains("active");
+    const slowDeadActive = app.document.getElementById("view-slow-dead")?.classList.contains("active");
 
-    assert.ok(/In Bearbeitung|being built|aufgebaut/i.test(placeholderText), "Slow / Dead route should remain a placeholder");
-    assert.equal(workspaceVisible, false, "No visible Slow / Dead page should be added in this block");
+    assert.ok(/Slow-\/Dead-Recovery-Cases|Slow \/ Dead Recovery Cases/i.test(pageText), "Slow / Dead route should render the dedicated Recovery Case page");
+    assert.equal(slowDeadActive, true, "Dedicated Slow / Dead view should be active");
+    assert.equal(placeholderActive, false, "Slow / Dead route should no longer activate the generic placeholder");
   });
 })();

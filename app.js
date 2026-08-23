@@ -97,11 +97,23 @@ if (!ObsoliQModules.application?.historicalMetricsRuntimeCoordinator) {
 if (!ObsoliQModules.slowDead?.conditionEngine) {
   throw new Error("ObsoliQ Slow / Dead Condition Engine failed to load.");
 }
+if (!ObsoliQModules.slowDead?.pageModel) {
+  throw new Error("ObsoliQ Slow / Dead Page Model failed to load.");
+}
+if (!ObsoliQModules.slowDead?.exportBuilder) {
+  throw new Error("ObsoliQ Slow / Dead Export Builder failed to load.");
+}
 if (!ObsoliQModules.application?.slowDeadRecoveryCaseService) {
   throw new Error("ObsoliQ Slow / Dead Recovery Case Service failed to load.");
 }
 if (!ObsoliQModules.application?.slowDeadRuntimeState) {
   throw new Error("ObsoliQ Slow / Dead Runtime State module failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadPageView) {
+  throw new Error("ObsoliQ Slow / Dead Page View failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadPageController) {
+  throw new Error("ObsoliQ Slow / Dead Page Controller failed to load.");
 }
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
@@ -225,11 +237,16 @@ const slowDeadRecoveryCaseService = ObsoliQModules.application.slowDeadRecoveryC
   conditionEngine: ObsoliQModules.slowDead.conditionEngine.createSlowDeadConditionEngine()
 });
 const slowDeadRuntimeState = ObsoliQModules.application.slowDeadRuntimeState;
+const slowDeadPageModelModule = ObsoliQModules.slowDead.pageModel;
+const slowDeadExportBuilder = ObsoliQModules.slowDead.exportBuilder;
 let slowDeadRecoveryCaseBuildCount = 0;
 let slowDeadRecoveryCaseFailedBuildCount = 0;
 let slowDeadRecoveryCaseDependencyNoBuildCount = 0;
 let slowDeadRecoveryCaseBuildLog = [];
 let slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState();
+let slowDeadPageView = null;
+let slowDeadPageController = null;
+let currentSlowDeadPageModel = null;
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -553,6 +570,87 @@ const translations = {
     dataQualitySubtitle: "Datenprobleme erkennen, priorisieren und kontrolliert bereinigen.",
     actionsTitle: "Maßnahmen",
     actionsSubtitle: "Priorisierte Recovery-Maßnahmen mit Ursache, nächstem Schritt, Verantwortlichkeit, Priorität und Status.",
+    slowDeadPageTitle: "Slow-/Dead-Recovery-Cases",
+    slowDeadPageSubtitle: "Entity-basierte Workbench für historische Verbrauchsevidenz, Condition, Hypothesen und vorentscheidende Action Eligibility.",
+    slowDeadRuntimeTitle: "Slow-/Dead-Runtime",
+    slowDeadRuntime_available: "Cases verfügbar",
+    slowDeadRuntime_limited: "Cases eingeschränkt",
+    slowDeadRuntime_unavailable: "Nicht verfügbar",
+    slowDeadRuntime_not_calculated: "Nicht berechnet",
+    slowDeadRuntime_calculating: "Berechnung läuft",
+    slowDeadRuntime_error: "Fehler",
+    slowDeadRuntimeBody_available: "Die Recovery Cases basieren auf der aktuellen Historical-Metrics-Runtime.",
+    slowDeadRuntimeBody_limited: "Die Workbench ist verfügbar, enthält aber Einschränkungen oder Cases mit geringer Evidenz.",
+    slowDeadRuntimeBody_unavailable: "Für Slow-/Dead-Cases fehlen aktuell belastbare Historical Metrics oder die passende Verbrauchshistorie.",
+    slowDeadRuntimeBody_not_calculated: "Slow-/Dead-Cases wurden für diese Datenbasis noch nicht berechnet.",
+    slowDeadRuntimeBody_calculating: "Historical Metrics oder Slow-/Dead-Cases werden gerade aufgebaut. Es werden keine alten Cases angezeigt.",
+    slowDeadRuntimeBody_error: "Die Slow-/Dead-Runtime ist in einen Fehlerzustand gelaufen. Historical Metrics bleiben davon getrennt.",
+    slowDeadRuntimeBuildCount: "Builds",
+    slowDeadEvaluatedAt: "Ausgewertet",
+    slowDeadImportHistory: "Verbrauchshistorie importieren",
+    slowDeadPortfolioSummary: "Portfolio Summary",
+    slowDeadPortfolioSummaryDesc: "Case-Zählung und Inventory Exposure je Condition ohne doppelte Inventarzeilen.",
+    slowDeadTotalCases: "Cases gesamt",
+    slowDeadSummary_slow_moving_candidate: "Slow-Moving",
+    slowDeadSummary_non_moving_candidate: "Non-Moving",
+    slowDeadSummary_dead_stock_candidate: "Dead-Stock-Kandidat",
+    slowDeadSummary_protected_monitor: "Geschützt / Monitor",
+    slowDeadSummary_insufficient_evidence: "Unzureichende Evidenz",
+    slowDeadConditionFilters: "Condition-Filter",
+    slowDeadSearchPlaceholder: "Case, Material, Werk oder Zeilenschlüssel suchen …",
+    slowDeadEvidenceStrength: "Evidenzstärke",
+    slowDeadConditionConfidence: "Condition Confidence",
+    slowDeadRecoveryEligibility: "Recovery Case Eligibility",
+    slowDeadRequiredPackage: "Benötigtes Paket",
+    slowDeadMissingEvidence: "Fehlende Evidenz",
+    slowDeadCondition: "Condition",
+    slowDeadInventoryExposure: "Inventory Exposure",
+    slowDeadWorklistTitle: "Recovery Case Worklist",
+    slowDeadWorklistSubtitle: "{count} entity-basierte Cases in der aktuellen Ansicht.",
+    slowDeadCandidateNotDecision: "Kandidat, keine Freigabe",
+    slowDeadDeadCandidateWarning: "Dead-Stock-Kandidat ist keine Entsorgungs-, Verschrottungs- oder Abschreibungsfreigabe.",
+    slowDeadStrategicReserveNote: "Strategic Reserve ist geschützt und wird nicht als automatische Recovery-Maßnahme interpretiert.",
+    slowDeadIntermittentNote: "Intermittierender Verbrauch spricht für Monitoring, nicht für eine finale Slow-/Dead-Entscheidung.",
+    slowDeadPositiveEvidence: "Positive Evidenz",
+    slowDeadCounterEvidence: "Counter Evidence",
+    slowDeadWhyNotStronger: "Warum keine stärkere Aussage?",
+    slowDeadRootCauses: "Root-Cause-Hypothesen",
+    slowDeadHypothesis: "Hypothese",
+    slowDeadActionEligibility: "Action Eligibility",
+    slowDeadActionEligibilityNote: "Vorentscheidende Eignung, keine finale Empfehlung oder Ausführungsfreigabe.",
+    slowDeadRequiredPackages: "Benötigte Data Packages",
+    slowDeadProvenance: "Package- und Modell-Provenienz",
+    slowDeadOpenInventory: "Im Bestand öffnen",
+    slowDeadOpenActions: "In Maßnahmen öffnen",
+    slowDeadExport: "Slow-/Dead-Cases exportieren",
+    slowDeadDownload: "Slow-/Dead-Cases exportieren",
+    slowDeadDownloadSubtitle: "Exportiere die aktuell gefilterten oder alle aktuellen Slow-/Dead-Recovery-Cases mit Evidenz und Provenance.",
+    slowDeadNoLinkedAction: "Für diesen Case existiert aktuell keine verknüpfte Maßnahme.",
+    slowDeadEmpty_no_filtered_cases: "Keine Slow-/Dead-Cases passen zu den aktuellen Filtern.",
+    slowDeadEmpty_no_cases: "Die aktuelle Runtime enthält keine Slow-/Dead-Cases.",
+    slowDeadEmpty_not_calculated: "Slow-/Dead-Cases wurden noch nicht berechnet.",
+    slowDeadEmpty_calculating: "Berechnung läuft. Es werden keine alten Cases angezeigt.",
+    slowDeadEmpty_unavailable: "Slow-/Dead-Cases sind aktuell nicht verfügbar.",
+    slowDeadEmpty_error: "Slow-/Dead-Cases können wegen eines Runtime-Fehlers nicht angezeigt werden.",
+    stockQuantity: "Bestandsmenge",
+    baseUnit: "Basismengeneinheit",
+    netConsumption3m: "Nettoverbrauch 3M",
+    netConsumption6m: "Nettoverbrauch 6M",
+    activeConsumptionMonths12m: "Aktive Verbrauchsmonate 12M",
+    movementFrequency12m: "Bewegungsfrequenz 12M",
+    historyCoverageMonths: "Historienabdeckung",
+    monthsShort: "Mon.",
+    previous: "Zurück",
+    next: "Weiter",
+    page: "Seite",
+    actions: "Aktion",
+    caseId: "Case ID",
+    inventoryEntityKey: "Inventory Entity Key",
+    inventoryRowKeys: "Inventory Row Keys",
+    relationshipSignature: "Relationship Signature",
+    conditionModelVersion: "Condition Model Version",
+    conditionPolicyVersion: "Condition Policy Version",
+    caseInputSignature: "Case Input Signature",
     metricInventory: "Gesamtbestand",
     metricExcess: "Überbestand",
     metricExcessSub: "adressierbarer Überbestand",
@@ -1564,6 +1662,104 @@ const translations = {
     net_no_plan_value: "Netto Ohne Plan",
     net_excess_value: "Netto Überbestand",
     net_bad_stock_value: "Netto Gesperrt / QI",
+    condition_insufficient_evidence: "Unzureichende Evidenz",
+    condition_intermittent_expected: "Intermittierender Bedarf",
+    condition_slow_moving_candidate: "Slow-Moving-Kandidat",
+    condition_non_moving_candidate: "Non-Moving-Kandidat",
+    condition_dead_stock_candidate: "Dead-Stock-Kandidat",
+    condition_strategic_reserve: "Strategic Reserve",
+    slowDeadEvidenceStrength_high: "Hoch",
+    slowDeadEvidenceStrength_medium: "Mittel",
+    slowDeadEvidenceStrength_low: "Niedrig",
+    slowDeadEvidenceStrength_insufficient: "Unzureichend",
+    slowDeadEvidenceStrength_not_applicable: "Nicht anwendbar",
+    slowDeadConfidence_high: "Hoch",
+    slowDeadConfidence_medium: "Mittel",
+    slowDeadConfidence_low: "Niedrig",
+    slowDeadConfidence_unavailable: "Nicht verfügbar",
+    slowDeadConfidence_not_applicable: "Nicht anwendbar",
+    slowDeadRecoveryEligibility_reviewable_case_candidate: "Review-fähiger Case-Kandidat",
+    slowDeadRecoveryEligibility_evidence_required: "Evidenz erforderlich",
+    slowDeadRecoveryEligibility_monitor_only: "Nur Monitoring",
+    slowDeadRecoveryEligibility_no_case: "Kein Case",
+    slowDeadActionEligibility_eligible: "Geeignet",
+    slowDeadActionEligibility_review_required: "Review erforderlich",
+    slowDeadActionEligibility_potentially_eligible: "Potenziell geeignet",
+    slowDeadActionEligibility_unavailable_until_evidence: "Bis Evidenz fehlt nicht verfügbar",
+    slowDeadActionEligibility_manual_commercial_review: "Manueller Commercial Review",
+    slowDeadActionEligibility_eligible_for_finance_review: "Für Finance Review geeignet",
+    slowDeadActionEligibility_not_recommendable: "Nicht empfehlbar",
+    slowDeadAction_COLLECT_EVIDENCE: "Fehlende Evidenz sammeln",
+    slowDeadAction_IMPORT_MISSING_DATA: "Fehlende Datenpakete importieren",
+    slowDeadAction_OWNER_REVIEW: "Owner Review zuweisen",
+    slowDeadAction_MONITOR: "Monitoring",
+    slowDeadAction_PLANNING_PARAMETER_REVIEW: "Dispositionseinstellungen prüfen",
+    slowDeadAction_DISPOSAL_REVIEW: "Entsorgungsprüfung",
+    slowDeadAction_CONSUME_NATURALLY: "Natürlich verbrauchen",
+    slowDeadAction_INTERNAL_TRANSFER: "Interne Umlagerung prüfen",
+    slowDeadAction_SUPPLIER_RETURN: "Lieferantenrückgabe prüfen",
+    slowDeadAction_ALTERNATIVE_USE: "Alternative Verwendung prüfen",
+    slowDeadAction_EXTERNAL_SALE: "Externen Verkauf prüfen",
+    slowDeadAction_WRITE_DOWN_REVIEW: "Finance Write-down Review",
+    slowDeadAction_PO_REDUCE: "Bestellreduzierung prüfen",
+    dataPackageType_demand_forecast: "Demand Forecast",
+    dataPackageType_purchase_orders: "Bestellungen",
+    dataPackageType_planning_parameters: "Disposition",
+    dataPackageType_quality: "Qualität",
+    dataPackageType_finance: "Finance",
+    dataPackageType_actions_outcomes: "Action Outcomes",
+    missingEvidence_consumption_history: "Verbrauchshistorie",
+    missingEvidence_relationship_evidence: "Relationship-Evidenz",
+    missingEvidence_twelve_month_consumption_history: "12-Monats-Verbrauchshistorie",
+    missingEvidence_complete_consumption_history: "Vollständige Verbrauchshistorie",
+    missingEvidence_last_consumption_date: "Letztes Verbrauchsdatum",
+    missingEvidence_rolling_consumption_quantity: "Rollierende Verbrauchsmenge",
+    missingEvidence_unit_consistency: "Mengeneinheiten-Konsistenz",
+    missingEvidence_future_demand: "Zukünftiger Bedarf",
+    missingEvidence_planning_context: "Planungskontext",
+    missingEvidence_material_lifecycle_status: "Material-Lifecycle-Status",
+    missingEvidence_finance_review_context: "Finance-Review-Kontext",
+    missingEvidence_quality_or_block_status: "Qualitäts- oder Sperrstatus",
+    missingEvidence_commercial_sellability: "Kommerzielle Verwertbarkeit",
+    missingEvidence_supplier_terms_or_open_po_context: "Lieferantenkonditionen oder offene Bestellung",
+    slowDeadReason_critical_history_gate_failed: "Historische Evidenz nicht belastbar genug",
+    slowDeadReason_history_coverage_below_policy: "Historienabdeckung unter Policy",
+    slowDeadReason_history_completeness_below_policy: "Historienvollständigkeit unter Policy",
+    slowDeadReason_months_since_last_consumption_missing: "Monate seit letztem Verbrauch fehlen",
+    slowDeadReason_net_consumption_12m_missing: "12M-Nettoverbrauch fehlt",
+    slowDeadReason_historical_runtime_unavailable: "Historical Runtime nicht verfügbar",
+    slowDeadReason_historical_runtime_not_calculated: "Historical Runtime nicht berechnet",
+    slowDeadReason_history_package_missing: "Verbrauchshistorie fehlt",
+    slowDeadReason_relationship_unmatched: "Keine passende Verbrauchshistorien-Beziehung",
+    slowDeadReason_relationship_ambiguous: "Mehrdeutige Verbrauchshistorien-Beziehung",
+    slowDeadReason_relationship_invalid: "Ungültiger Beziehungsschlüssel",
+    slowDeadReason_critical_evidence_missing: "Kritische Evidenz fehlt",
+    slowDeadReason_explicit_strategic_reserve: "Explizite Strategic Reserve",
+    slowDeadReason_recurring_intermittent_demand: "Wiederkehrender intermittierender Bedarf",
+    slowDeadReason_strategic_reserve_protected: "Strategic Reserve geschützt",
+    slowDeadReason_manual_approval_required: "Manuelle Freigabe erforderlich",
+    slowDeadEvidence_inventory_exposure_exists: "Inventory Exposure vorhanden",
+    slowDeadEvidence_critical_history_gate_failed: "Historische Evidenz nicht belastbar",
+    slowDeadEvidence_explicit_strategic_reserve: "Strategic Reserve belegt",
+    slowDeadEvidence_no_explicit_strategic_reserve: "Keine explizite Strategic Reserve",
+    slowDeadEvidence_independent_dead_stock_signal: "Unabhängiges Dead-Stock-Signal",
+    slowDeadEvidence_no_independent_dead_stock_signal: "Kein unabhängiges Dead-Stock-Signal",
+    slowDeadEvidence_intermittent_recurring_consumption: "Intermittierender wiederkehrender Verbrauch",
+    slowDeadEvidence_dead_stock_evidence: "Dead-Stock-Kandidaten-Evidenz",
+    slowDeadEvidence_dead_age_without_independent_signal: "Alter ohne unabhängiges Signal",
+    slowDeadEvidence_non_moving_evidence: "Keine jüngere Bewegung",
+    slowDeadEvidence_slow_moving_evidence: "Mehrere Slow-Moving-Dimensionen",
+    slowDeadEvidence_slow_dead_thresholds_not_met: "Slow-/Dead-Schwellen nicht erfüllt",
+    rootCause_missing_or_unreliable_history: "Fehlende oder unzuverlässige Historie",
+    rootCause_explicit_strategic_reserve: "Explizite Strategic-Reserve-Policy",
+    rootCause_intermittent_recurring_demand: "Intermittierender wiederkehrender Bedarf",
+    rootCause_demand_discontinuity: "Kein sichtbarer aktueller Bedarf",
+    rootCause_planning_reference_missing: "Planungsreferenz fehlt",
+    rootCause_lifecycle_or_program_end: "Lifecycle-, Programm- oder Materialende",
+    rootCause_lot_size_or_moq_policy: "Losgrößen- oder MOQ-Policy",
+    rootCause_purchase_order_continuation: "Offener Bestellkontext",
+    rootCause_planning_parameter_mismatch: "Planungsparameter passen nicht zum Verbrauch",
+    rootCause_requires_cross_functional_review: "Cross-funktionaler Review erforderlich",
     descOverview: "Management-KPIs und Recovery-Zusammenfassung",
     descInventoryExplorer: "Vollbestand mit Filtern und Excel-Anordnung",
     descExcessStock: "Materialien mit Überbestand und Recovery-Potenzial",
@@ -1869,6 +2065,87 @@ const translations = {
     dataQualitySubtitle: "Detect, prioritize and resolve data-quality issues in a controlled workflow.",
     actionsTitle: "Actions",
     actionsSubtitle: "Prioritized recovery actions with root cause, next step, owner, priority and status.",
+    slowDeadPageTitle: "Slow / Dead Recovery Cases",
+    slowDeadPageSubtitle: "Entity-level workbench for historical consumption evidence, condition, hypotheses and pre-decisional action eligibility.",
+    slowDeadRuntimeTitle: "Slow / Dead Runtime",
+    slowDeadRuntime_available: "Cases available",
+    slowDeadRuntime_limited: "Cases limited",
+    slowDeadRuntime_unavailable: "Unavailable",
+    slowDeadRuntime_not_calculated: "Not calculated",
+    slowDeadRuntime_calculating: "Calculating",
+    slowDeadRuntime_error: "Error",
+    slowDeadRuntimeBody_available: "The Recovery Cases are based on the current Historical Metrics runtime.",
+    slowDeadRuntimeBody_limited: "The workbench is available, but contains limitations or cases with low evidence.",
+    slowDeadRuntimeBody_unavailable: "Reliable Historical Metrics or a matching consumption-history package are currently missing.",
+    slowDeadRuntimeBody_not_calculated: "Slow / Dead Cases have not been calculated for this dataset yet.",
+    slowDeadRuntimeBody_calculating: "Historical Metrics or Slow / Dead Cases are being built. No stale cases are shown.",
+    slowDeadRuntimeBody_error: "The Slow / Dead runtime is in an error state. Historical Metrics remain isolated from this failure.",
+    slowDeadRuntimeBuildCount: "Builds",
+    slowDeadEvaluatedAt: "Evaluated",
+    slowDeadImportHistory: "Import consumption history",
+    slowDeadPortfolioSummary: "Portfolio Summary",
+    slowDeadPortfolioSummaryDesc: "Case counts and Inventory Exposure by Condition without duplicate inventory rows.",
+    slowDeadTotalCases: "Total cases",
+    slowDeadSummary_slow_moving_candidate: "Slow-Moving",
+    slowDeadSummary_non_moving_candidate: "Non-Moving",
+    slowDeadSummary_dead_stock_candidate: "Dead-Stock Candidate",
+    slowDeadSummary_protected_monitor: "Protected / Monitor",
+    slowDeadSummary_insufficient_evidence: "Insufficient Evidence",
+    slowDeadConditionFilters: "Condition filters",
+    slowDeadSearchPlaceholder: "Search case, material, plant or row key …",
+    slowDeadEvidenceStrength: "Evidence Strength",
+    slowDeadConditionConfidence: "Condition Confidence",
+    slowDeadRecoveryEligibility: "Recovery Case Eligibility",
+    slowDeadRequiredPackage: "Required package",
+    slowDeadMissingEvidence: "Missing evidence",
+    slowDeadCondition: "Condition",
+    slowDeadInventoryExposure: "Inventory Exposure",
+    slowDeadWorklistTitle: "Recovery Case Worklist",
+    slowDeadWorklistSubtitle: "{count} entity-level cases in the current view.",
+    slowDeadCandidateNotDecision: "Candidate, not approval",
+    slowDeadDeadCandidateWarning: "Dead-Stock Candidate is not disposal, scrapping or write-down approval.",
+    slowDeadStrategicReserveNote: "Strategic Reserve is protected and is not interpreted as an automatic recovery action.",
+    slowDeadIntermittentNote: "Intermittent consumption supports monitoring, not a final Slow / Dead decision.",
+    slowDeadPositiveEvidence: "Positive Evidence",
+    slowDeadCounterEvidence: "Counter Evidence",
+    slowDeadWhyNotStronger: "Why not a stronger conclusion?",
+    slowDeadRootCauses: "Root-Cause hypotheses",
+    slowDeadHypothesis: "Hypothesis",
+    slowDeadActionEligibility: "Action Eligibility",
+    slowDeadActionEligibilityNote: "Pre-decisional eligibility, not a final recommendation or execution approval.",
+    slowDeadRequiredPackages: "Required Data Packages",
+    slowDeadProvenance: "Package and model provenance",
+    slowDeadOpenInventory: "Open inventory",
+    slowDeadOpenActions: "Open actions",
+    slowDeadExport: "Export Slow / Dead Cases",
+    slowDeadDownload: "Export Slow / Dead Cases",
+    slowDeadDownloadSubtitle: "Export the currently filtered or all current Slow / Dead Recovery Cases with evidence and provenance.",
+    slowDeadNoLinkedAction: "No linked action exists for this case in the current action worklist.",
+    slowDeadEmpty_no_filtered_cases: "No Slow / Dead Cases match the current filters.",
+    slowDeadEmpty_no_cases: "The current runtime does not contain Slow / Dead Cases.",
+    slowDeadEmpty_not_calculated: "Slow / Dead Cases have not been calculated yet.",
+    slowDeadEmpty_calculating: "Calculation is running. No stale cases are shown.",
+    slowDeadEmpty_unavailable: "Slow / Dead Cases are currently unavailable.",
+    slowDeadEmpty_error: "Slow / Dead Cases cannot be shown because of a runtime error.",
+    stockQuantity: "Stock quantity",
+    baseUnit: "Base unit",
+    netConsumption3m: "Net Consumption 3M",
+    netConsumption6m: "Net Consumption 6M",
+    activeConsumptionMonths12m: "Active Consumption Months 12M",
+    movementFrequency12m: "Movement Frequency 12M",
+    historyCoverageMonths: "History Coverage",
+    monthsShort: "mo",
+    previous: "Previous",
+    next: "Next",
+    page: "Page",
+    actions: "Action",
+    caseId: "Case ID",
+    inventoryEntityKey: "Inventory Entity Key",
+    inventoryRowKeys: "Inventory Row Keys",
+    relationshipSignature: "Relationship Signature",
+    conditionModelVersion: "Condition Model Version",
+    conditionPolicyVersion: "Condition Policy Version",
+    caseInputSignature: "Case Input Signature",
     metricInventory: "Total Inventory",
     metricExcess: "Excess Stock",
     metricExcessSub: "addressable excess inventory",
@@ -2880,6 +3157,104 @@ const translations = {
     net_no_plan_value: "Net Unplanned",
     net_excess_value: "Net Excess Stock",
     net_bad_stock_value: "Net Blocked / QI",
+    condition_insufficient_evidence: "Insufficient Evidence",
+    condition_intermittent_expected: "Intermittent Expected",
+    condition_slow_moving_candidate: "Slow-Moving Candidate",
+    condition_non_moving_candidate: "Non-Moving Candidate",
+    condition_dead_stock_candidate: "Dead-Stock Candidate",
+    condition_strategic_reserve: "Strategic Reserve",
+    slowDeadEvidenceStrength_high: "High",
+    slowDeadEvidenceStrength_medium: "Medium",
+    slowDeadEvidenceStrength_low: "Low",
+    slowDeadEvidenceStrength_insufficient: "Insufficient",
+    slowDeadEvidenceStrength_not_applicable: "Not applicable",
+    slowDeadConfidence_high: "High",
+    slowDeadConfidence_medium: "Medium",
+    slowDeadConfidence_low: "Low",
+    slowDeadConfidence_unavailable: "Unavailable",
+    slowDeadConfidence_not_applicable: "Not applicable",
+    slowDeadRecoveryEligibility_reviewable_case_candidate: "Reviewable Case Candidate",
+    slowDeadRecoveryEligibility_evidence_required: "Evidence required",
+    slowDeadRecoveryEligibility_monitor_only: "Monitor only",
+    slowDeadRecoveryEligibility_no_case: "No case",
+    slowDeadActionEligibility_eligible: "Eligible",
+    slowDeadActionEligibility_review_required: "Review required",
+    slowDeadActionEligibility_potentially_eligible: "Potentially eligible",
+    slowDeadActionEligibility_unavailable_until_evidence: "Unavailable until evidence",
+    slowDeadActionEligibility_manual_commercial_review: "Manual commercial review",
+    slowDeadActionEligibility_eligible_for_finance_review: "Eligible for finance review",
+    slowDeadActionEligibility_not_recommendable: "Not recommendable",
+    slowDeadAction_COLLECT_EVIDENCE: "Collect missing evidence",
+    slowDeadAction_IMPORT_MISSING_DATA: "Import missing data packages",
+    slowDeadAction_OWNER_REVIEW: "Assign owner review",
+    slowDeadAction_MONITOR: "Monitor",
+    slowDeadAction_PLANNING_PARAMETER_REVIEW: "Review planning parameters",
+    slowDeadAction_DISPOSAL_REVIEW: "Disposal review",
+    slowDeadAction_CONSUME_NATURALLY: "Consume naturally",
+    slowDeadAction_INTERNAL_TRANSFER: "Review internal transfer",
+    slowDeadAction_SUPPLIER_RETURN: "Review supplier return",
+    slowDeadAction_ALTERNATIVE_USE: "Review alternative use",
+    slowDeadAction_EXTERNAL_SALE: "Review external sale",
+    slowDeadAction_WRITE_DOWN_REVIEW: "Finance write-down review",
+    slowDeadAction_PO_REDUCE: "Review purchase order reduction",
+    dataPackageType_demand_forecast: "Demand Forecast",
+    dataPackageType_purchase_orders: "Purchase Orders",
+    dataPackageType_planning_parameters: "Planning Parameters",
+    dataPackageType_quality: "Quality",
+    dataPackageType_finance: "Finance",
+    dataPackageType_actions_outcomes: "Action Outcomes",
+    missingEvidence_consumption_history: "Consumption history",
+    missingEvidence_relationship_evidence: "Relationship evidence",
+    missingEvidence_twelve_month_consumption_history: "12-month consumption history",
+    missingEvidence_complete_consumption_history: "Complete consumption history",
+    missingEvidence_last_consumption_date: "Last consumption date",
+    missingEvidence_rolling_consumption_quantity: "Rolling consumption quantity",
+    missingEvidence_unit_consistency: "Unit consistency",
+    missingEvidence_future_demand: "Future demand",
+    missingEvidence_planning_context: "Planning context",
+    missingEvidence_material_lifecycle_status: "Material lifecycle status",
+    missingEvidence_finance_review_context: "Finance review context",
+    missingEvidence_quality_or_block_status: "Quality or block status",
+    missingEvidence_commercial_sellability: "Commercial sellability",
+    missingEvidence_supplier_terms_or_open_po_context: "Supplier terms or open PO context",
+    slowDeadReason_critical_history_gate_failed: "Historical evidence is not reliable enough",
+    slowDeadReason_history_coverage_below_policy: "History coverage below policy",
+    slowDeadReason_history_completeness_below_policy: "History completeness below policy",
+    slowDeadReason_months_since_last_consumption_missing: "Months since last consumption missing",
+    slowDeadReason_net_consumption_12m_missing: "12M net consumption missing",
+    slowDeadReason_historical_runtime_unavailable: "Historical Runtime unavailable",
+    slowDeadReason_historical_runtime_not_calculated: "Historical Runtime not calculated",
+    slowDeadReason_history_package_missing: "Consumption history missing",
+    slowDeadReason_relationship_unmatched: "No matching consumption-history relationship",
+    slowDeadReason_relationship_ambiguous: "Ambiguous consumption-history relationship",
+    slowDeadReason_relationship_invalid: "Invalid relationship key",
+    slowDeadReason_critical_evidence_missing: "Critical evidence missing",
+    slowDeadReason_explicit_strategic_reserve: "Explicit strategic reserve",
+    slowDeadReason_recurring_intermittent_demand: "Recurring intermittent demand",
+    slowDeadReason_strategic_reserve_protected: "Strategic reserve protected",
+    slowDeadReason_manual_approval_required: "Manual approval required",
+    slowDeadEvidence_inventory_exposure_exists: "Inventory exposure exists",
+    slowDeadEvidence_critical_history_gate_failed: "Historical evidence is not reliable",
+    slowDeadEvidence_explicit_strategic_reserve: "Strategic reserve evidence",
+    slowDeadEvidence_no_explicit_strategic_reserve: "No explicit strategic reserve",
+    slowDeadEvidence_independent_dead_stock_signal: "Independent dead-stock signal",
+    slowDeadEvidence_no_independent_dead_stock_signal: "No independent dead-stock signal",
+    slowDeadEvidence_intermittent_recurring_consumption: "Intermittent recurring consumption",
+    slowDeadEvidence_dead_stock_evidence: "Dead-stock candidate evidence",
+    slowDeadEvidence_dead_age_without_independent_signal: "Age without independent signal",
+    slowDeadEvidence_non_moving_evidence: "No recent movement",
+    slowDeadEvidence_slow_moving_evidence: "Multiple slow-moving dimensions",
+    slowDeadEvidence_slow_dead_thresholds_not_met: "Slow / Dead thresholds not met",
+    rootCause_missing_or_unreliable_history: "Missing or unreliable history",
+    rootCause_explicit_strategic_reserve: "Explicit strategic reserve policy",
+    rootCause_intermittent_recurring_demand: "Intermittent recurring demand",
+    rootCause_demand_discontinuity: "No visible current demand",
+    rootCause_planning_reference_missing: "Planning reference missing",
+    rootCause_lifecycle_or_program_end: "Lifecycle, program or material end",
+    rootCause_lot_size_or_moq_policy: "Lot-size or MOQ policy",
+    rootCause_purchase_order_continuation: "Open purchase-order context",
+    rootCause_planning_parameter_mismatch: "Planning parameter mismatch",
+    rootCause_requires_cross_functional_review: "Cross-functional review required",
     descOverview: "Management KPIs and recovery summary",
     descInventoryExplorer: "Full inventory view with filters",
     descExcessStock: "Materials with excess inventory and recovery potential",
@@ -3405,6 +3780,13 @@ let pendingUploadPackageType = INVENTORY_PACKAGE_TYPE;
 let lastMappingOpener = null;
 let mappingAssistantDirty = false;
 let currentView = "dashboard";
+let slowDeadPageState = {
+  filters: { ...ObsoliQModules.slowDead.pageModel.DEFAULT_FILTERS },
+  sort: { ...ObsoliQModules.slowDead.pageModel.DEFAULT_SORT },
+  page: 1,
+  pageSize: 25,
+  selectedCaseId: ""
+};
 let pendingDownloadType = "report";
 let pendingDownloadScope = "filtered";
 let pendingDownloadVariant = "original";
@@ -3430,7 +3812,7 @@ let pilotReviewPackageIdentityOverrideForTest = null;
 let excessPageNumber = 1;
 const excessPageSize = 25;
 let excessPageModelBuildCountForTest = 0;
-const dirtyDataViews = new Set(["dashboard", "excess", "actions", "inventory", "check"]);
+const dirtyDataViews = new Set(["dashboard", "excess", "slow-dead", "actions", "inventory", "check"]);
 const filterState = {
   search: "",
   profitCenter: "all",
@@ -3839,6 +4221,17 @@ excessPilotReviewView = ObsoliQModules.application.excessPilotReviewView.createE
 excessPilotReviewController = ObsoliQModules.application.excessPilotReviewController.createExcessPilotReviewController({
   saveReview: savePilotReviewFromButton,
   exportReviews: exportPilotReviews
+});
+slowDeadPageView = ObsoliQModules.application.slowDeadPageView.createSlowDeadPageView({
+  html,
+  t,
+  formatMoney: money,
+  formatCompactMoney,
+  formatCount,
+  formatNumber: (value, options = {}) => Number(value || 0).toLocaleString(locale(), options),
+  conditionLabel: value => translatedCodeLabel(`condition_${value}`, value),
+  codeLabel: (prefix, value) => translatedCodeLabel(`${prefix}_${value}`, value),
+  actionCodeLabel: value => translatedCodeLabel(`slowDeadAction_${value}`, value)
 });
 
 function saveSettings() {
@@ -4462,6 +4855,7 @@ function visibleCountForView(view = currentView) {
   if (view === "actions") return getActionRows().length;
   if (view === "inventory") return getFilteredRows("inventory").length;
   if (view === "excess") return getFilteredRows("excess").length;
+  if (view === "slow-dead") return (currentSlowDeadPageModel || buildSlowDeadPageModel()).filteredCaseCount || 0;
   if (view === "check") return ledgerIssuesForWorklist().length || dataQualityIssues.length;
   return enrichedRows.length;
 }
@@ -13966,12 +14360,112 @@ function renderDataQuality() {
   $("dataCheck").innerHTML = renderDataCheck(dataQualityRows);
 }
 
+function slowDeadLinkedActionMaterials() {
+  return topRecoveryRows(enrichedRows)
+    .map(row => String(row.material_id || "").trim())
+    .filter(Boolean);
+}
+
+function buildSlowDeadPageModel() {
+  currentSlowDeadPageModel = slowDeadPageModelModule.createSlowDeadPageModel({
+    runtimeState: slowDeadRecoveryCaseRuntimeForPresentation(),
+    filters: slowDeadPageState.filters,
+    sort: slowDeadPageState.sort,
+    page: slowDeadPageState.page,
+    pageSize: slowDeadPageState.pageSize,
+    selectedCaseId: slowDeadPageState.selectedCaseId,
+    linkedActionMaterials: slowDeadLinkedActionMaterials()
+  });
+  slowDeadPageState = {
+    ...slowDeadPageState,
+    page: currentSlowDeadPageModel.page,
+    pageSize: currentSlowDeadPageModel.pageSize,
+    selectedCaseId: currentSlowDeadPageModel.selectedCaseId
+  };
+  return currentSlowDeadPageModel;
+}
+
+function ensureSlowDeadPageController() {
+  const root = $("slowDeadPage");
+  if (!root || slowDeadPageController) return;
+  slowDeadPageController = ObsoliQModules.application.slowDeadPageController.createSlowDeadPageController({
+    root,
+    onStateChange: updateSlowDeadPageState,
+    onExport: () => showDownloadDialog("slowDead"),
+    onOpenInventory: openInventoryForSlowDeadCase,
+    onOpenActions: openActionsForSlowDeadCase,
+    onImportHistory: () => selectPackageTypeForUpload(CONSUMPTION_HISTORY_PACKAGE_TYPE)
+  });
+  slowDeadPageController.bind();
+}
+
+function renderSlowDeadPage() {
+  ensureSlowDeadPageController();
+  const root = $("slowDeadPage");
+  if (!root) return;
+  const model = buildSlowDeadPageModel();
+  root.innerHTML = slowDeadPageView.render(model);
+}
+
+function slowDeadDefaultSortDirection(key) {
+  return ["inventory_exposure_value", "months_since_last_consumption", "net_consumption_12m", "history_completeness"].includes(key)
+    ? "desc"
+    : "asc";
+}
+
+function updateSlowDeadPageState(patch = {}) {
+  if (patch.resetFilters) {
+    slowDeadPageState.filters = { ...slowDeadPageModelModule.DEFAULT_FILTERS };
+  }
+  if (patch.filters) {
+    slowDeadPageState.filters = { ...slowDeadPageState.filters, ...patch.filters };
+  }
+  if (patch.sortKey) {
+    const sameKey = slowDeadPageState.sort.key === patch.sortKey;
+    const direction = sameKey
+      ? slowDeadPageState.sort.direction === "asc" ? "desc" : "asc"
+      : slowDeadDefaultSortDirection(patch.sortKey);
+    slowDeadPageState.sort = { key: patch.sortKey, direction };
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "page")) slowDeadPageState.page = Number(patch.page || 1) || 1;
+  if (Object.prototype.hasOwnProperty.call(patch, "pageSize")) slowDeadPageState.pageSize = Number(patch.pageSize || 25) || 25;
+  if (Object.prototype.hasOwnProperty.call(patch, "selectedCaseId")) slowDeadPageState.selectedCaseId = String(patch.selectedCaseId || "");
+  if (currentView === "slow-dead") renderSlowDeadPage();
+}
+
+function slowDeadCaseById(caseId) {
+  const model = currentSlowDeadPageModel || buildSlowDeadPageModel();
+  return (model.allCases || []).find(item => item.case_id === caseId) || null;
+}
+
+function openInventoryForSlowDeadCase(caseId) {
+  const targetCase = slowDeadCaseById(caseId);
+  if (!targetCase) return;
+  const material = targetCase.material_id || "";
+  setControlValue("searchInput", material);
+  setControlValue("rowLimit", "all");
+  updateFilterState("common", { search: material, rowLimit: "all" });
+  switchProcessTab("inventory-explorer", t("navInventoryExplorer"));
+}
+
+function openActionsForSlowDeadCase(caseId) {
+  const targetCase = slowDeadCaseById(caseId);
+  if (!targetCase?.has_linked_action) {
+    setFeedback(t("slowDeadNoLinkedAction"), "error", { autoReset: true });
+    return;
+  }
+  setControlValue("searchInput", targetCase.material_id || "");
+  updateFilterState("common", { search: targetCase.material_id || "" });
+  switchProcessTab("actions", t("navActions"));
+}
+
 function renderCurrentView(options = {}) {
   if (currentView !== "check") cancelScheduledRemediationFilterRender();
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   if (options.globalChrome !== false) renderGlobalChrome();
   if (currentView === "dashboard") renderOverview();
   if (currentView === "excess") renderExcessPage();
+  if (currentView === "slow-dead") renderSlowDeadPage();
   if (currentView === "actions") renderActions();
   if (currentView === "inventory") renderInventoryExplorer();
   if (currentView === "check") renderDataQuality();
@@ -13986,7 +14480,7 @@ function renderAfterPresentationChange() {
 function renderAfterDatasetChange(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderGlobalChrome({ syncStateFromControls: false });
-  ["dashboard", "excess", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
+  ["dashboard", "excess", "slow-dead", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
   renderCurrentView({ globalChrome: false, syncStateFromControls: false });
 }
 
@@ -13998,6 +14492,7 @@ function renderEmptyDatasetState() {
   renderBars("plantBars", []);
   if ($("topTable")) $("topTable").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("excessPage")) $("excessPage").innerHTML = renderEmptyState(t("noDataLoaded"));
+  if ($("slowDeadPage")) $("slowDeadPage").innerHTML = renderEmptyState(t("noDataLoaded"));
   renderActionSummary([]);
   if ($("actionsTable")) $("actionsTable").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("inventoryTable")) $("inventoryTable").innerHTML = renderEmptyState(t("noDataLoaded"));
@@ -14539,6 +15034,9 @@ function handleHistoricalMetricsRuntimeStateChange(state, options = {}) {
   updateDownloadVariantAvailability();
   if (currentView === "inventory") {
     renderInventoryExplorer();
+  }
+  if (currentView === "slow-dead") {
+    renderSlowDeadPage();
   }
 }
 
@@ -15523,6 +16021,7 @@ const inventoryTabViewRoutes = {
   overview: "dashboard",
   "inventory-explorer": "inventory",
   "excess-stock": "excess",
+  "slow-dead-stock": "slow-dead",
   actions: "actions",
   "data-quality": "check"
 };
@@ -17487,6 +17986,12 @@ function localizedFilename(type, format, scope) {
       : scope === "all" ? "excess_intelligence_all_rows" : "excess_intelligence_filtered_view";
     return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
   }
+  if (type === "slowDead") {
+    const base = german
+      ? scope === "all" ? "slow_dead_cases_alle" : "slow_dead_cases_gefiltert"
+      : scope === "all" ? "slow_dead_cases_all" : "slow_dead_cases_filtered";
+    return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
+  }
   if (type === "top") {
     const base = german ? "top_recovery_potenziale" : "top_recovery_opportunities";
     return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
@@ -17495,8 +18000,101 @@ function localizedFilename(type, format, scope) {
   return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
 }
 
+function slowDeadExportLabel(key) {
+  const labels = {
+    case_id: t("caseId"),
+    entity_key: t("inventoryEntityKey"),
+    inventory_row_keys: t("inventoryRowKeys"),
+    material_id: "Material",
+    material_description: t("colDescription"),
+    plant: t("plantLabel"),
+    profit_center: "Profit Center",
+    program: t("colProgram"),
+    owner_function: t("colOwnerFunction"),
+    owner_reference: t("colOwnerReference"),
+    condition_code: t("slowDeadCondition"),
+    condition_label: t("slowDeadCondition"),
+    evidence_strength: t("slowDeadEvidenceStrength"),
+    condition_confidence: t("slowDeadConditionConfidence"),
+    inventory_exposure_value: `${t("slowDeadInventoryExposure")} (EUR)`,
+    stock_quantity: t("stockQuantity"),
+    base_unit: t("baseUnit"),
+    currency: t("currencyTitle"),
+    last_consumption: t("lastConsumption"),
+    months_since_last_consumption: t("monthsSinceLastConsumption"),
+    net_consumption_3m: t("netConsumption3m"),
+    net_consumption_6m: t("netConsumption6m"),
+    net_consumption_12m: t("netConsumption12m"),
+    average_monthly_consumption_12m: t("averageMonthlyConsumptionHistory"),
+    active_consumption_months_12m: t("activeConsumptionMonths12m"),
+    movement_frequency_12m: t("movementFrequency12m"),
+    history_completeness: t("historyCompleteness"),
+    history_coverage_months: t("historyCoverageMonths"),
+    relationship_state: t("historyRelationship"),
+    positive_evidence: t("slowDeadPositiveEvidence"),
+    counter_evidence: t("slowDeadCounterEvidence"),
+    limitation_codes: t("exclusionReasons"),
+    missing_evidence: t("slowDeadMissingEvidence"),
+    root_cause_hypotheses: t("slowDeadRootCauses"),
+    recovery_case_eligibility: t("slowDeadRecoveryEligibility"),
+    recovery_case_reason_codes: t("reason"),
+    action_eligibility: t("slowDeadActionEligibility"),
+    required_data_packages: t("slowDeadRequiredPackages"),
+    independent_dead_stock_signal: "Independent Dead Stock Signal",
+    strategic_reserve_signal: "Strategic Reserve Signal",
+    service_model_version: "Service Model Version",
+    runtime_model_version: "Runtime Model Version",
+    condition_model_version: t("conditionModelVersion"),
+    condition_policy_version: t("conditionPolicyVersion"),
+    root_cause_model_version: "Root Cause Model Version",
+    action_eligibility_version: "Action Eligibility Version",
+    inventory_package_id: `${t("inventorySnapshot")} ${t("packageId")}`,
+    inventory_package_type: `${t("inventorySnapshot")} ${t("type")}`,
+    inventory_package_dataset_id: `${t("inventorySnapshot")} Dataset ID`,
+    inventory_package_revision: `${t("inventorySnapshot")} ${t("packageRevision")}`,
+    history_package_id: `${t("consumptionHistory")} ${t("packageId")}`,
+    history_package_type: `${t("consumptionHistory")} ${t("type")}`,
+    history_package_dataset_id: `${t("consumptionHistory")} Dataset ID`,
+    history_package_revision: `${t("consumptionHistory")} ${t("packageRevision")}`,
+    historical_metrics_input_signature: "Historical Metrics Input Signature",
+    historical_runtime_completed_input_signature: "Historical Runtime Completed Signature",
+    relationship_signature: t("relationshipSignature"),
+    relationship_model_version: "Relationship Model Version",
+    historical_metric_model_version: "Historical Metric Model Version",
+    case_input_signature: t("caseInputSignature"),
+    evaluated_at: t("slowDeadEvaluatedAt")
+  };
+  return labels[key] || key;
+}
+
+function slowDeadRowsForExport(scope = "filtered") {
+  const model = currentSlowDeadPageModel || buildSlowDeadPageModel();
+  const cases = scope === "all" ? model.allCases : model.filteredCases;
+  const exportData = slowDeadExportBuilder.buildSlowDeadExportRows({
+    cases,
+    conditionLabel: value => translatedCodeLabel(`condition_${value}`, value)
+  });
+  return [
+    exportData.columns.map(slowDeadExportLabel),
+    ...exportData.rows
+  ];
+}
+
 function buildDownloadPayload(type, format, scope = "filtered") {
   if (!ensureData()) return;
+  if (type === "slowDead") {
+    const slowDeadRows = slowDeadRowsForExport(scope);
+    if (format === "excel") {
+      return {
+        blob: spreadsheetXmlBlob({ [t("slowDeadPageTitle")]: slowDeadRows }),
+        filename: localizedFilename(type, format, scope)
+      };
+    }
+    return {
+      blob: csvBlob(slowDeadRows),
+      filename: localizedFilename(type, format, scope)
+    };
+  }
   const data = exportDataForScope(scope, type);
   const top = type === "top" ? data : topRecoveryRows(data);
   const summary = [
@@ -17607,10 +18205,11 @@ function showDownloadDialog(type, options = {}) {
     inventory: t("inventoryDownload"),
     top: t("topDownload"),
     actions: t("actionsDownload"),
-    excess: t("excessExport")
+    excess: t("excessExport"),
+    slowDead: t("slowDeadDownload")
   };
   $("downloadTitle").textContent = labels[type] || t("downloadPrepare");
-  $("downloadSubtitle").textContent = t("downloadSubtitle");
+  $("downloadSubtitle").textContent = type === "slowDead" ? t("slowDeadDownloadSubtitle") : t("downloadSubtitle");
   $("downloadScopeFiltered").checked = true;
   const variantSection = $("downloadVariantSection");
   if (variantSection) variantSection.hidden = type !== "inventory";
@@ -18453,6 +19052,8 @@ function createObsoliqTestBridge() {
     historicalInventoryMetricsServiceForTest: historicalMetricsService,
     slowDeadConditionEngineForTest: ObsoliQModules.slowDead.conditionEngine,
     slowDeadRecoveryCaseServiceForTest: slowDeadRecoveryCaseService,
+    slowDeadPageModelForTest: slowDeadPageModelModule,
+    slowDeadExportBuilderForTest: slowDeadExportBuilder,
     getRegistrySnapshot: () => clonePlainRecord(dataPackageRegistry.snapshot()),
     getRegistryStats: () => clonePlainRecord(dataPackageRegistry.getStats()),
     getActiveInventoryPackage: () => clonePlainRecord(currentInventoryPackage()),
@@ -18465,6 +19066,34 @@ function createObsoliqTestBridge() {
     getHistoricalMetricsRuntimeForTest: () => clonePlainRecord(historicalMetricsRuntimeForPresentation()),
     getHistoricalMetricsRuntimeResultForTest: () => clonePlainRecord(historicalMetricsResultForCurrentSignature()),
     getSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(slowDeadRecoveryCaseRuntimeForPresentation()),
+    buildSlowDeadPageModelForTest: input => clonePlainRecord(slowDeadPageModelModule.createSlowDeadPageModel(input || {
+      runtimeState: slowDeadRecoveryCaseRuntimeForPresentation(),
+      filters: slowDeadPageState.filters,
+      sort: slowDeadPageState.sort,
+      page: slowDeadPageState.page,
+      pageSize: slowDeadPageState.pageSize,
+      selectedCaseId: slowDeadPageState.selectedCaseId,
+      linkedActionMaterials: slowDeadLinkedActionMaterials()
+    })),
+    renderSlowDeadPageForTest: () => {
+      renderSlowDeadPage();
+      return $("slowDeadPage")?.textContent || "";
+    },
+    switchSlowDeadPageForTest: () => {
+      switchProcessTab("slow-dead-stock", t("navSlowDeadStock"));
+      return $("slowDeadPage")?.textContent || "";
+    },
+    getSlowDeadPageStateForTest: () => clonePlainRecord({
+      currentView,
+      activeProcessKey,
+      slowDeadPageState,
+      model: currentSlowDeadPageModel || buildSlowDeadPageModel()
+    }),
+    setSlowDeadPageStateForTest: patch => {
+      updateSlowDeadPageState(patch || {});
+      return clonePlainRecord(slowDeadPageState);
+    },
+    slowDeadRowsForExportForTest: scope => clonePlainArray(slowDeadRowsForExport(scope || "filtered")),
     resetSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(resetSlowDeadRecoveryCaseRuntime("test_reset")),
     requestSlowDeadRecoveryCaseRuntimeForTest: options => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(historicalMetricsRuntimeForPresentation(), { reason: options?.reason || "test_request", force: options?.force === true, forceServiceErrorForTest: options?.forceServiceErrorForTest === true })),
     updateSlowDeadRecoveryCaseRuntimeFromHistoricalStateForTest: (state, options = {}) => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state, options)),

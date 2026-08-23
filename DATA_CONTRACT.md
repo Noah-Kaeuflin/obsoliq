@@ -209,6 +209,18 @@ Allowed Runtime states are:
 
 Coherence rules: `available` and `limited` require current `result` and `summary`; `calculating`, `unavailable` and `error` must not carry stale Case `result` or `summary`. Historical dependency errors use `errorSource: "historical_runtime"`; Slow / Dead Service exceptions use `errorSource: "slow_dead_runtime"`. Historical calculating, unavailable, missing-signature and stale-signature states never invoke the Slow / Dead Service and never create false Conditions. Runtime updates do not create Package revisions, Registry mutations, existing Action mutations or export changes. Existing text-based `slow_dead` Action logic remains outside the new Condition and Action Eligibility contract.
 
+### AP 16.4d.2 Slow / Dead Recovery Case Page Contract
+
+The Slow / Dead page consumes `SlowDeadRecoveryCaseRuntimeState` as its only analytical truth. It supports the six accepted Runtime states: `not_calculated`, `calculating`, `available`, `limited`, `unavailable` and `error`. Only `available` and `limited` expose current Cases; other states render truthful unavailable or in-progress messages without stale Case rows.
+
+One Inventory entity produces one visible page Case row. The page deduplicates by `inventory_entity_key`, falling back to Case identity only when an entity key is unavailable. Repeated source rows may appear in `inventory_row_keys`, but they must not multiply Case count, Condition count or Inventory Exposure.
+
+Page fields are display projections of the accepted Case contract: `case_id`, `inventory_entity_key`, `inventory_row_keys`, material and plant context, `condition_code`, `evidence_strength`, `condition_confidence`, stock quantity/unit/value, positive evidence, counter evidence, `limitation_codes`, `missing_evidence`, Root-Cause hypotheses, `recovery_case_eligibility`, `action_eligibility`, `required_data_packages` and provenance. Missing Inventory Exposure is displayed as unavailable, never as a false zero. `stock_value` is Inventory Exposure for this page and is not Recovery Potential, Expected Recovery Value, recognized value, realized value, cash release or P&L effect.
+
+The page filter contract includes search, Condition, plant, Evidence Strength, Condition Confidence, Recovery Case Eligibility, owner function, relationship state, required Data Package and missing-evidence filters. Sorting and pagination are deterministic presentation operations. They do not call the Slow / Dead Recovery Case Service, Historical Metrics Runtime or Registry.
+
+The export contract writes one deterministic row per supplied Recovery Case. Export columns preserve Case identity, entity identity, row-key traceability, Condition, evidence, limitations, hypotheses, eligibility, required Packages and Package/model provenance. Text identities such as leading-zero material IDs remain text, and the existing spreadsheet/CSV download path owns formula-injection protection.
+
 ### DF-UX-02 Data Foundation Presentation Contract
 
 The Data Foundation presentation contract distinguishes these dimensions:
