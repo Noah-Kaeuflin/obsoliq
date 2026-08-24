@@ -1475,11 +1475,11 @@ AP 16.3a turns the Excess Stock navigation tab into the first dedicated operatio
 Visible MVP capability:
 
 - Excess Stock opens a real decision page instead of a placeholder.
-- Summary cards show Excess case count, gross excess, net addressable excess, overlap / double counting and average opportunity score.
-- The Excess decision list is a compact Worklist showing material, net addressable excess, gross excess, opportunity score, owner reference, match quality and details.
+- Summary cards prioritize net addressable excess, then Excess case count, average opportunity score and a compact Gross-to-Net reconciliation containing gross excess, net addressable excess and overlap / double counting.
+- The Excess decision list is a compact Worklist showing material, net addressable excess with gross excess as secondary evidence, opportunity score, owner reference, match quality and a compact case affordance.
 - Selecting a case opens decision details with score components, score drivers, overlap transparency, owner/source confidence, deterministic scenarios, evidence and known limitations.
 - Scenarios include excess reduction by percent, excess reduction by absolute amount, safety-stock adjustment, purchase-order review and demand validation.
-- Relationship and Enrichment quality are shown as read-only decision context with a compact issue worklist.
+- Relationship and Enrichment quality are shown in technical relationship details and render a separate read-only issue worklist only when actionable relationship issues exist.
 - Inventory export can now choose original source data, enriched analytical data or enriched data with provenance.
 
 Generated fields:

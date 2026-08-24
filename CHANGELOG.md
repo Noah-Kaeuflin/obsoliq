@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-08-24 - EX-UX-01.1:
+Excess Header, Worklist Density & Decision Core Final Closure
+
+### Fixed
+
+- Removed duplicate dataset status and visible-count metadata from the Excess page header.
+- Consolidated the header to one primary Excess export action.
+- Moved Pilot Review export into the Pilot Review context.
+- Removed the misleading Inventory-row limit from the Excess toolbar.
+- Removed the global 1500px `wide` table contract from the Excess Worklist.
+- Reduced the primary Worklist while preserving Gross Excess in-row, Detail and export evidence.
+- Made complete Worklist rows mouse- and keyboard-selectable.
+- Prioritized Net Addressable Excess in the Summary.
+- Consolidated Gross, Net and Overlap into one reconciliation card.
+- Reduced nested Detail cards and moved Match Quality into technical relationship detail.
+- Made Relationship diagnostics conditional on actionable issues.
+- Preserved all Excess calculations, scores, scenarios, Actions, reviews, Recovery, Data Quality, Registry and Package revisions.
+
 ## 2026-08-24 - EX-UX-01:
 Excess Workspace View Ownership, Scroll & Decision Hierarchy Closure
 

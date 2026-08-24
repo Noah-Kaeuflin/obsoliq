@@ -752,6 +752,7 @@ const translations = {
     excessQualityTitle: "Relationship- und Enrichment-Qualität",
     excessQualitySubtitle: "Read-only Arbeitsliste für Match-Lücken, Mehrdeutigkeiten und Feldkonflikte.",
     excessQualityNoIssues: "Keine Relationship- oder Enrichment-Probleme im aktuellen Kontext.",
+    excessRelationshipIssueCount: "{count} Relationship-Probleme",
     excessScoreDrivers: "Score-Treiber",
     excessLimitations: "Bekannte Grenzen",
     excessEvidence: "Evidenz",
@@ -763,6 +764,10 @@ const translations = {
     excessFilteredContext: "Gefilterte Sicht: {filteredCases} von {portfolioCases} Fällen · {filteredNet} von {portfolioNet} netto adressierbar",
     excessNoLinkedAction: "Für diesen Überbestandsfall existiert aktuell keine verknüpfte Maßnahme.",
     matchQuality: "Match-Qualität",
+    grossNetReconciliation: "Brutto → Netto",
+    grossNetFlow: "{gross} → {net}",
+    grossNetOverlap: "{overlap} Überlappung",
+    excessRowDetails: "Fall öffnen",
     whyPrioritized: "Warum priorisiert",
     whyNotHigher: "Warum nicht höher",
     grossNetExplanation: "Brutto-zu-Netto-Erklärung",
@@ -2258,6 +2263,7 @@ const translations = {
     excessQualityTitle: "Relationship and enrichment quality",
     excessQualitySubtitle: "Read-only worklist for match gaps, ambiguities and field conflicts.",
     excessQualityNoIssues: "No relationship or enrichment issues in the current context.",
+    excessRelationshipIssueCount: "{count} relationship issues",
     excessScoreDrivers: "Score drivers",
     excessLimitations: "Known limitations",
     excessEvidence: "Evidence",
@@ -2269,6 +2275,10 @@ const translations = {
     excessFilteredContext: "Filtered view: {filteredCases} of {portfolioCases} cases · {filteredNet} of {portfolioNet} net addressable",
     excessNoLinkedAction: "No linked action exists for this excess case in the current action worklist.",
     matchQuality: "Match quality",
+    grossNetReconciliation: "Gross → Net",
+    grossNetFlow: "{gross} → {net}",
+    grossNetOverlap: "{overlap} overlap",
+    excessRowDetails: "Open case",
     whyPrioritized: "Why Prioritized",
     whyNotHigher: "Why Not Higher",
     grossNetExplanation: "Gross-to-net explanation",
@@ -5128,7 +5138,7 @@ function renderActiveFilterChips(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderFilterChipGroup("inventoryActiveFilters", [...commonFilterChips(), ...inventoryFilterChips()]);
   renderFilterChipGroup("actionsActiveFilters", [...commonFilterChips(), ...actionFilterChips()]);
-  renderFilterChipGroup("excessActiveFilters", [...commonFilterChips(), ...columnFilterChips("excess")]);
+  renderFilterChipGroup("excessActiveFilters", [...commonFilterChips({ includeRowLimit: false }), ...columnFilterChips("excess")]);
   updateOverviewFilterResetState();
 }
 
@@ -6890,7 +6900,6 @@ function exportPilotReviews(scope = "current") {
 function renderExcessSummaryCards(model) {
   const summary = model.summary || {};
   const portfolioSummary = model.portfolioSummary || summary;
-  const quality = model.relationshipQuality || {};
   const scopeDiffers = [
     "caseCount",
     "grossExcessValue",
@@ -6905,19 +6914,33 @@ function renderExcessSummaryCards(model) {
       .replace("{filteredNet}", formatCompactMoney(summary.netAddressableExcessValue || 0))
       .replace("{portfolioNet}", formatCompactMoney(portfolioSummary.netAddressableExcessValue || 0)))}</div>`
     : "";
+  const gross = formatCompactMoney(summary.grossExcessValue || 0);
+  const net = formatCompactMoney(summary.netAddressableExcessValue || 0);
+  const overlap = formatCompactMoney(summary.overlapValue || 0);
+  const grossNetTitle = [
+    money(summary.grossExcessValue || 0),
+    money(summary.netAddressableExcessValue || 0),
+    money(summary.overlapValue || 0)
+  ].join(" | ");
   const cards = [
-    [t("excessSummaryCases"), formatCount(summary.caseCount || 0), ""],
-    [t("excessSummaryGross"), formatCompactMoney(summary.grossExcessValue || 0), money(summary.grossExcessValue || 0)],
-    [t("excessSummaryNet"), formatCompactMoney(summary.netAddressableExcessValue || 0), money(summary.netAddressableExcessValue || 0), "primary"],
-    [t("excessSummaryOverlap"), formatCompactMoney(summary.overlapValue || 0), money(summary.overlapValue || 0)],
-    [t("excessSummaryScore"), `${formatCount(summary.averageOpportunityScore || 0)}/100`, relationshipQualityLabel(quality)]
+    { label: t("excessSummaryNet"), value: net, title: money(summary.netAddressableExcessValue || 0), variant: "primary" },
+    { label: t("excessSummaryCases"), value: formatCount(summary.caseCount || 0), title: "" },
+    { label: t("excessSummaryScore"), value: `${formatCount(summary.averageOpportunityScore || 0)}/100`, title: "" },
+    {
+      label: t("grossNetReconciliation"),
+      value: t("grossNetFlow").replace("{gross}", gross).replace("{net}", net),
+      sub: t("grossNetOverlap").replace("{overlap}", overlap),
+      title: grossNetTitle,
+      variant: "reconciliation"
+    }
   ];
   return `
     <div class="excess-summary-grid">
-      ${cards.map(([label, value, title, variant]) => `
+      ${cards.map(({ label, value, sub, title, variant }) => `
         <div class="excess-summary-card${variant ? ` ${variant}` : ""}"${title ? ` title="${html(title)}"` : ""}>
           <span>${html(label)}</span>
           <strong>${html(value)}</strong>
+          ${sub ? `<small>${html(sub)}</small>` : ""}
         </div>
       `).join("")}
     </div>
@@ -6928,9 +6951,9 @@ function renderExcessSummaryCards(model) {
 function renderExcessScoreComponents(item = {}) {
   const components = item.opportunity_score_components || {};
   return `
-    <div class="excess-score-grid">
+    <div class="excess-score-list">
       ${Object.entries(components).map(([key, value]) => `
-        <div>
+        <div class="excess-score-row">
           <span>${html(scoreComponentLabel(key))}</span>
           <strong>${html(formatCount(value))}</strong>
         </div>
@@ -6942,26 +6965,23 @@ function renderExcessScoreComponents(item = {}) {
 function renderExcessScenarios(item = {}) {
   const scenarios = item.scenarios || [];
   return `
-    <section class="excess-detail-section">
-      <h4>${html(t("excessScenarioTitle"))}</h4>
-      <div class="excess-scenario-grid">
-        ${scenarios.map(scenario => {
-          const availability = scenario.availability || (scenario.available ? "available" : "unavailable");
-          const value = availability === "available"
-            ? formatCompactMoney(scenario.estimated_impact_value || 0)
-            : availability === "limited" ? t("excessScenarioLimited") : t("excessScenarioUnavailable");
-          return `
-          <div class="excess-scenario ${html(availability)}">
-            <span>${html(t(scenario.label_key) || scenario.label_key)}</span>
-            <strong>${html(value)}</strong>
-            <small>${html(t(scenario.note_key) || scenario.note_key || "")}</small>
-            <small class="scenario-non-predictive">${html(t(scenario.nonPredictiveLabelKey || "scenarioNonPredictive"))}</small>
-            ${renderScenarioDetails(scenario)}
-          </div>
-        `;
-        }).join("")}
-      </div>
-    </section>
+    <div class="excess-scenario-grid">
+      ${scenarios.map(scenario => {
+        const availability = scenario.availability || (scenario.available ? "available" : "unavailable");
+        const value = availability === "available"
+          ? formatCompactMoney(scenario.estimated_impact_value || 0)
+          : availability === "limited" ? t("excessScenarioLimited") : t("excessScenarioUnavailable");
+        return `
+        <div class="excess-scenario ${html(availability)}">
+          <span>${html(t(scenario.label_key) || scenario.label_key)}</span>
+          <strong>${html(value)}</strong>
+          <small>${html(t(scenario.note_key) || scenario.note_key || "")}</small>
+          <small class="scenario-non-predictive">${html(t(scenario.nonPredictiveLabelKey || "scenarioNonPredictive"))}</small>
+          ${renderScenarioDetails(scenario)}
+        </div>
+      `;
+      }).join("")}
+    </div>
   `;
 }
 
@@ -6999,11 +7019,18 @@ function renderExcessDetail(item) {
   `;
   const technicalDetails = `
     <div class="pilot-context-grid">
+      <div><span>${html(t("excessQualityTitle"))}</span><strong>${html(relationshipQualityLabel(currentExcessViewModel?.relationshipQuality || {}))}</strong></div>
       <div><span>${html(t("colRelationshipMatchType"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
       <div><span>${html(t("colOwnerSource"))}</span><strong>${html(displayOwnerSource(item.owner_source))}</strong></div>
       <div><span>${html(t("colOwnerConfidence"))}</span><strong>${html(displayActionValue(item.owner_assignment_confidence))}</strong></div>
       <div><span>${html(t("colExcessOverlap"))}</span><strong>${html(formatCompactMoney(item.excess_overlap_value || 0))}</strong></div>
     </div>
+  `;
+  const pilotReviewBody = `
+    <div class="pilot-review-actions">
+      <button class="secondary" type="button" data-export-pilot-reviews>${html(t("pilotReviewExport"))}</button>
+    </div>
+    ${renderPilotReviewForm(item)}
   `;
   return `
     <div class="excess-detail-card">
@@ -7018,13 +7045,13 @@ function renderExcessDetail(item) {
         <div><span>${html(t("colNetExcess"))}</span><strong title="${html(money(item.net_addressable_excess_value))}">${html(formatCompactMoney(item.net_addressable_excess_value))}</strong></div>
         <div><span>${html(t("colOpportunityScore"))}</span><strong>${html(formatCount(item.excess_opportunity_score))}/100</strong></div>
         <div><span>${html(t("colOwnerReference"))}</span><strong>${html(item.owner_reference || t("notAvailable"))}</strong></div>
-        <div><span>${html(t("matchQuality"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
+        <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(item.priority || t("notAvailable")))}</strong></div>
       </div>
       ${renderExcessDisclosure("excessDecisionBasis", decisionBasis, { open: true })}
-      ${renderExcessScenarios(item)}
+      ${renderExcessDisclosure("excessScenarioTitle", renderExcessScenarios(item))}
       ${renderExcessDisclosure("excessEvidenceLimitations", evidenceLimitations)}
       ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
-      ${renderExcessDisclosure("excessPilotReviewDisclosure", renderPilotReviewForm(item))}
+      ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
       ${renderExcessDisclosure("excessTechnicalRelationshipDetails", technicalDetails)}
     </div>
   `;
@@ -7035,14 +7062,13 @@ function renderExcessCaseTable(rows) {
   const headers = [
     ["material_action", "Material"],
     ["net_addressable_excess_value", t("colNetExcess")],
-    ["gross_excess_value", t("colGrossExcess")],
     ["excess_opportunity_score", t("colOpportunityScore")],
     ["owner_reference", t("colOwnerReference")],
     ["relationship_match_type", t("matchQuality")],
     ["action", t("topAction")]
   ];
   return `
-    <table class="wide excess-table">
+    <table class="excess-table">
       <thead>
         <tr>
           ${headers.map(([key, label]) => key === "action"
@@ -7053,20 +7079,22 @@ function renderExcessCaseTable(rows) {
       </thead>
       <tbody>
         ${rows.map(row => `
-          <tr class="${row.case_id === activeExcessCaseId ? "selected" : ""}">
+          <tr class="${row.case_id === activeExcessCaseId ? "selected" : ""}" data-excess-case-detail="${html(row.case_id)}" tabindex="0" aria-selected="${row.case_id === activeExcessCaseId ? "true" : "false"}">
             <td class="action-material-cell">
               <div class="action-material-id">${html(row.material_id || "-")}</div>
               <div class="action-material-desc">${html(row.material_description || "-")}</div>
             </td>
-            <td title="${html(money(row.net_addressable_excess_value))}">${html(formatCompactMoney(row.net_addressable_excess_value))}</td>
-            <td title="${html(money(row.gross_excess_value))}">${html(formatCompactMoney(row.gross_excess_value))}</td>
+            <td class="excess-net-cell" title="${html(`${money(row.net_addressable_excess_value)} | ${money(row.gross_excess_value)}`)}">
+              <strong>${html(formatCompactMoney(row.net_addressable_excess_value))}</strong>
+              <small>${html(t("colGrossExcess"))}: ${html(formatCompactMoney(row.gross_excess_value))}</small>
+            </td>
             <td><span class="score-badge">${html(formatCount(row.excess_opportunity_score))}</span></td>
             <td>
               <strong>${html(row.owner_reference || t("notAvailable"))}</strong>
               <small>${html(displayActionValue(row.owner_function || t("notAvailable")))}</small>
             </td>
             <td>${html(relationshipMatchTypeLabel(row.relationship_match_type))}</td>
-            <td><button class="secondary" type="button" data-excess-case-detail="${html(row.case_id)}">${html(t("excessViewDetails"))}</button></td>
+            <td class="excess-case-affordance" aria-label="${html(t("excessRowDetails"))}"><span aria-hidden="true">›</span></td>
           </tr>
         `).join("")}
       </tbody>
@@ -7077,17 +7105,19 @@ function renderExcessCaseTable(rows) {
 function renderRelationshipIssueWorklist(model = {}) {
   const quality = model.relationshipQuality || {};
   const issues = model.relationshipIssues || [];
+  if (!issues.length) return "";
   const casesByRowKey = new Map((model.cases || []).map(item => [item.inventory_row_key, item]));
+  const issueCountLabel = t("excessRelationshipIssueCount").replace("{count}", formatCount(issues.length));
   return `
-    <section class="panel excess-quality-panel">
-      <div class="panel-head">
-        <div class="panel-title">
-          <h2>${html(t("excessQualityTitle"))}</h2>
-          <small>${html(t("excessQualitySubtitle"))}</small>
+    <details class="panel excess-quality-panel excess-quality-disclosure">
+      <summary>
+        <div>
+          <strong>${html(t("excessQualityTitle"))}</strong>
+          <small>${html(issueCountLabel)} · ${html(t("excessQualitySubtitle"))}</small>
         </div>
         <span class="quality-pill ${html(quality.status || "unavailable")}">${html(relationshipQualityLabel(quality))} · ${html(formatCount(quality.score || 0))}/100</span>
-      </div>
-      ${issues.length ? `
+      </summary>
+      <div class="excess-disclosure-body">
         <div class="excess-quality-list">
           ${issues.slice(0, 8).map(issue => {
             const issueType = issue.type || issue.reason || "unknown";
@@ -7118,8 +7148,8 @@ function renderRelationshipIssueWorklist(model = {}) {
           `;
           }).join("")}
         </div>
-      ` : `<div class="empty">${html(t("excessQualityNoIssues"))}</div>`}
-    </section>
+      </div>
+    </details>
   `;
 }
 
@@ -7174,6 +7204,19 @@ function openExcessCaseById(caseId, options = {}) {
     pageNumber: excessPageNumber,
     filterAdjusted: hiddenByExcessFilters
   };
+}
+
+function handleExcessCaseRowKeydown(event) {
+  if (!["Enter", " "].includes(event.key)) return false;
+  if (!(event.target instanceof Element)) return false;
+  if (event.target.closest("button, input, select, textarea, a, summary, [role='button']")) return false;
+  const row = event.target.closest(".excess-table tbody tr[data-excess-case-detail]");
+  if (!row) return false;
+  const caseId = row.dataset.excessCaseDetail || "";
+  if (!caseId) return false;
+  event.preventDefault();
+  openExcessCaseById(caseId);
+  return true;
 }
 
 function excessCaseNavigationTarget(caseRecord = {}) {
@@ -7247,12 +7290,7 @@ function renderExcessPage() {
           <p>${html(t("excessSubtitle"))}</p>
         </div>
         <div class="control-card-actions">
-          <div class="dataset-context" aria-label="Dataset context">
-            <span class="dataset-chip state"><span class="status-dot"></span><span class="dataset-status-text">${html(t("dataLoaded"))}</span></span>
-            <span class="dataset-chip">${html(formatCount(rows.length))} ${html(t("visible"))}</span>
-          </div>
-          <button class="secondary" type="button" data-export-pilot-reviews>${html(t("pilotReviewExport"))}</button>
-          <button class="secondary" type="button" data-export-excess>${html(t("excessExport"))}</button>
+          <button class="secondary" type="button" data-export-excess>${html(t("exportTop"))}</button>
         </div>
       </div>
       <div id="excessToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
@@ -18870,6 +18908,7 @@ window.addEventListener("keydown", event => {
   if (trapMappingModalFocus(event)) return;
   if (trapRemediationModalFocus(event)) return;
   if (handleColumnFilterPopoverKeydown(event)) return;
+  if (handleExcessCaseRowKeydown(event)) return;
   if (event.key === "Escape") {
     if ($("mappingModal")?.classList.contains("active")) {
       closeColumnMappingAssistant({ cancelled: true });
