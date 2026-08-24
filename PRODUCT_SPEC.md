@@ -50,6 +50,58 @@ Original Data, Enriched Data and Historical Metrics exports remain separate. His
 
 Recommended next work block remains AP 16.4d — Slow / Dead Stock Intelligence.
 
+### AP 16.4d.1 — Slow / Dead Condition & Evidence Engine
+
+AP 16.4d.1 adds the first controlled Slow / Dead domain layer in the Recovery Chain: Detect -> Diagnose -> preparation of Decide. It creates auditable Slow / Dead Recovery Case Candidates from accepted Inventory entities and accepted Historical Metrics Runtime output. It does not add the final Slow / Dead page, worklist, detail view, export, financial recognition, workflow execution, persistence or predictive analytics.
+
+The authoritative evaluation level is the Inventory entity created by the Inventory-to-Consumption-History relationship model. Multiple Inventory rows for the same entity produce one Case Candidate. Missing, stale, ambiguous or unit-unreliable evidence produces `insufficient_evidence`; it never becomes a false zero-risk, Slow-Moving or Dead-Stock conclusion.
+
+The central policy is versioned as `slow-dead-condition-policy-v1` and keeps all thresholds explicit MVP hypotheses: 12 months minimum history coverage, 0.80 minimum completeness, 0.90 strong completeness, 6 months for Slow-Moving recency, 12 months for Non-Moving, 18 months for Dead Stock Candidate, two active months for recurring demand, 0.75 intermittency threshold and a mandatory independent demand, planning or lifecycle signal for Dead Stock Candidate.
+
+Controlled condition classes are `insufficient_evidence`, `intermittent_expected`, `slow_moving_candidate`, `non_moving_candidate`, `dead_stock_candidate` and `strategic_reserve`. Precedence protects critical evidence gaps first, then explicit Strategic Reserve, then intermittent recurring demand, then Dead Stock Candidate, Non-Moving Candidate and Slow-Moving Candidate. Age alone cannot create a Dead Stock Candidate. Strategic Reserve is never inferred from age, value, coverage or zero movement; it requires explicit evidence.
+
+Each result exposes positive evidence, counter evidence, limitation codes, missing evidence, categorical Evidence Strength, categorical Condition Confidence, evidence-backed Root-Cause candidates, Recovery Case Eligibility and Action Eligibility. Action Eligibility remains pre-decisional and uses only existing package types such as demand forecast, purchase orders, planning parameters, quality, finance and actions outcomes. Disposal is never automatically recommended or approved.
+
+The derived Slow / Dead Case Runtime is isolated from Inventory KPIs, Recovery, Data Quality, existing Actions, Opportunity Score, scenarios, Pilot Reviews, Registry packages and exports. It creates no Package revision and does not mutate authoritative Inventory rows or Historical Metric rows.
+
+### AP 16.4d.1.1 — Slow / Dead Runtime Boundary & Final Acceptance Closure
+
+AP 16.4d.1.1 closes the technical acceptance boundary for the accepted Slow / Dead Condition & Evidence Engine without adding the visible Slow / Dead page. The derived Runtime now exposes six explicit states: `not_calculated`, `calculating`, `available`, `limited`, `unavailable` and `error`.
+
+Historical Runtime dependency states map explicitly into the Slow / Dead Runtime. Calculating History becomes `calculating`; missing, stale or unavailable History becomes `unavailable`; Historical Runtime errors become `error` with `errorSource: "historical_runtime"`; Slow / Dead Service exceptions become `error` with `errorSource: "slow_dead_runtime"`.
+
+The adapter validates the current Historical input signature before building, deduplicates repeated completed signatures and clears stale Case results whenever the derived Runtime is calculating, unavailable or errored. A Slow / Dead failure cannot mutate Historical Runtime, cannot convert Historical Runtime into error and cannot prevent the accepted Data Foundation / Historical Metrics presentation from updating.
+
+The existing text-based Action Cockpit `slow_dead` logic remains unchanged for current Actions, but it is not Condition truth and not Action Eligibility truth for AP 16.4d.2. The future Slow / Dead Recovery Case Page must consume the derived Recovery Case Runtime, its Condition & Evidence Engine result and its Action Eligibility contract.
+
+Recommended Next Work Block: AP 16.4d.2 — Slow / Dead Recovery Case Page. Then AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
+
+### AP 16.4d.2 — Slow / Dead Recovery Case Page
+
+AP 16.4d.2 turns the accepted Slow / Dead Runtime into a visible Recovery Case Workbench. The page replaces the former placeholder in the Slow / Dead Stock tab and consumes the authoritative path: Historical Metrics Runtime -> Slow / Dead Runtime State -> Slow / Dead Recovery Case Service -> entity-authoritative Recovery Cases.
+
+The page shows a dedicated header, truthful Runtime-state banner, compact Portfolio Summary, controlled Condition filters, searchable/filterable Worklist, deterministic sorting and pagination, selected Case detail, positive and counter evidence, limitations, missing evidence, stronger-conclusion explanations, Root-Cause hypotheses, Recovery Case Eligibility, pre-decisional Action Eligibility, required Data Packages and Package/model provenance.
+
+Inventory Exposure is shown as exposure only. It is not labelled or treated as Recovery Potential, Expected Recovery Value, cash release, working-capital release, P&L effect, recognized value or realized value. Missing exposure remains unavailable rather than false zero. Dead-Stock Candidate remains a candidate, not disposal, scrapping or write-down approval.
+
+The page supports exact Inventory Explorer navigation by material identity and controlled navigation to existing Actions when a linked action exists. Navigation does not create Action rows, mutate Action status or write Registry Packages.
+
+A dedicated Slow / Dead export writes one row per Recovery Case with evidence and provenance. It reuses the existing local Excel-compatible and CSV-for-Google-Sheets export path and preserves text identifiers such as leading-zero material numbers.
+
+AP 16.4d.2 is presentation and export enablement only. It does not change Condition thresholds, Condition precedence, Historical Metrics formulas, Recovery, Data Quality, current Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry state, Package revisions, SAP integration, persistence or financial Recognition.
+
+Recommended Next Work Block: AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
+
+### AP 16.4d.2.1 — Entity-Exact Navigation & Case Contract Closure
+
+AP 16.4d.2.1 closes the accepted Slow / Dead page contract. Slow / Dead -> Inventory navigation now resolves targets by `inventory_row_keys`, then `inventory_entity_key`, then exact `material_id + plant`, with material-only fallback only when the target is unique. The temporary reveal state makes the exact target visible without becoming analytical filter state and without changing Inventory Summary or Export scope.
+
+Slow / Dead -> Actions navigation uses the same entity-safe identity model. An Action linked to one Material/Plant combination must not mark another plant of the same material as linked, and missing targets show truthful feedback rather than opening an unrelated Action.
+
+Inventory Exposure remains nullable in the Recovery Case contract. Missing or invalid `stock_value` is unavailable (`n. v.` / `n/a`), while an actual calculated zero remains `0`. Portfolio summaries expose available and unavailable exposure counts so unavailable exposure is not counted as a false calculated zero. Owner Context from existing action-owner logic and Inventory/Material-Master provenance is projected into Slow / Dead Cases as operational context only.
+
+Slow / Dead export separates `Inventory Exposure` and `Currency`; it does not imply FX conversion and continues to write one row per Recovery Case with evidence and provenance.
+
 ### DF-UX-02 — Capability-Oriented Data Foundation
 
 The Data Foundation remains a product capability surface, not a technical Package-status widget. Its collapsed summary now communicates direct source and capability states only: Inventory Data drives active Inventory Analysis, Material Master unlocks Context Enrichment and Consumption History unlocks Historical Analysis.
@@ -1423,11 +1475,11 @@ AP 16.3a turns the Excess Stock navigation tab into the first dedicated operatio
 Visible MVP capability:
 
 - Excess Stock opens a real decision page instead of a placeholder.
-- Summary cards show Excess case count, gross excess, net addressable excess, overlap / double counting and average opportunity score.
-- The Excess decision list shows material, net addressable excess, gross excess, overlap, opportunity score, owner reference, owner confidence and Material Master match type.
-- Selecting a case opens decision details with score components, score drivers, deterministic scenarios, evidence and known limitations.
+- Summary cards prioritize net addressable excess, then Excess case count, average opportunity score and a compact Gross-to-Net reconciliation containing gross excess, net addressable excess and overlap / double counting.
+- The Excess decision list is a compact Worklist showing material, net addressable excess with gross excess as secondary evidence, opportunity score, owner reference, match quality and a compact case affordance.
+- Selecting a case opens decision details with score components, score drivers, overlap transparency, owner/source confidence, deterministic scenarios, evidence and known limitations.
 - Scenarios include excess reduction by percent, excess reduction by absolute amount, safety-stock adjustment, purchase-order review and demand validation.
-- Relationship and Enrichment quality are shown as read-only decision context with a compact issue worklist.
+- Relationship and Enrichment quality are shown in technical relationship details and render a separate read-only issue worklist only when actionable relationship issues exist.
 - Inventory export can now choose original source data, enriched analytical data or enriched data with provenance.
 
 Generated fields:
@@ -1452,6 +1504,9 @@ Product rules:
 - `owner_source` is transparent context only: `inventory`, `material_master` or `none`.
 - Relationship Quality uses the documented `mvp-1` thresholds and remains separate from the Inventory Data Quality Score.
 - Opportunity scoring and scenarios are deterministic MVP decision support, not predictive analytics.
+- The Excess page is a self-contained workspace. It does not show Overview KPIs, Overview filters or Data Foundation content while the Excess route is active.
+- Excess filters are presentation filters over the current Excess portfolio and must not rebuild analytics, scores, scenarios, Pilot Reviews, Registry records or Package revisions.
+- Excess -> Actions navigation resolves by row key, entity key or exact Material/Plant identity, with material-only fallback only when unique.
 
 Not included beyond AP 16.3a:
 
@@ -1498,12 +1553,17 @@ Not included beyond AP 16.3a:
 14. The current Inventory Snapshot is registered or updated in the Data Package Registry, including compact relationship and enrichment metadata where available.
 15. The app decorates analytical rows with rule-based Action fields for root cause, recommended action, next step, owner function, priority, confidence and session-only status.
 16. The Owner Context Engine adds owner reference, owner source and owner assignment confidence beside the existing owner-function rule.
-17. Data Quality detection runs application-side from Inventory-owned source/canonical rows for Inventory source-quality identity, then combines that result with the existing remediation lifecycle state. Material Master context enrichment may be visible in Explorer and Actions, but it does not change Inventory duplicate-candidate issue identity.
-18. Overview renders compact management KPIs, dataset context chips, compact chart panels and a Recovery Worklist from the enriched dataset.
-19. Excess Stock renders Excess decision cases, net-addressable values, overlap, opportunity scoring, scenario evidence, relationship/enrichment quality and session-only Pilot Review from the enriched dataset.
-20. Inventory Explorer renders the full inventory table in original Excel order with filters, internal scrolling and additional enriched Material Master context columns where available.
-21. Data Quality renders a remediation-first workspace with a primary Score-plus-issue metric row, compact Quick Filters, targeted filter-result rendering, simplified issue worklist, right-side issue Review Sheet and secondary collapsed technical diagnostics for readiness, score breakdown, field coverage, content quality, mapping, source-column diagnostics and recovery validation.
-22. Recovery/action/excess exports include traceability fields; inventory export generates a local Excel-compatible or Google-Sheets-compatible file for the selected export scope and selected data variant. Corrected dataset and issue-log exports are available from Data Quality.
+17. The Historical Metrics Runtime is built only from accepted Inventory and Consumption History inputs; presentation interactions such as filters, sorting, language, theme, currency and export-dialog opening do not rebuild it.
+18. The Slow / Dead Runtime consumes current Historical Metrics Runtime output and creates entity-authoritative Slow / Dead Recovery Cases through the Slow / Dead Recovery Case Service.
+19. The Slow / Dead Page Model consumes the Runtime state for page-only filtering, sorting, pagination, selected Case identity, Portfolio Summary and nullable Inventory Exposure presentation.
+20. The Slow / Dead View / Controller renders the Recovery Case Workbench and handles scoped page interactions, entity-exact Inventory/Action navigation reveal and export-dialog opening without rebuilding the Runtime.
+21. The Slow / Dead export writes one row per current Recovery Case with evidence, provenance, separate Inventory Exposure and Currency columns.
+22. Data Quality detection runs application-side from Inventory-owned source/canonical rows for Inventory source-quality identity, then combines that result with the existing remediation lifecycle state. Material Master context enrichment may be visible in Explorer and Actions, but it does not change Inventory duplicate-candidate issue identity.
+23. Overview renders compact management KPIs, dataset context chips, compact chart panels and a Recovery Worklist from the enriched dataset.
+24. Excess Stock renders Excess decision cases, net-addressable values, overlap, opportunity scoring, scenario evidence, relationship/enrichment quality and session-only Pilot Review from the enriched dataset.
+25. Inventory Explorer renders the full inventory table in original Excel order with filters, internal scrolling and additional enriched Material Master context columns where available.
+26. Data Quality renders a remediation-first workspace with a primary Score-plus-issue metric row, compact Quick Filters, targeted filter-result rendering, simplified issue worklist, right-side issue Review Sheet and secondary collapsed technical diagnostics for readiness, score breakdown, field coverage, content quality, mapping, source-column diagnostics and recovery validation.
+27. Recovery/action/excess/slow-dead exports include traceability fields; inventory export generates a local Excel-compatible or Google-Sheets-compatible file for the selected export scope and selected data variant. Corrected dataset and issue-log exports are available from Data Quality.
 
 Workflow and lifecycle state remains separate from the data pipeline:
 
@@ -1528,12 +1588,12 @@ These decisions may change what the app shows or how issues are classified, but 
 - Action recommendations are rule-based and non-binding.
 - Action status is session-only and not production persistence.
 - Pilot Reviews are session-only customer-validation evidence, not persistent workflow or realized-value tracking.
-- Placeholder tabs describe the intended product areas before full implementation.
+- Placeholder tabs still describe not-yet-implemented product areas only: Blocked / Quality, Purchase Orders and Reports.
 
 ## Recommended Next Work Block
 
-AP 16.4c: Inventory Relationship & Historical Metrics. This next block should connect accepted Consumption History Packages to Inventory entities and calculate controlled historical metrics after source-bound interpretation is accepted.
+AP 16.4d.3: Pilot Calibration & Acceptance Closure. This next block should calibrate Slow / Dead thresholds, evidence wording and pilot acceptance criteria against representative DACH manufacturing datasets without turning candidates into execution approvals.
 
 Subsequent roadmap:
 
-- AP 16.4d: Slow / Dead Stock Intelligence
+- AP 16.5: Purchase Order and Quality-specific intelligence

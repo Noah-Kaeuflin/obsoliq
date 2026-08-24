@@ -94,6 +94,27 @@ if (!ObsoliQModules.application?.historicalInventoryMetricsService) {
 if (!ObsoliQModules.application?.historicalMetricsRuntimeCoordinator) {
   throw new Error("ObsoliQ Historical Metrics Runtime Coordinator module failed to load.");
 }
+if (!ObsoliQModules.slowDead?.conditionEngine) {
+  throw new Error("ObsoliQ Slow / Dead Condition Engine failed to load.");
+}
+if (!ObsoliQModules.slowDead?.pageModel) {
+  throw new Error("ObsoliQ Slow / Dead Page Model failed to load.");
+}
+if (!ObsoliQModules.slowDead?.exportBuilder) {
+  throw new Error("ObsoliQ Slow / Dead Export Builder failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadRecoveryCaseService) {
+  throw new Error("ObsoliQ Slow / Dead Recovery Case Service failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadRuntimeState) {
+  throw new Error("ObsoliQ Slow / Dead Runtime State module failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadPageView) {
+  throw new Error("ObsoliQ Slow / Dead Page View failed to load.");
+}
+if (!ObsoliQModules.application?.slowDeadPageController) {
+  throw new Error("ObsoliQ Slow / Dead Page Controller failed to load.");
+}
 if (!ObsoliQModules.application?.inventoryEnrichmentService) {
   throw new Error("ObsoliQ Inventory Enrichment Service module failed to load.");
 }
@@ -212,6 +233,23 @@ const historicalMetricsRuntimeCoordinator = ObsoliQModules.application.historica
   clock: () => new Date().toISOString(),
   onStateChange: state => handleHistoricalMetricsRuntimeStateChange(state)
 });
+const slowDeadRecoveryCaseService = ObsoliQModules.application.slowDeadRecoveryCaseService.createSlowDeadRecoveryCaseService({
+  conditionEngine: ObsoliQModules.slowDead.conditionEngine.createSlowDeadConditionEngine()
+});
+const slowDeadRuntimeState = ObsoliQModules.application.slowDeadRuntimeState;
+const slowDeadPageModelModule = ObsoliQModules.slowDead.pageModel;
+const slowDeadExportBuilder = ObsoliQModules.slowDead.exportBuilder;
+let slowDeadRecoveryCaseBuildCount = 0;
+let slowDeadRecoveryCaseFailedBuildCount = 0;
+let slowDeadRecoveryCaseDependencyNoBuildCount = 0;
+let slowDeadRecoveryCaseBuildLog = [];
+let slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState();
+let slowDeadPageView = null;
+let slowDeadPageController = null;
+let currentSlowDeadPageModel = null;
+let slowDeadInventoryRevealTarget = null;
+let slowDeadActionRevealTarget = null;
+let excessActionRevealTarget = null;
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
@@ -535,6 +573,88 @@ const translations = {
     dataQualitySubtitle: "Datenprobleme erkennen, priorisieren und kontrolliert bereinigen.",
     actionsTitle: "Maßnahmen",
     actionsSubtitle: "Priorisierte Recovery-Maßnahmen mit Ursache, nächstem Schritt, Verantwortlichkeit, Priorität und Status.",
+    slowDeadPageTitle: "Slow-/Dead-Recovery-Cases",
+    slowDeadPageSubtitle: "Entity-basierte Workbench für historische Verbrauchsevidenz, Condition, Hypothesen und vorentscheidende Action Eligibility.",
+    slowDeadRuntimeTitle: "Slow-/Dead-Runtime",
+    slowDeadRuntime_available: "Cases verfügbar",
+    slowDeadRuntime_limited: "Cases eingeschränkt",
+    slowDeadRuntime_unavailable: "Nicht verfügbar",
+    slowDeadRuntime_not_calculated: "Nicht berechnet",
+    slowDeadRuntime_calculating: "Berechnung läuft",
+    slowDeadRuntime_error: "Fehler",
+    slowDeadRuntimeBody_available: "Die Recovery Cases basieren auf der aktuellen Historical-Metrics-Runtime.",
+    slowDeadRuntimeBody_limited: "Die Workbench ist verfügbar, enthält aber Einschränkungen oder Cases mit geringer Evidenz.",
+    slowDeadRuntimeBody_unavailable: "Für Slow-/Dead-Cases fehlen aktuell belastbare Historical Metrics oder die passende Verbrauchshistorie.",
+    slowDeadRuntimeBody_not_calculated: "Slow-/Dead-Cases wurden für diese Datenbasis noch nicht berechnet.",
+    slowDeadRuntimeBody_calculating: "Historical Metrics oder Slow-/Dead-Cases werden gerade aufgebaut. Es werden keine alten Cases angezeigt.",
+    slowDeadRuntimeBody_error: "Die Slow-/Dead-Runtime ist in einen Fehlerzustand gelaufen. Historical Metrics bleiben davon getrennt.",
+    slowDeadRuntimeBuildCount: "Builds",
+    slowDeadEvaluatedAt: "Ausgewertet",
+    slowDeadImportHistory: "Verbrauchshistorie importieren",
+    slowDeadPortfolioSummary: "Portfolio Summary",
+    slowDeadPortfolioSummaryDesc: "Case-Zählung und Inventory Exposure je Condition ohne doppelte Inventarzeilen.",
+    slowDeadTotalCases: "Cases gesamt",
+    slowDeadSummary_slow_moving_candidate: "Slow-Moving",
+    slowDeadSummary_non_moving_candidate: "Non-Moving",
+    slowDeadSummary_dead_stock_candidate: "Dead-Stock-Kandidat",
+    slowDeadSummary_protected_monitor: "Geschützt / Monitor",
+    slowDeadSummary_insufficient_evidence: "Unzureichende Evidenz",
+    slowDeadConditionFilters: "Condition-Filter",
+    slowDeadSearchPlaceholder: "Case, Material, Werk oder Zeilenschlüssel suchen …",
+    slowDeadEvidenceStrength: "Evidenzstärke",
+    slowDeadConditionConfidence: "Condition Confidence",
+    slowDeadRecoveryEligibility: "Recovery Case Eligibility",
+    slowDeadRequiredPackage: "Benötigtes Paket",
+    slowDeadMissingEvidence: "Fehlende Evidenz",
+    slowDeadCondition: "Condition",
+    slowDeadInventoryExposure: "Inventory Exposure",
+    slowDeadWorklistTitle: "Recovery Case Worklist",
+    slowDeadWorklistSubtitle: "{count} entity-basierte Cases in der aktuellen Ansicht.",
+    slowDeadCandidateNotDecision: "Kandidat, keine Freigabe",
+    slowDeadDeadCandidateWarning: "Dead-Stock-Kandidat ist keine Entsorgungs-, Verschrottungs- oder Abschreibungsfreigabe.",
+    slowDeadStrategicReserveNote: "Strategic Reserve ist geschützt und wird nicht als automatische Recovery-Maßnahme interpretiert.",
+    slowDeadIntermittentNote: "Intermittierender Verbrauch spricht für Monitoring, nicht für eine finale Slow-/Dead-Entscheidung.",
+    slowDeadPositiveEvidence: "Positive Evidenz",
+    slowDeadCounterEvidence: "Counter Evidence",
+    slowDeadWhyNotStronger: "Warum keine stärkere Aussage?",
+    slowDeadRootCauses: "Root-Cause-Hypothesen",
+    slowDeadHypothesis: "Hypothese",
+    slowDeadActionEligibility: "Action Eligibility",
+    slowDeadActionEligibilityNote: "Vorentscheidende Eignung, keine finale Empfehlung oder Ausführungsfreigabe.",
+    slowDeadRequiredPackages: "Benötigte Data Packages",
+    slowDeadProvenance: "Package- und Modell-Provenienz",
+    slowDeadOpenInventory: "Im Bestand öffnen",
+    slowDeadOpenActions: "In Maßnahmen öffnen",
+    slowDeadExport: "Slow-/Dead-Cases exportieren",
+    slowDeadDownload: "Slow-/Dead-Cases exportieren",
+    slowDeadDownloadSubtitle: "Exportiere die aktuell gefilterten oder alle aktuellen Slow-/Dead-Recovery-Cases mit Evidenz und Provenance.",
+    slowDeadNoLinkedAction: "Für diesen Case existiert aktuell keine verknüpfte Maßnahme.",
+    slowDeadInventoryTargetMissing: "Der exakte Inventory-Zielcase ist im aktuellen Bestand nicht verfügbar.",
+    slowDeadEmpty_no_filtered_cases: "Keine Slow-/Dead-Cases passen zu den aktuellen Filtern.",
+    slowDeadEmpty_no_cases: "Die aktuelle Runtime enthält keine Slow-/Dead-Cases.",
+    slowDeadEmpty_not_calculated: "Slow-/Dead-Cases wurden noch nicht berechnet.",
+    slowDeadEmpty_calculating: "Berechnung läuft. Es werden keine alten Cases angezeigt.",
+    slowDeadEmpty_unavailable: "Slow-/Dead-Cases sind aktuell nicht verfügbar.",
+    slowDeadEmpty_error: "Slow-/Dead-Cases können wegen eines Runtime-Fehlers nicht angezeigt werden.",
+    stockQuantity: "Bestandsmenge",
+    baseUnit: "Basismengeneinheit",
+    netConsumption3m: "Nettoverbrauch 3M",
+    netConsumption6m: "Nettoverbrauch 6M",
+    activeConsumptionMonths12m: "Aktive Verbrauchsmonate 12M",
+    movementFrequency12m: "Bewegungsfrequenz 12M",
+    historyCoverageMonths: "Historienabdeckung",
+    monthsShort: "Mon.",
+    previous: "Zurück",
+    next: "Weiter",
+    page: "Seite",
+    actions: "Aktion",
+    caseId: "Case ID",
+    inventoryEntityKey: "Inventory Entity Key",
+    inventoryRowKeys: "Inventory Row Keys",
+    relationshipSignature: "Relationship Signature",
+    conditionModelVersion: "Condition Model Version",
+    conditionPolicyVersion: "Condition Policy Version",
+    caseInputSignature: "Case Input Signature",
     metricInventory: "Gesamtbestand",
     metricExcess: "Überbestand",
     metricExcessSub: "adressierbarer Überbestand",
@@ -610,8 +730,8 @@ const translations = {
     openAction: "Details →",
     topOwner: "Verantwortlich",
     topAction: "Aktion",
-    excessTitle: "Excess Intelligence",
-    excessSubtitle: "Operative Entscheidungsseite für Überbestand, Netto-Potenzial, Owner-Kontext und Szenarien.",
+    excessTitle: "Überbestand",
+    excessSubtitle: "Priorisierte Überbestandsfälle mit Netto-Potenzial, Evidenz, Owner-Kontext und Szenarien.",
     excessSummaryCases: "Excess-Fälle",
     excessSummaryGross: "Brutto-Überbestand",
     excessSummaryNet: "Netto adressierbar",
@@ -632,9 +752,22 @@ const translations = {
     excessQualityTitle: "Relationship- und Enrichment-Qualität",
     excessQualitySubtitle: "Read-only Arbeitsliste für Match-Lücken, Mehrdeutigkeiten und Feldkonflikte.",
     excessQualityNoIssues: "Keine Relationship- oder Enrichment-Probleme im aktuellen Kontext.",
+    excessRelationshipIssueCount: "{count} Relationship-Probleme",
     excessScoreDrivers: "Score-Treiber",
     excessLimitations: "Bekannte Grenzen",
     excessEvidence: "Evidenz",
+    excessDecisionBasis: "Entscheidungsbasis",
+    excessScenarioEvidence: "Szenario-Evidenz",
+    excessEvidenceLimitations: "Evidenz & Grenzen",
+    excessPilotReviewDisclosure: "Pilotbewertung",
+    excessTechnicalRelationshipDetails: "Technische Relationship-Details",
+    excessFilteredContext: "Gefilterte Sicht: {filteredCases} von {portfolioCases} Fällen · {filteredNet} von {portfolioNet} netto adressierbar",
+    excessNoLinkedAction: "Für diesen Überbestandsfall existiert aktuell keine verknüpfte Maßnahme.",
+    matchQuality: "Match-Qualität",
+    grossNetReconciliation: "Brutto → Netto",
+    grossNetFlow: "{gross} → {net}",
+    grossNetOverlap: "{overlap} Überlappung",
+    excessRowDetails: "Fall öffnen",
     whyPrioritized: "Warum priorisiert",
     whyNotHigher: "Warum nicht höher",
     grossNetExplanation: "Brutto-zu-Netto-Erklärung",
@@ -794,6 +927,7 @@ const translations = {
     colExcessOverlap: "Überlappung",
     colOpportunityScore: "Score",
     colOwnerReference: "Owner-Referenz",
+    ownerReferenceField: "Owner-Referenzfeld",
     colOwnerSource: "Owner-Quelle",
     colOwnerConfidence: "Owner-Zuordnungssicherheit",
     colRelationshipStatus: "MM-Match",
@@ -1546,6 +1680,104 @@ const translations = {
     net_no_plan_value: "Netto Ohne Plan",
     net_excess_value: "Netto Überbestand",
     net_bad_stock_value: "Netto Gesperrt / QI",
+    condition_insufficient_evidence: "Unzureichende Evidenz",
+    condition_intermittent_expected: "Intermittierender Bedarf",
+    condition_slow_moving_candidate: "Slow-Moving-Kandidat",
+    condition_non_moving_candidate: "Non-Moving-Kandidat",
+    condition_dead_stock_candidate: "Dead-Stock-Kandidat",
+    condition_strategic_reserve: "Strategic Reserve",
+    slowDeadEvidenceStrength_high: "Hoch",
+    slowDeadEvidenceStrength_medium: "Mittel",
+    slowDeadEvidenceStrength_low: "Niedrig",
+    slowDeadEvidenceStrength_insufficient: "Unzureichend",
+    slowDeadEvidenceStrength_not_applicable: "Nicht anwendbar",
+    slowDeadConfidence_high: "Hoch",
+    slowDeadConfidence_medium: "Mittel",
+    slowDeadConfidence_low: "Niedrig",
+    slowDeadConfidence_unavailable: "Nicht verfügbar",
+    slowDeadConfidence_not_applicable: "Nicht anwendbar",
+    slowDeadRecoveryEligibility_reviewable_case_candidate: "Review-fähiger Case-Kandidat",
+    slowDeadRecoveryEligibility_evidence_required: "Evidenz erforderlich",
+    slowDeadRecoveryEligibility_monitor_only: "Nur Monitoring",
+    slowDeadRecoveryEligibility_no_case: "Kein Case",
+    slowDeadActionEligibility_eligible: "Geeignet",
+    slowDeadActionEligibility_review_required: "Review erforderlich",
+    slowDeadActionEligibility_potentially_eligible: "Potenziell geeignet",
+    slowDeadActionEligibility_unavailable_until_evidence: "Bis Evidenz fehlt nicht verfügbar",
+    slowDeadActionEligibility_manual_commercial_review: "Manueller Commercial Review",
+    slowDeadActionEligibility_eligible_for_finance_review: "Für Finance Review geeignet",
+    slowDeadActionEligibility_not_recommendable: "Nicht empfehlbar",
+    slowDeadAction_COLLECT_EVIDENCE: "Fehlende Evidenz sammeln",
+    slowDeadAction_IMPORT_MISSING_DATA: "Fehlende Datenpakete importieren",
+    slowDeadAction_OWNER_REVIEW: "Owner Review zuweisen",
+    slowDeadAction_MONITOR: "Monitoring",
+    slowDeadAction_PLANNING_PARAMETER_REVIEW: "Dispositionseinstellungen prüfen",
+    slowDeadAction_DISPOSAL_REVIEW: "Entsorgungsprüfung",
+    slowDeadAction_CONSUME_NATURALLY: "Natürlich verbrauchen",
+    slowDeadAction_INTERNAL_TRANSFER: "Interne Umlagerung prüfen",
+    slowDeadAction_SUPPLIER_RETURN: "Lieferantenrückgabe prüfen",
+    slowDeadAction_ALTERNATIVE_USE: "Alternative Verwendung prüfen",
+    slowDeadAction_EXTERNAL_SALE: "Externen Verkauf prüfen",
+    slowDeadAction_WRITE_DOWN_REVIEW: "Finance Write-down Review",
+    slowDeadAction_PO_REDUCE: "Bestellreduzierung prüfen",
+    dataPackageType_demand_forecast: "Demand Forecast",
+    dataPackageType_purchase_orders: "Bestellungen",
+    dataPackageType_planning_parameters: "Disposition",
+    dataPackageType_quality: "Qualität",
+    dataPackageType_finance: "Finance",
+    dataPackageType_actions_outcomes: "Action Outcomes",
+    missingEvidence_consumption_history: "Verbrauchshistorie",
+    missingEvidence_relationship_evidence: "Relationship-Evidenz",
+    missingEvidence_twelve_month_consumption_history: "12-Monats-Verbrauchshistorie",
+    missingEvidence_complete_consumption_history: "Vollständige Verbrauchshistorie",
+    missingEvidence_last_consumption_date: "Letztes Verbrauchsdatum",
+    missingEvidence_rolling_consumption_quantity: "Rollierende Verbrauchsmenge",
+    missingEvidence_unit_consistency: "Mengeneinheiten-Konsistenz",
+    missingEvidence_future_demand: "Zukünftiger Bedarf",
+    missingEvidence_planning_context: "Planungskontext",
+    missingEvidence_material_lifecycle_status: "Material-Lifecycle-Status",
+    missingEvidence_finance_review_context: "Finance-Review-Kontext",
+    missingEvidence_quality_or_block_status: "Qualitäts- oder Sperrstatus",
+    missingEvidence_commercial_sellability: "Kommerzielle Verwertbarkeit",
+    missingEvidence_supplier_terms_or_open_po_context: "Lieferantenkonditionen oder offene Bestellung",
+    slowDeadReason_critical_history_gate_failed: "Historische Evidenz nicht belastbar genug",
+    slowDeadReason_history_coverage_below_policy: "Historienabdeckung unter Policy",
+    slowDeadReason_history_completeness_below_policy: "Historienvollständigkeit unter Policy",
+    slowDeadReason_months_since_last_consumption_missing: "Monate seit letztem Verbrauch fehlen",
+    slowDeadReason_net_consumption_12m_missing: "12M-Nettoverbrauch fehlt",
+    slowDeadReason_historical_runtime_unavailable: "Historical Runtime nicht verfügbar",
+    slowDeadReason_historical_runtime_not_calculated: "Historical Runtime nicht berechnet",
+    slowDeadReason_history_package_missing: "Verbrauchshistorie fehlt",
+    slowDeadReason_relationship_unmatched: "Keine passende Verbrauchshistorien-Beziehung",
+    slowDeadReason_relationship_ambiguous: "Mehrdeutige Verbrauchshistorien-Beziehung",
+    slowDeadReason_relationship_invalid: "Ungültiger Beziehungsschlüssel",
+    slowDeadReason_critical_evidence_missing: "Kritische Evidenz fehlt",
+    slowDeadReason_explicit_strategic_reserve: "Explizite Strategic Reserve",
+    slowDeadReason_recurring_intermittent_demand: "Wiederkehrender intermittierender Bedarf",
+    slowDeadReason_strategic_reserve_protected: "Strategic Reserve geschützt",
+    slowDeadReason_manual_approval_required: "Manuelle Freigabe erforderlich",
+    slowDeadEvidence_inventory_exposure_exists: "Inventory Exposure vorhanden",
+    slowDeadEvidence_critical_history_gate_failed: "Historische Evidenz nicht belastbar",
+    slowDeadEvidence_explicit_strategic_reserve: "Strategic Reserve belegt",
+    slowDeadEvidence_no_explicit_strategic_reserve: "Keine explizite Strategic Reserve",
+    slowDeadEvidence_independent_dead_stock_signal: "Unabhängiges Dead-Stock-Signal",
+    slowDeadEvidence_no_independent_dead_stock_signal: "Kein unabhängiges Dead-Stock-Signal",
+    slowDeadEvidence_intermittent_recurring_consumption: "Intermittierender wiederkehrender Verbrauch",
+    slowDeadEvidence_dead_stock_evidence: "Dead-Stock-Kandidaten-Evidenz",
+    slowDeadEvidence_dead_age_without_independent_signal: "Alter ohne unabhängiges Signal",
+    slowDeadEvidence_non_moving_evidence: "Keine jüngere Bewegung",
+    slowDeadEvidence_slow_moving_evidence: "Mehrere Slow-Moving-Dimensionen",
+    slowDeadEvidence_slow_dead_thresholds_not_met: "Slow-/Dead-Schwellen nicht erfüllt",
+    rootCause_missing_or_unreliable_history: "Fehlende oder unzuverlässige Historie",
+    rootCause_explicit_strategic_reserve: "Explizite Strategic-Reserve-Policy",
+    rootCause_intermittent_recurring_demand: "Intermittierender wiederkehrender Bedarf",
+    rootCause_demand_discontinuity: "Kein sichtbarer aktueller Bedarf",
+    rootCause_planning_reference_missing: "Planungsreferenz fehlt",
+    rootCause_lifecycle_or_program_end: "Lifecycle-, Programm- oder Materialende",
+    rootCause_lot_size_or_moq_policy: "Losgrößen- oder MOQ-Policy",
+    rootCause_purchase_order_continuation: "Offener Bestellkontext",
+    rootCause_planning_parameter_mismatch: "Planungsparameter passen nicht zum Verbrauch",
+    rootCause_requires_cross_functional_review: "Cross-funktionaler Review erforderlich",
     descOverview: "Management-KPIs und Recovery-Zusammenfassung",
     descInventoryExplorer: "Vollbestand mit Filtern und Excel-Anordnung",
     descExcessStock: "Materialien mit Überbestand und Recovery-Potenzial",
@@ -1851,6 +2083,88 @@ const translations = {
     dataQualitySubtitle: "Detect, prioritize and resolve data-quality issues in a controlled workflow.",
     actionsTitle: "Actions",
     actionsSubtitle: "Prioritized recovery actions with root cause, next step, owner, priority and status.",
+    slowDeadPageTitle: "Slow / Dead Recovery Cases",
+    slowDeadPageSubtitle: "Entity-level workbench for historical consumption evidence, condition, hypotheses and pre-decisional action eligibility.",
+    slowDeadRuntimeTitle: "Slow / Dead Runtime",
+    slowDeadRuntime_available: "Cases available",
+    slowDeadRuntime_limited: "Cases limited",
+    slowDeadRuntime_unavailable: "Unavailable",
+    slowDeadRuntime_not_calculated: "Not calculated",
+    slowDeadRuntime_calculating: "Calculating",
+    slowDeadRuntime_error: "Error",
+    slowDeadRuntimeBody_available: "The Recovery Cases are based on the current Historical Metrics runtime.",
+    slowDeadRuntimeBody_limited: "The workbench is available, but contains limitations or cases with low evidence.",
+    slowDeadRuntimeBody_unavailable: "Reliable Historical Metrics or a matching consumption-history package are currently missing.",
+    slowDeadRuntimeBody_not_calculated: "Slow / Dead Cases have not been calculated for this dataset yet.",
+    slowDeadRuntimeBody_calculating: "Historical Metrics or Slow / Dead Cases are being built. No stale cases are shown.",
+    slowDeadRuntimeBody_error: "The Slow / Dead runtime is in an error state. Historical Metrics remain isolated from this failure.",
+    slowDeadRuntimeBuildCount: "Builds",
+    slowDeadEvaluatedAt: "Evaluated",
+    slowDeadImportHistory: "Import consumption history",
+    slowDeadPortfolioSummary: "Portfolio Summary",
+    slowDeadPortfolioSummaryDesc: "Case counts and Inventory Exposure by Condition without duplicate inventory rows.",
+    slowDeadTotalCases: "Total cases",
+    slowDeadSummary_slow_moving_candidate: "Slow-Moving",
+    slowDeadSummary_non_moving_candidate: "Non-Moving",
+    slowDeadSummary_dead_stock_candidate: "Dead-Stock Candidate",
+    slowDeadSummary_protected_monitor: "Protected / Monitor",
+    slowDeadSummary_insufficient_evidence: "Insufficient Evidence",
+    slowDeadConditionFilters: "Condition filters",
+    slowDeadSearchPlaceholder: "Search case, material, plant or row key …",
+    slowDeadEvidenceStrength: "Evidence Strength",
+    slowDeadConditionConfidence: "Condition Confidence",
+    slowDeadRecoveryEligibility: "Recovery Case Eligibility",
+    slowDeadRequiredPackage: "Required package",
+    slowDeadMissingEvidence: "Missing evidence",
+    slowDeadCondition: "Condition",
+    slowDeadInventoryExposure: "Inventory Exposure",
+    slowDeadWorklistTitle: "Recovery Case Worklist",
+    slowDeadWorklistSubtitle: "{count} entity-level cases in the current view.",
+    slowDeadCandidateNotDecision: "Candidate, not approval",
+    slowDeadDeadCandidateWarning: "Dead-Stock Candidate is not disposal, scrapping or write-down approval.",
+    slowDeadStrategicReserveNote: "Strategic Reserve is protected and is not interpreted as an automatic recovery action.",
+    slowDeadIntermittentNote: "Intermittent consumption supports monitoring, not a final Slow / Dead decision.",
+    slowDeadPositiveEvidence: "Positive Evidence",
+    slowDeadCounterEvidence: "Counter Evidence",
+    slowDeadWhyNotStronger: "Why not a stronger conclusion?",
+    slowDeadRootCauses: "Root-Cause hypotheses",
+    slowDeadHypothesis: "Hypothesis",
+    slowDeadActionEligibility: "Action Eligibility",
+    slowDeadActionEligibilityNote: "Pre-decisional eligibility, not a final recommendation or execution approval.",
+    slowDeadRequiredPackages: "Required Data Packages",
+    slowDeadProvenance: "Package and model provenance",
+    slowDeadOpenInventory: "Open inventory",
+    slowDeadOpenActions: "Open actions",
+    slowDeadExport: "Export Slow / Dead Cases",
+    slowDeadDownload: "Export Slow / Dead Cases",
+    slowDeadDownloadSubtitle: "Export the currently filtered or all current Slow / Dead Recovery Cases with evidence and provenance.",
+    slowDeadNoLinkedAction: "No linked action exists for this case in the current action worklist.",
+    slowDeadInventoryTargetMissing: "The exact inventory target is not available in the current inventory dataset.",
+    slowDeadEmpty_no_filtered_cases: "No Slow / Dead Cases match the current filters.",
+    slowDeadEmpty_no_cases: "The current runtime does not contain Slow / Dead Cases.",
+    slowDeadEmpty_not_calculated: "Slow / Dead Cases have not been calculated yet.",
+    slowDeadEmpty_calculating: "Calculation is running. No stale cases are shown.",
+    slowDeadEmpty_unavailable: "Slow / Dead Cases are currently unavailable.",
+    slowDeadEmpty_error: "Slow / Dead Cases cannot be shown because of a runtime error.",
+    stockQuantity: "Stock quantity",
+    baseUnit: "Base unit",
+    netConsumption3m: "Net Consumption 3M",
+    netConsumption6m: "Net Consumption 6M",
+    activeConsumptionMonths12m: "Active Consumption Months 12M",
+    movementFrequency12m: "Movement Frequency 12M",
+    historyCoverageMonths: "History Coverage",
+    monthsShort: "mo",
+    previous: "Previous",
+    next: "Next",
+    page: "Page",
+    actions: "Action",
+    caseId: "Case ID",
+    inventoryEntityKey: "Inventory Entity Key",
+    inventoryRowKeys: "Inventory Row Keys",
+    relationshipSignature: "Relationship Signature",
+    conditionModelVersion: "Condition Model Version",
+    conditionPolicyVersion: "Condition Policy Version",
+    caseInputSignature: "Case Input Signature",
     metricInventory: "Total Inventory",
     metricExcess: "Excess Stock",
     metricExcessSub: "addressable excess inventory",
@@ -1927,8 +2241,8 @@ const translations = {
     openAction: "Details →",
     topOwner: "Owner",
     topAction: "Action",
-    excessTitle: "Excess Intelligence",
-    excessSubtitle: "Operational decision page for excess inventory, net potential, owner context and scenarios.",
+    excessTitle: "Excess Inventory",
+    excessSubtitle: "Prioritized excess cases with net addressable exposure, evidence, owner context and scenarios.",
     excessSummaryCases: "Excess cases",
     excessSummaryGross: "Gross excess",
     excessSummaryNet: "Net addressable",
@@ -1949,9 +2263,22 @@ const translations = {
     excessQualityTitle: "Relationship and enrichment quality",
     excessQualitySubtitle: "Read-only worklist for match gaps, ambiguities and field conflicts.",
     excessQualityNoIssues: "No relationship or enrichment issues in the current context.",
+    excessRelationshipIssueCount: "{count} relationship issues",
     excessScoreDrivers: "Score drivers",
     excessLimitations: "Known limitations",
     excessEvidence: "Evidence",
+    excessDecisionBasis: "Decision basis",
+    excessScenarioEvidence: "Scenario evidence",
+    excessEvidenceLimitations: "Evidence & limitations",
+    excessPilotReviewDisclosure: "Pilot Review",
+    excessTechnicalRelationshipDetails: "Technical relationship details",
+    excessFilteredContext: "Filtered view: {filteredCases} of {portfolioCases} cases · {filteredNet} of {portfolioNet} net addressable",
+    excessNoLinkedAction: "No linked action exists for this excess case in the current action worklist.",
+    matchQuality: "Match quality",
+    grossNetReconciliation: "Gross → Net",
+    grossNetFlow: "{gross} → {net}",
+    grossNetOverlap: "{overlap} overlap",
+    excessRowDetails: "Open case",
     whyPrioritized: "Why Prioritized",
     whyNotHigher: "Why Not Higher",
     grossNetExplanation: "Gross-to-net explanation",
@@ -2111,6 +2438,7 @@ const translations = {
     colExcessOverlap: "Overlap",
     colOpportunityScore: "Score",
     colOwnerReference: "Owner reference",
+    ownerReferenceField: "Owner reference field",
     colOwnerSource: "Owner source",
     colOwnerConfidence: "Owner assignment confidence",
     colRelationshipStatus: "MM match",
@@ -2862,6 +3190,104 @@ const translations = {
     net_no_plan_value: "Net Unplanned",
     net_excess_value: "Net Excess Stock",
     net_bad_stock_value: "Net Blocked / QI",
+    condition_insufficient_evidence: "Insufficient Evidence",
+    condition_intermittent_expected: "Intermittent Expected",
+    condition_slow_moving_candidate: "Slow-Moving Candidate",
+    condition_non_moving_candidate: "Non-Moving Candidate",
+    condition_dead_stock_candidate: "Dead-Stock Candidate",
+    condition_strategic_reserve: "Strategic Reserve",
+    slowDeadEvidenceStrength_high: "High",
+    slowDeadEvidenceStrength_medium: "Medium",
+    slowDeadEvidenceStrength_low: "Low",
+    slowDeadEvidenceStrength_insufficient: "Insufficient",
+    slowDeadEvidenceStrength_not_applicable: "Not applicable",
+    slowDeadConfidence_high: "High",
+    slowDeadConfidence_medium: "Medium",
+    slowDeadConfidence_low: "Low",
+    slowDeadConfidence_unavailable: "Unavailable",
+    slowDeadConfidence_not_applicable: "Not applicable",
+    slowDeadRecoveryEligibility_reviewable_case_candidate: "Reviewable Case Candidate",
+    slowDeadRecoveryEligibility_evidence_required: "Evidence required",
+    slowDeadRecoveryEligibility_monitor_only: "Monitor only",
+    slowDeadRecoveryEligibility_no_case: "No case",
+    slowDeadActionEligibility_eligible: "Eligible",
+    slowDeadActionEligibility_review_required: "Review required",
+    slowDeadActionEligibility_potentially_eligible: "Potentially eligible",
+    slowDeadActionEligibility_unavailable_until_evidence: "Unavailable until evidence",
+    slowDeadActionEligibility_manual_commercial_review: "Manual commercial review",
+    slowDeadActionEligibility_eligible_for_finance_review: "Eligible for finance review",
+    slowDeadActionEligibility_not_recommendable: "Not recommendable",
+    slowDeadAction_COLLECT_EVIDENCE: "Collect missing evidence",
+    slowDeadAction_IMPORT_MISSING_DATA: "Import missing data packages",
+    slowDeadAction_OWNER_REVIEW: "Assign owner review",
+    slowDeadAction_MONITOR: "Monitor",
+    slowDeadAction_PLANNING_PARAMETER_REVIEW: "Review planning parameters",
+    slowDeadAction_DISPOSAL_REVIEW: "Disposal review",
+    slowDeadAction_CONSUME_NATURALLY: "Consume naturally",
+    slowDeadAction_INTERNAL_TRANSFER: "Review internal transfer",
+    slowDeadAction_SUPPLIER_RETURN: "Review supplier return",
+    slowDeadAction_ALTERNATIVE_USE: "Review alternative use",
+    slowDeadAction_EXTERNAL_SALE: "Review external sale",
+    slowDeadAction_WRITE_DOWN_REVIEW: "Finance write-down review",
+    slowDeadAction_PO_REDUCE: "Review purchase order reduction",
+    dataPackageType_demand_forecast: "Demand Forecast",
+    dataPackageType_purchase_orders: "Purchase Orders",
+    dataPackageType_planning_parameters: "Planning Parameters",
+    dataPackageType_quality: "Quality",
+    dataPackageType_finance: "Finance",
+    dataPackageType_actions_outcomes: "Action Outcomes",
+    missingEvidence_consumption_history: "Consumption history",
+    missingEvidence_relationship_evidence: "Relationship evidence",
+    missingEvidence_twelve_month_consumption_history: "12-month consumption history",
+    missingEvidence_complete_consumption_history: "Complete consumption history",
+    missingEvidence_last_consumption_date: "Last consumption date",
+    missingEvidence_rolling_consumption_quantity: "Rolling consumption quantity",
+    missingEvidence_unit_consistency: "Unit consistency",
+    missingEvidence_future_demand: "Future demand",
+    missingEvidence_planning_context: "Planning context",
+    missingEvidence_material_lifecycle_status: "Material lifecycle status",
+    missingEvidence_finance_review_context: "Finance review context",
+    missingEvidence_quality_or_block_status: "Quality or block status",
+    missingEvidence_commercial_sellability: "Commercial sellability",
+    missingEvidence_supplier_terms_or_open_po_context: "Supplier terms or open PO context",
+    slowDeadReason_critical_history_gate_failed: "Historical evidence is not reliable enough",
+    slowDeadReason_history_coverage_below_policy: "History coverage below policy",
+    slowDeadReason_history_completeness_below_policy: "History completeness below policy",
+    slowDeadReason_months_since_last_consumption_missing: "Months since last consumption missing",
+    slowDeadReason_net_consumption_12m_missing: "12M net consumption missing",
+    slowDeadReason_historical_runtime_unavailable: "Historical Runtime unavailable",
+    slowDeadReason_historical_runtime_not_calculated: "Historical Runtime not calculated",
+    slowDeadReason_history_package_missing: "Consumption history missing",
+    slowDeadReason_relationship_unmatched: "No matching consumption-history relationship",
+    slowDeadReason_relationship_ambiguous: "Ambiguous consumption-history relationship",
+    slowDeadReason_relationship_invalid: "Invalid relationship key",
+    slowDeadReason_critical_evidence_missing: "Critical evidence missing",
+    slowDeadReason_explicit_strategic_reserve: "Explicit strategic reserve",
+    slowDeadReason_recurring_intermittent_demand: "Recurring intermittent demand",
+    slowDeadReason_strategic_reserve_protected: "Strategic reserve protected",
+    slowDeadReason_manual_approval_required: "Manual approval required",
+    slowDeadEvidence_inventory_exposure_exists: "Inventory exposure exists",
+    slowDeadEvidence_critical_history_gate_failed: "Historical evidence is not reliable",
+    slowDeadEvidence_explicit_strategic_reserve: "Strategic reserve evidence",
+    slowDeadEvidence_no_explicit_strategic_reserve: "No explicit strategic reserve",
+    slowDeadEvidence_independent_dead_stock_signal: "Independent dead-stock signal",
+    slowDeadEvidence_no_independent_dead_stock_signal: "No independent dead-stock signal",
+    slowDeadEvidence_intermittent_recurring_consumption: "Intermittent recurring consumption",
+    slowDeadEvidence_dead_stock_evidence: "Dead-stock candidate evidence",
+    slowDeadEvidence_dead_age_without_independent_signal: "Age without independent signal",
+    slowDeadEvidence_non_moving_evidence: "No recent movement",
+    slowDeadEvidence_slow_moving_evidence: "Multiple slow-moving dimensions",
+    slowDeadEvidence_slow_dead_thresholds_not_met: "Slow / Dead thresholds not met",
+    rootCause_missing_or_unreliable_history: "Missing or unreliable history",
+    rootCause_explicit_strategic_reserve: "Explicit strategic reserve policy",
+    rootCause_intermittent_recurring_demand: "Intermittent recurring demand",
+    rootCause_demand_discontinuity: "No visible current demand",
+    rootCause_planning_reference_missing: "Planning reference missing",
+    rootCause_lifecycle_or_program_end: "Lifecycle, program or material end",
+    rootCause_lot_size_or_moq_policy: "Lot-size or MOQ policy",
+    rootCause_purchase_order_continuation: "Open purchase-order context",
+    rootCause_planning_parameter_mismatch: "Planning parameter mismatch",
+    rootCause_requires_cross_functional_review: "Cross-functional review required",
     descOverview: "Management KPIs and recovery summary",
     descInventoryExplorer: "Full inventory view with filters",
     descExcessStock: "Materials with excess inventory and recovery potential",
@@ -3387,6 +3813,13 @@ let pendingUploadPackageType = INVENTORY_PACKAGE_TYPE;
 let lastMappingOpener = null;
 let mappingAssistantDirty = false;
 let currentView = "dashboard";
+let slowDeadPageState = {
+  filters: { ...ObsoliQModules.slowDead.pageModel.DEFAULT_FILTERS },
+  sort: { ...ObsoliQModules.slowDead.pageModel.DEFAULT_SORT },
+  page: 1,
+  pageSize: 25,
+  selectedCaseId: ""
+};
 let pendingDownloadType = "report";
 let pendingDownloadScope = "filtered";
 let pendingDownloadVariant = "original";
@@ -3408,11 +3841,13 @@ let currentExcessViewModel = null;
 let currentExcessVisibleRows = [];
 let currentExcessPageRows = [];
 let currentActiveExcessCase = null;
+let currentExcessPortfolioRowsRef = null;
+let currentExcessPortfolioModel = null;
 let pilotReviewPackageIdentityOverrideForTest = null;
 let excessPageNumber = 1;
 const excessPageSize = 25;
 let excessPageModelBuildCountForTest = 0;
-const dirtyDataViews = new Set(["dashboard", "excess", "actions", "inventory", "check"]);
+const dirtyDataViews = new Set(["dashboard", "excess", "slow-dead", "actions", "inventory", "check"]);
 const filterState = {
   search: "",
   profitCenter: "all",
@@ -3821,6 +4256,17 @@ excessPilotReviewView = ObsoliQModules.application.excessPilotReviewView.createE
 excessPilotReviewController = ObsoliQModules.application.excessPilotReviewController.createExcessPilotReviewController({
   saveReview: savePilotReviewFromButton,
   exportReviews: exportPilotReviews
+});
+slowDeadPageView = ObsoliQModules.application.slowDeadPageView.createSlowDeadPageView({
+  html,
+  t,
+  formatMoney: money,
+  formatCompactMoney,
+  formatCount,
+  formatNumber: (value, options = {}) => Number(value || 0).toLocaleString(locale(), options),
+  conditionLabel: value => translatedCodeLabel(`condition_${value}`, value),
+  codeLabel: (prefix, value) => translatedCodeLabel(`${prefix}_${value}`, value),
+  actionCodeLabel: value => translatedCodeLabel(`slowDeadAction_${value}`, value)
 });
 
 function saveSettings() {
@@ -4444,6 +4890,7 @@ function visibleCountForView(view = currentView) {
   if (view === "actions") return getActionRows().length;
   if (view === "inventory") return getFilteredRows("inventory").length;
   if (view === "excess") return getFilteredRows("excess").length;
+  if (view === "slow-dead") return (currentSlowDeadPageModel || buildSlowDeadPageModel()).filteredCaseCount || 0;
   if (view === "check") return ledgerIssuesForWorklist().length || dataQualityIssues.length;
   return enrichedRows.length;
 }
@@ -4691,7 +5138,7 @@ function renderActiveFilterChips(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderFilterChipGroup("inventoryActiveFilters", [...commonFilterChips(), ...inventoryFilterChips()]);
   renderFilterChipGroup("actionsActiveFilters", [...commonFilterChips(), ...actionFilterChips()]);
-  renderFilterChipGroup("excessActiveFilters", [...commonFilterChips(), ...columnFilterChips("excess")]);
+  renderFilterChipGroup("excessActiveFilters", [...commonFilterChips({ includeRowLimit: false }), ...columnFilterChips("excess")]);
   updateOverviewFilterResetState();
 }
 
@@ -5136,14 +5583,22 @@ function getInventoryRows() {
 }
 
 function currentExcessPageModel(rows = applyGlobalBusinessFilters(enrichedRows)) {
+  if (rows === enrichedRows && currentExcessPortfolioRowsRef === enrichedRows && currentExcessPortfolioModel) {
+    return currentExcessPortfolioModel;
+  }
   if (obsoliqTestMode) excessPageModelBuildCountForTest += 1;
-  return excessAnalysisService.buildExcessPageModel({
+  const model = excessAnalysisService.buildExcessPageModel({
     rows,
     datasetMeta: currentDatasetMeta,
     relationshipResult: currentInventoryMaterialMasterRelationship,
     enrichmentDiagnostics: currentInventoryEnrichmentDiagnostics,
     enrichmentProvenance: currentInventoryEnrichmentProvenance
   });
+  if (rows === enrichedRows) {
+    currentExcessPortfolioRowsRef = enrichedRows;
+    currentExcessPortfolioModel = model;
+  }
+  return model;
 }
 
 function decorateExcessCases(cases = []) {
@@ -5181,7 +5636,7 @@ function excessCaseRows(data = applyGlobalBusinessFilters(enrichedRows)) {
 
 function getExcessRows() {
   updateFilterStateFromControls();
-  return filteredExcessRowsFromCases(currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows)).cases);
+  return filteredExcessRowsFromCases(applyGlobalBusinessFilters(currentExcessPageModel(enrichedRows).cases));
 }
 
 function getFilteredRows(scope = "overview") {
@@ -6037,7 +6492,7 @@ function renderTable(data, columns, options = {}) {
   `;
 }
 
-function renderRawInventory(data) {
+function renderRawInventory(data, options = {}) {
   const limitValue = rowLimitValue();
   const limit = limitValue === "all" ? data.length : Number(limitValue);
   const enrichedFieldKeys = activeEnrichedInventoryFieldKeys();
@@ -6071,7 +6526,7 @@ function renderRawInventory(data) {
       </thead>
       <tbody>
         ${rows.map(({ row, analyticalRow }) => `
-          <tr>
+          <tr class="${slowDeadRowsMatchingTarget([analyticalRow], options.revealTarget).length ? "inventory-reveal-target" : ""}">
             ${originalHeaders.map(header => `<td>${html(row[header])}</td>`).join("")}
             ${enrichedFieldKeys.map(fieldKey => {
               const value = analyticalRow?.[fieldKey] ?? "";
@@ -6123,7 +6578,8 @@ function renderActionSummary(data) {
 function renderActionCockpit(data, options = {}) {
   const scope = options.columnFilters ? "actions" : "";
   const rows = options.preparedRows ? data : topRecoveryRows(data);
-  return renderTable(scope ? sortRowsForScope(rows, scope) : rows, actionCockpitColumns(), {
+  const displayRows = options.preserveOrder ? rows : scope ? sortRowsForScope(rows, scope) : rows;
+  return renderTable(displayRows, actionCockpitColumns(), {
     wide: true,
     actionTable: true,
     editableStatus: true,
@@ -6261,9 +6717,12 @@ function renderScenarioDetails(scenario = {}) {
     [t("excessLimitations"), limitations]
   ].filter(([, values]) => values.length && values.some(value => value !== t("notAvailable")));
   return details.length ? `
-    <div class="scenario-detail-list">
+    <details class="scenario-detail-disclosure">
+      <summary>${html(t("excessScenarioEvidence"))}</summary>
+      <div class="scenario-detail-list">
       ${details.map(([label, values]) => `<small><b>${html(label)}:</b> ${html(values.join("; "))}</small>`).join("")}
-    </div>
+      </div>
+    </details>
   ` : "";
 }
 
@@ -6441,23 +6900,47 @@ function exportPilotReviews(scope = "current") {
 function renderExcessSummaryCards(model) {
   const summary = model.summary || {};
   const portfolioSummary = model.portfolioSummary || summary;
-  const quality = model.relationshipQuality || {};
-  const portfolioContext = model.portfolioSummary && model.portfolioSummary !== summary
-    ? `<div class="excess-summary-context">${html(t("portfolioContext"))}: ${html(formatCount(portfolioSummary.caseCount || 0))} ${html(t("excessSummaryCases"))} · ${html(formatCompactMoney(portfolioSummary.netAddressableExcessValue || 0))}</div>`
+  const scopeDiffers = [
+    "caseCount",
+    "grossExcessValue",
+    "netAddressableExcessValue",
+    "overlapValue",
+    "averageOpportunityScore"
+  ].some(key => Number(summary[key] || 0) !== Number(portfolioSummary[key] || 0));
+  const portfolioContext = scopeDiffers
+    ? `<div class="excess-summary-context">${html(t("excessFilteredContext")
+      .replace("{filteredCases}", formatCount(summary.caseCount || 0))
+      .replace("{portfolioCases}", formatCount(portfolioSummary.caseCount || 0))
+      .replace("{filteredNet}", formatCompactMoney(summary.netAddressableExcessValue || 0))
+      .replace("{portfolioNet}", formatCompactMoney(portfolioSummary.netAddressableExcessValue || 0)))}</div>`
     : "";
+  const gross = formatCompactMoney(summary.grossExcessValue || 0);
+  const net = formatCompactMoney(summary.netAddressableExcessValue || 0);
+  const overlap = formatCompactMoney(summary.overlapValue || 0);
+  const grossNetTitle = [
+    money(summary.grossExcessValue || 0),
+    money(summary.netAddressableExcessValue || 0),
+    money(summary.overlapValue || 0)
+  ].join(" | ");
   const cards = [
-    [t("excessSummaryCases"), formatCount(summary.caseCount || 0), ""],
-    [t("excessSummaryGross"), formatCompactMoney(summary.grossExcessValue || 0), money(summary.grossExcessValue || 0)],
-    [t("excessSummaryNet"), formatCompactMoney(summary.netAddressableExcessValue || 0), money(summary.netAddressableExcessValue || 0), "primary"],
-    [t("excessSummaryOverlap"), formatCompactMoney(summary.overlapValue || 0), money(summary.overlapValue || 0)],
-    [t("excessSummaryScore"), `${formatCount(summary.averageOpportunityScore || 0)}/100`, relationshipQualityLabel(quality)]
+    { label: t("excessSummaryNet"), value: net, title: money(summary.netAddressableExcessValue || 0), variant: "primary" },
+    { label: t("excessSummaryCases"), value: formatCount(summary.caseCount || 0), title: "" },
+    { label: t("excessSummaryScore"), value: `${formatCount(summary.averageOpportunityScore || 0)}/100`, title: "" },
+    {
+      label: t("grossNetReconciliation"),
+      value: t("grossNetFlow").replace("{gross}", gross).replace("{net}", net),
+      sub: t("grossNetOverlap").replace("{overlap}", overlap),
+      title: grossNetTitle,
+      variant: "reconciliation"
+    }
   ];
   return `
     <div class="excess-summary-grid">
-      ${cards.map(([label, value, title, variant]) => `
+      ${cards.map(({ label, value, sub, title, variant }) => `
         <div class="excess-summary-card${variant ? ` ${variant}` : ""}"${title ? ` title="${html(title)}"` : ""}>
           <span>${html(label)}</span>
           <strong>${html(value)}</strong>
+          ${sub ? `<small>${html(sub)}</small>` : ""}
         </div>
       `).join("")}
     </div>
@@ -6468,9 +6951,9 @@ function renderExcessSummaryCards(model) {
 function renderExcessScoreComponents(item = {}) {
   const components = item.opportunity_score_components || {};
   return `
-    <div class="excess-score-grid">
+    <div class="excess-score-list">
       ${Object.entries(components).map(([key, value]) => `
-        <div>
+        <div class="excess-score-row">
           <span>${html(scoreComponentLabel(key))}</span>
           <strong>${html(formatCount(value))}</strong>
         </div>
@@ -6482,26 +6965,34 @@ function renderExcessScoreComponents(item = {}) {
 function renderExcessScenarios(item = {}) {
   const scenarios = item.scenarios || [];
   return `
-    <section class="excess-detail-section">
-      <h4>${html(t("excessScenarioTitle"))}</h4>
-      <div class="excess-scenario-grid">
-        ${scenarios.map(scenario => {
-          const availability = scenario.availability || (scenario.available ? "available" : "unavailable");
-          const value = availability === "available"
-            ? formatCompactMoney(scenario.estimated_impact_value || 0)
-            : availability === "limited" ? t("excessScenarioLimited") : t("excessScenarioUnavailable");
-          return `
-          <div class="excess-scenario ${html(availability)}">
-            <span>${html(t(scenario.label_key) || scenario.label_key)}</span>
-            <strong>${html(value)}</strong>
-            <small>${html(t(scenario.note_key) || scenario.note_key || "")}</small>
-            <small class="scenario-non-predictive">${html(t(scenario.nonPredictiveLabelKey || "scenarioNonPredictive"))}</small>
-            ${renderScenarioDetails(scenario)}
-          </div>
-        `;
-        }).join("")}
+    <div class="excess-scenario-grid">
+      ${scenarios.map(scenario => {
+        const availability = scenario.availability || (scenario.available ? "available" : "unavailable");
+        const value = availability === "available"
+          ? formatCompactMoney(scenario.estimated_impact_value || 0)
+          : availability === "limited" ? t("excessScenarioLimited") : t("excessScenarioUnavailable");
+        return `
+        <div class="excess-scenario ${html(availability)}">
+          <span>${html(t(scenario.label_key) || scenario.label_key)}</span>
+          <strong>${html(value)}</strong>
+          <small>${html(t(scenario.note_key) || scenario.note_key || "")}</small>
+          <small class="scenario-non-predictive">${html(t(scenario.nonPredictiveLabelKey || "scenarioNonPredictive"))}</small>
+          ${renderScenarioDetails(scenario)}
+        </div>
+      `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderExcessDisclosure(titleKey, bodyHtml, options = {}) {
+  return `
+    <details class="excess-detail-disclosure" ${options.open ? "open" : ""}>
+      <summary>${html(t(titleKey))}</summary>
+      <div class="excess-disclosure-body">
+        ${bodyHtml}
       </div>
-    </section>
+    </details>
   `;
 }
 
@@ -6509,6 +7000,38 @@ function renderExcessDetail(item) {
   if (!item) {
     return `<div class="empty">${html(t("excessNoSelection"))}</div>`;
   }
+  const decisionBasis = `
+    <section class="excess-detail-section">
+      <h4>${html(t("excessScoreDrivers"))}</h4>
+      ${renderExcessScoreComponents(item)}
+      <ul>${excessTextList((item.opportunity_score_drivers || []).map(key => `evidence_${key}`))}</ul>
+    </section>
+    ${renderTextList("whyPrioritized", item.whyPrioritized || [])}
+    ${renderTextList("whyNotHigher", item.whyNotHigher || [])}
+    ${renderGrossNetExplanation(item)}
+  `;
+  const evidenceLimitations = `
+    <section class="excess-detail-section">
+      <h4>${html(t("excessLimitations"))}</h4>
+      <ul>${excessTextList((item.limitations || []).map(key => `limitation_${key}`))}</ul>
+    </section>
+    ${renderEvidenceRecords(item)}
+  `;
+  const technicalDetails = `
+    <div class="pilot-context-grid">
+      <div><span>${html(t("excessQualityTitle"))}</span><strong>${html(relationshipQualityLabel(currentExcessViewModel?.relationshipQuality || {}))}</strong></div>
+      <div><span>${html(t("colRelationshipMatchType"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
+      <div><span>${html(t("colOwnerSource"))}</span><strong>${html(displayOwnerSource(item.owner_source))}</strong></div>
+      <div><span>${html(t("colOwnerConfidence"))}</span><strong>${html(displayActionValue(item.owner_assignment_confidence))}</strong></div>
+      <div><span>${html(t("colExcessOverlap"))}</span><strong>${html(formatCompactMoney(item.excess_overlap_value || 0))}</strong></div>
+    </div>
+  `;
+  const pilotReviewBody = `
+    <div class="pilot-review-actions">
+      <button class="secondary" type="button" data-export-pilot-reviews>${html(t("pilotReviewExport"))}</button>
+    </div>
+    ${renderPilotReviewForm(item)}
+  `;
   return `
     <div class="excess-detail-card">
       <div class="excess-detail-head">
@@ -6516,30 +7039,20 @@ function renderExcessDetail(item) {
           <span>${html(item.material_id || "-")}</span>
           <strong>${html(item.material_description || "-")}</strong>
         </div>
-        <button class="secondary" type="button" data-open-actions="${html(item.material_id || "")}">${html(t("excessOpenActions"))}</button>
+        <button class="secondary" type="button" data-open-excess-actions="${html(item.case_id || "")}">${html(t("excessOpenActions"))}</button>
       </div>
       <div class="excess-detail-kpis">
         <div><span>${html(t("colNetExcess"))}</span><strong title="${html(money(item.net_addressable_excess_value))}">${html(formatCompactMoney(item.net_addressable_excess_value))}</strong></div>
         <div><span>${html(t("colOpportunityScore"))}</span><strong>${html(formatCount(item.excess_opportunity_score))}/100</strong></div>
         <div><span>${html(t("colOwnerReference"))}</span><strong>${html(item.owner_reference || t("notAvailable"))}</strong></div>
-        <div><span>${html(t("colRelationshipMatchType"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
+        <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(item.priority || t("notAvailable")))}</strong></div>
       </div>
-      <section class="excess-detail-section">
-        <h4>${html(t("excessScoreDrivers"))}</h4>
-        ${renderExcessScoreComponents(item)}
-        <ul>${excessTextList((item.opportunity_score_drivers || []).map(key => `evidence_${key}`))}</ul>
-      </section>
-      ${renderTextList("whyPrioritized", item.whyPrioritized || [])}
-      ${renderTextList("whyNotHigher", item.whyNotHigher || [])}
-      ${renderGrossNetExplanation(item)}
-      ${renderExcessScenarios(item)}
-      <section class="excess-detail-section">
-        <h4>${html(t("excessLimitations"))}</h4>
-        <ul>${excessTextList((item.limitations || []).map(key => `limitation_${key}`))}</ul>
-      </section>
-      ${renderEvidenceRecords(item)}
-      ${renderOwnerActionContext(item)}
-      ${renderPilotReviewForm(item)}
+      ${renderExcessDisclosure("excessDecisionBasis", decisionBasis, { open: true })}
+      ${renderExcessDisclosure("excessScenarioTitle", renderExcessScenarios(item))}
+      ${renderExcessDisclosure("excessEvidenceLimitations", evidenceLimitations)}
+      ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
+      ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
+      ${renderExcessDisclosure("excessTechnicalRelationshipDetails", technicalDetails)}
     </div>
   `;
 }
@@ -6549,16 +7062,13 @@ function renderExcessCaseTable(rows) {
   const headers = [
     ["material_action", "Material"],
     ["net_addressable_excess_value", t("colNetExcess")],
-    ["gross_excess_value", t("colGrossExcess")],
-    ["excess_overlap_value", t("colExcessOverlap")],
     ["excess_opportunity_score", t("colOpportunityScore")],
     ["owner_reference", t("colOwnerReference")],
-    ["owner_assignment_confidence", t("colOwnerConfidence")],
-    ["relationship_match_type", t("colRelationshipMatchType")],
+    ["relationship_match_type", t("matchQuality")],
     ["action", t("topAction")]
   ];
   return `
-    <table class="wide excess-table">
+    <table class="excess-table">
       <thead>
         <tr>
           ${headers.map(([key, label]) => key === "action"
@@ -6569,22 +7079,22 @@ function renderExcessCaseTable(rows) {
       </thead>
       <tbody>
         ${rows.map(row => `
-          <tr class="${row.case_id === activeExcessCaseId ? "selected" : ""}">
+          <tr class="${row.case_id === activeExcessCaseId ? "selected" : ""}" data-excess-case-detail="${html(row.case_id)}" tabindex="0" aria-selected="${row.case_id === activeExcessCaseId ? "true" : "false"}">
             <td class="action-material-cell">
               <div class="action-material-id">${html(row.material_id || "-")}</div>
               <div class="action-material-desc">${html(row.material_description || "-")}</div>
             </td>
-            <td title="${html(money(row.net_addressable_excess_value))}">${html(formatCompactMoney(row.net_addressable_excess_value))}</td>
-            <td title="${html(money(row.gross_excess_value))}">${html(formatCompactMoney(row.gross_excess_value))}</td>
-            <td title="${html(money(row.excess_overlap_value))}">${html(formatCompactMoney(row.excess_overlap_value))}</td>
+            <td class="excess-net-cell" title="${html(`${money(row.net_addressable_excess_value)} | ${money(row.gross_excess_value)}`)}">
+              <strong>${html(formatCompactMoney(row.net_addressable_excess_value))}</strong>
+              <small>${html(t("colGrossExcess"))}: ${html(formatCompactMoney(row.gross_excess_value))}</small>
+            </td>
             <td><span class="score-badge">${html(formatCount(row.excess_opportunity_score))}</span></td>
             <td>
               <strong>${html(row.owner_reference || t("notAvailable"))}</strong>
-              <small>${html(displayOwnerSource(row.owner_source))}</small>
+              <small>${html(displayActionValue(row.owner_function || t("notAvailable")))}</small>
             </td>
-            <td>${actionBadge("confidence", row.owner_assignment_confidence)}</td>
             <td>${html(relationshipMatchTypeLabel(row.relationship_match_type))}</td>
-            <td><button class="secondary" type="button" data-excess-case-detail="${html(row.case_id)}">${html(t("excessViewDetails"))}</button></td>
+            <td class="excess-case-affordance" aria-label="${html(t("excessRowDetails"))}"><span aria-hidden="true">›</span></td>
           </tr>
         `).join("")}
       </tbody>
@@ -6595,17 +7105,19 @@ function renderExcessCaseTable(rows) {
 function renderRelationshipIssueWorklist(model = {}) {
   const quality = model.relationshipQuality || {};
   const issues = model.relationshipIssues || [];
+  if (!issues.length) return "";
   const casesByRowKey = new Map((model.cases || []).map(item => [item.inventory_row_key, item]));
+  const issueCountLabel = t("excessRelationshipIssueCount").replace("{count}", formatCount(issues.length));
   return `
-    <section class="panel excess-quality-panel">
-      <div class="panel-head">
-        <div class="panel-title">
-          <h2>${html(t("excessQualityTitle"))}</h2>
-          <small>${html(t("excessQualitySubtitle"))}</small>
+    <details class="panel excess-quality-panel excess-quality-disclosure">
+      <summary>
+        <div>
+          <strong>${html(t("excessQualityTitle"))}</strong>
+          <small>${html(issueCountLabel)} · ${html(t("excessQualitySubtitle"))}</small>
         </div>
         <span class="quality-pill ${html(quality.status || "unavailable")}">${html(relationshipQualityLabel(quality))} · ${html(formatCount(quality.score || 0))}/100</span>
-      </div>
-      ${issues.length ? `
+      </summary>
+      <div class="excess-disclosure-body">
         <div class="excess-quality-list">
           ${issues.slice(0, 8).map(issue => {
             const issueType = issue.type || issue.reason || "unknown";
@@ -6636,8 +7148,8 @@ function renderRelationshipIssueWorklist(model = {}) {
           `;
           }).join("")}
         </div>
-      ` : `<div class="empty">${html(t("excessQualityNoIssues"))}</div>`}
-    </section>
+      </div>
+    </details>
   `;
 }
 
@@ -6660,8 +7172,8 @@ function renderExcessPagination(totalRows, pageNumber, pageCount) {
 function openExcessCaseById(caseId, options = {}) {
   const targetCaseId = String(caseId || "");
   if (!targetCaseId) return { status: "missing" };
-  const model = currentExcessViewModel || currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows));
-  const cases = model.cases || [];
+  const portfolioCases = currentExcessPageModel(enrichedRows).cases || [];
+  const cases = currentExcessViewModel?.cases?.length ? currentExcessViewModel.cases : applyGlobalBusinessFilters(portfolioCases);
   const targetCase = cases.find(row => row.case_id === targetCaseId);
   if (!targetCase) {
     setFeedback(t("excessTargetCaseMissing"), "warning", { autoReset: true });
@@ -6694,13 +7206,59 @@ function openExcessCaseById(caseId, options = {}) {
   };
 }
 
+function handleExcessCaseRowKeydown(event) {
+  if (!["Enter", " "].includes(event.key)) return false;
+  if (!(event.target instanceof Element)) return false;
+  if (event.target.closest("button, input, select, textarea, a, summary, [role='button']")) return false;
+  const row = event.target.closest(".excess-table tbody tr[data-excess-case-detail]");
+  if (!row) return false;
+  const caseId = row.dataset.excessCaseDetail || "";
+  if (!caseId) return false;
+  event.preventDefault();
+  openExcessCaseById(caseId);
+  return true;
+}
+
+function excessCaseNavigationTarget(caseRecord = {}) {
+  const inventoryRowKeys = [
+    ...(Array.isArray(caseRecord.inventory_row_keys) ? caseRecord.inventory_row_keys : []),
+    caseRecord.inventory_row_key,
+    caseRecord.inventoryRowKey
+  ].map(slowDeadText).filter(Boolean);
+  return {
+    inventory_row_keys: [...new Set(inventoryRowKeys)],
+    inventory_entity_key: slowDeadText(caseRecord.inventory_entity_key || caseRecord.inventoryEntityKey) || slowDeadInventoryEntityKeyFor(caseRecord),
+    material_id: slowDeadText(caseRecord.material_id),
+    plant: slowDeadPlantFor(caseRecord),
+    case_id: slowDeadText(caseRecord.case_id)
+  };
+}
+
+function excessActionRowForCase(caseRecord = {}) {
+  const target = excessCaseNavigationTarget(caseRecord);
+  return slowDeadRowsMatchingTarget(topRecoveryRows(enrichedRows), target)[0] || null;
+}
+
+function openActionsForExcessCase(caseId) {
+  const targetCase = excessCaseById(caseId);
+  const actionRow = targetCase ? excessActionRowForCase(targetCase) : null;
+  if (!targetCase || !actionRow) {
+    setFeedback(t("excessNoLinkedAction"), "error", { autoReset: true });
+    return { status: "missing" };
+  }
+  excessActionRevealTarget = excessCaseNavigationTarget(targetCase);
+  switchProcessTab("actions", t("navActions"));
+  return { status: "opened", target: excessActionRevealTarget };
+}
+
 function renderExcessPage() {
-  const globalRows = applyGlobalBusinessFilters(enrichedRows);
-  const model = currentExcessPageModel(globalRows);
-  const rows = filteredExcessRowsFromCases(model.cases);
+  const model = currentExcessPageModel(enrichedRows);
+  const commonFilteredCases = applyGlobalBusinessFilters(model.cases);
+  const rows = filteredExcessRowsFromCases(commonFilteredCases);
   const filteredSummary = excessSummaryFromCases(rows);
   const viewModel = {
     ...model,
+    cases: commonFilteredCases,
     portfolioSummary: model.summary,
     summary: filteredSummary
   };
@@ -6708,7 +7266,7 @@ function renderExcessPage() {
   if (!target) return;
   const toolbar = $("sharedToolbar");
   const parkingSlot = $("overviewToolbarSlot");
-  if (toolbar && parkingSlot && target.contains(toolbar)) parkingSlot.appendChild(toolbar);
+  if (toolbar && parkingSlot && target.contains(toolbar)) moveSharedToolbarToSlot(parkingSlot);
   const pageCount = Math.max(1, Math.ceil(rows.length / excessPageSize));
   excessPageNumber = Math.min(Math.max(1, excessPageNumber), pageCount);
   const pageStart = (excessPageNumber - 1) * excessPageSize;
@@ -6725,19 +7283,14 @@ function renderExcessPage() {
   currentActiveExcessCase = activeCase;
   updateVisibleDatasetChipsForView("excess", rows.length);
   target.innerHTML = `
-    <section class="tab-page-header control-card excess-control-card">
+    <section class="control-card excess-control-card excess-page-header">
       <div class="control-card-top">
         <div class="overview-heading">
           <h2>${html(t("excessTitle"))}</h2>
           <p>${html(t("excessSubtitle"))}</p>
         </div>
         <div class="control-card-actions">
-          <div class="dataset-context" aria-label="Dataset context">
-            <span class="dataset-chip state"><span class="status-dot"></span><span class="dataset-status-text">${html(t("dataLoaded"))}</span></span>
-            <span class="dataset-chip">${html(formatCount(rows.length))} ${html(t("visible"))}</span>
-          </div>
-          <button class="secondary" type="button" data-export-pilot-reviews>${html(t("pilotReviewExport"))}</button>
-          <button class="secondary" type="button" data-export-excess>${html(t("excessExport"))}</button>
+          <button class="secondary" type="button" data-export-excess>${html(t("exportTop"))}</button>
         </div>
       </div>
       <div id="excessToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
@@ -6763,7 +7316,9 @@ function renderExcessPage() {
             <small>${html(t("excessDetailsSubtitle"))}</small>
           </div>
         </div>
-        ${renderExcessDetail(activeCase)}
+        <div class="excess-detail-scroll">
+          ${renderExcessDetail(activeCase)}
+        </div>
       </aside>
     </section>
     ${renderRelationshipIssueWorklist(viewModel)}
@@ -13931,12 +14486,31 @@ function renderActions() {
   const actionData = getActionRows();
   updateVisibleDatasetChipsForView("actions", actionData.length);
   renderActionSummary(actionData);
+  const actionRevealTarget = slowDeadActionRevealTarget || excessActionRevealTarget;
+  if (actionRevealTarget) {
+    const baseRows = sortRowsForScope(topRecoveryRows(actionData), "actions");
+    const displayRows = slowDeadPrependRevealRows(baseRows, topRecoveryRows(enrichedRows), actionRevealTarget);
+    $("actionsTable").innerHTML = renderActionCockpit(displayRows, { columnFilters: true, preparedRows: true, preserveOrder: true });
+    slowDeadActionRevealTarget = null;
+    excessActionRevealTarget = null;
+    return;
+  }
   $("actionsTable").innerHTML = renderActionCockpit(actionData, { columnFilters: true });
 }
 
 function renderInventoryExplorer() {
   const inventoryData = getInventoryRows();
   updateVisibleDatasetChipsForView("inventory", inventoryData.length);
+  if (slowDeadInventoryRevealTarget) {
+    const displayRows = slowDeadPrependRevealRows(
+      inventoryData,
+      composeHistoricalInventoryRows(enrichedRows),
+      slowDeadInventoryRevealTarget
+    );
+    $("inventoryTable").innerHTML = renderRawInventory(displayRows, { revealTarget: slowDeadInventoryRevealTarget });
+    slowDeadInventoryRevealTarget = null;
+    return;
+  }
   $("inventoryTable").innerHTML = renderRawInventory(inventoryData);
 }
 
@@ -13948,12 +14522,222 @@ function renderDataQuality() {
   $("dataCheck").innerHTML = renderDataCheck(dataQualityRows);
 }
 
+function slowDeadText(value) {
+  return String(value ?? "").trim();
+}
+
+function slowDeadInventoryRowKey(row = {}) {
+  return slowDeadText(row.inventory_row_key || row.inventoryRowKey || `INV-${row.__sourceRowIndex || row.row_number || ""}`);
+}
+
+function slowDeadPlantFor(row = {}) {
+  return slowDeadText(row.plant || row.profit_center);
+}
+
+function slowDeadInventoryEntityKeyFor(row = {}) {
+  return slowDeadText(row.inventory_entity_key || row.inventoryEntityKey)
+    || (slowDeadText(row.material_id) ? `material:${slowDeadText(row.material_id)}|plant:${slowDeadPlantFor(row)}` : "");
+}
+
+function slowDeadIdentityTargetFor(row = {}) {
+  return {
+    inventory_row_key: slowDeadInventoryRowKey(row),
+    inventory_entity_key: slowDeadInventoryEntityKeyFor(row),
+    material_id: slowDeadText(row.material_id),
+    plant: slowDeadPlantFor(row)
+  };
+}
+
+function slowDeadCaseTarget(caseRecord = {}) {
+  return {
+    inventory_row_keys: Array.isArray(caseRecord.inventory_row_keys) ? caseRecord.inventory_row_keys.map(slowDeadText).filter(Boolean) : [],
+    inventory_entity_key: slowDeadText(caseRecord.inventory_entity_key),
+    material_id: slowDeadText(caseRecord.material_id),
+    plant: slowDeadPlantFor(caseRecord),
+    case_id: slowDeadText(caseRecord.case_id)
+  };
+}
+
+function slowDeadMaterialEntityCount(rows = []) {
+  const entitiesByMaterial = new Map();
+  rows.forEach(row => {
+    const material = slowDeadText(row.material_id);
+    if (!material) return;
+    const entities = entitiesByMaterial.get(material) || new Set();
+    entities.add(slowDeadInventoryEntityKeyFor(row) || slowDeadInventoryRowKey(row));
+    entitiesByMaterial.set(material, entities);
+  });
+  return new Map([...entitiesByMaterial.entries()].map(([material, entities]) => [material, entities.size]));
+}
+
+function slowDeadRowsMatchingTarget(rows = [], target = {}) {
+  const normalized = slowDeadCaseTarget(target);
+  const rowKeySet = new Set(normalized.inventory_row_keys || []);
+  const entityKey = normalized.inventory_entity_key;
+  const material = normalized.material_id;
+  const plant = normalized.plant;
+  const materialEntityCounts = slowDeadMaterialEntityCount(rows);
+  const exactMatches = rows.filter(row => {
+    const rowKey = slowDeadInventoryRowKey(row);
+    if (rowKey && rowKeySet.has(rowKey)) return true;
+    const rowEntityKey = slowDeadInventoryEntityKeyFor(row);
+    if (entityKey && rowEntityKey === entityKey) return true;
+    return Boolean(material && plant && slowDeadText(row.material_id) === material && slowDeadPlantFor(row) === plant);
+  });
+  if (exactMatches.length) return exactMatches;
+  if (!material || plant) return [];
+  const materialMatches = rows.filter(row => slowDeadText(row.material_id) === material);
+  return (materialEntityCounts.get(material) || 0) === 1 ? materialMatches : [];
+}
+
+function slowDeadLinkedActionTargets() {
+  return topRecoveryRows(enrichedRows).map(slowDeadIdentityTargetFor);
+}
+
+function slowDeadOwnerContextByInventoryEntityKey(relationshipResult = null) {
+  const entities = relationshipResult?.inventoryEntitiesByKey || {};
+  const rowsByKey = new Map(enrichedRows.map(row => [slowDeadInventoryRowKey(row), row]));
+  return Object.fromEntries(Object.values(entities).map(entity => {
+    const rows = (entity.rowKeys || []).map(key => rowsByKey.get(key)).filter(Boolean);
+    const row = rows[0] || enrichedRows.find(item => slowDeadInventoryEntityKeyFor(item) === entity.inventoryEntityKey) || null;
+    if (!row) {
+      return [entity.inventoryEntityKey, {
+        owner_function: "",
+        owner_reference: "",
+        owner_reference_field: "",
+        owner_source: "none",
+        owner_assignment_confidence: "Low"
+      }];
+    }
+    const actionFields = buildActionFields(row);
+    return [entity.inventoryEntityKey, {
+      owner_function: actionFields.owner_function || "",
+      owner_reference: actionFields.owner_reference || "",
+      owner_reference_field: actionFields.owner_reference_field || "",
+      owner_source: actionFields.owner_source || "none",
+      owner_assignment_confidence: actionFields.owner_assignment_confidence || "Low"
+    }];
+  }).filter(([key]) => Boolean(key)));
+}
+
+function slowDeadPrependRevealRows(visibleRows = [], fullRows = [], target = null) {
+  if (!target) return visibleRows;
+  const revealRows = slowDeadRowsMatchingTarget(fullRows, target);
+  if (!revealRows.length) return visibleRows;
+  const visibleKeys = new Set(visibleRows.map(slowDeadInventoryRowKey));
+  return [
+    ...revealRows.filter(row => !visibleKeys.has(slowDeadInventoryRowKey(row))),
+    ...visibleRows
+  ];
+}
+
+function slowDeadActionRowForCase(caseRecord = {}) {
+  const candidates = topRecoveryRows(enrichedRows);
+  return slowDeadRowsMatchingTarget(candidates, caseRecord)[0] || null;
+}
+
+function buildSlowDeadPageModel() {
+  currentSlowDeadPageModel = slowDeadPageModelModule.createSlowDeadPageModel({
+    runtimeState: slowDeadRecoveryCaseRuntimeForPresentation(),
+    filters: slowDeadPageState.filters,
+    sort: slowDeadPageState.sort,
+    page: slowDeadPageState.page,
+    pageSize: slowDeadPageState.pageSize,
+    selectedCaseId: slowDeadPageState.selectedCaseId,
+    linkedActionTargets: slowDeadLinkedActionTargets()
+  });
+  slowDeadPageState = {
+    ...slowDeadPageState,
+    page: currentSlowDeadPageModel.page,
+    pageSize: currentSlowDeadPageModel.pageSize,
+    selectedCaseId: currentSlowDeadPageModel.selectedCaseId
+  };
+  return currentSlowDeadPageModel;
+}
+
+function ensureSlowDeadPageController() {
+  const root = $("slowDeadPage");
+  if (!root || slowDeadPageController) return;
+  slowDeadPageController = ObsoliQModules.application.slowDeadPageController.createSlowDeadPageController({
+    root,
+    onStateChange: updateSlowDeadPageState,
+    onExport: () => showDownloadDialog("slowDead"),
+    onOpenInventory: openInventoryForSlowDeadCase,
+    onOpenActions: openActionsForSlowDeadCase,
+    onImportHistory: () => selectPackageTypeForUpload(CONSUMPTION_HISTORY_PACKAGE_TYPE)
+  });
+  slowDeadPageController.bind();
+}
+
+function renderSlowDeadPage() {
+  ensureSlowDeadPageController();
+  const root = $("slowDeadPage");
+  if (!root) return;
+  const model = buildSlowDeadPageModel();
+  root.innerHTML = slowDeadPageView.render(model);
+}
+
+function slowDeadDefaultSortDirection(key) {
+  return ["inventory_exposure_value", "months_since_last_consumption", "net_consumption_12m", "history_completeness"].includes(key)
+    ? "desc"
+    : "asc";
+}
+
+function updateSlowDeadPageState(patch = {}) {
+  if (patch.resetFilters) {
+    slowDeadPageState.filters = { ...slowDeadPageModelModule.DEFAULT_FILTERS };
+  }
+  if (patch.filters) {
+    slowDeadPageState.filters = { ...slowDeadPageState.filters, ...patch.filters };
+  }
+  if (patch.sortKey) {
+    const sameKey = slowDeadPageState.sort.key === patch.sortKey;
+    const direction = sameKey
+      ? slowDeadPageState.sort.direction === "asc" ? "desc" : "asc"
+      : slowDeadDefaultSortDirection(patch.sortKey);
+    slowDeadPageState.sort = { key: patch.sortKey, direction };
+  }
+  if (Object.prototype.hasOwnProperty.call(patch, "page")) slowDeadPageState.page = Number(patch.page || 1) || 1;
+  if (Object.prototype.hasOwnProperty.call(patch, "pageSize")) slowDeadPageState.pageSize = Number(patch.pageSize || 25) || 25;
+  if (Object.prototype.hasOwnProperty.call(patch, "selectedCaseId")) slowDeadPageState.selectedCaseId = String(patch.selectedCaseId || "");
+  if (currentView === "slow-dead") renderSlowDeadPage();
+}
+
+function slowDeadCaseById(caseId) {
+  const model = currentSlowDeadPageModel || buildSlowDeadPageModel();
+  return (model.allCases || []).find(item => item.case_id === caseId) || null;
+}
+
+function openInventoryForSlowDeadCase(caseId) {
+  const targetCase = slowDeadCaseById(caseId);
+  if (!targetCase) return;
+  const targetRows = slowDeadRowsMatchingTarget(composeHistoricalInventoryRows(enrichedRows), targetCase);
+  if (!targetRows.length) {
+    setFeedback(t("slowDeadInventoryTargetMissing"), "error", { autoReset: true });
+    return;
+  }
+  slowDeadInventoryRevealTarget = slowDeadCaseTarget(targetCase);
+  switchProcessTab("inventory-explorer", t("navInventoryExplorer"));
+}
+
+function openActionsForSlowDeadCase(caseId) {
+  const targetCase = slowDeadCaseById(caseId);
+  const actionRow = targetCase ? slowDeadActionRowForCase(targetCase) : null;
+  if (!targetCase?.has_linked_action || !actionRow) {
+    setFeedback(t("slowDeadNoLinkedAction"), "error", { autoReset: true });
+    return;
+  }
+  slowDeadActionRevealTarget = slowDeadCaseTarget(targetCase);
+  switchProcessTab("actions", t("navActions"));
+}
+
 function renderCurrentView(options = {}) {
   if (currentView !== "check") cancelScheduledRemediationFilterRender();
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   if (options.globalChrome !== false) renderGlobalChrome();
   if (currentView === "dashboard") renderOverview();
   if (currentView === "excess") renderExcessPage();
+  if (currentView === "slow-dead") renderSlowDeadPage();
   if (currentView === "actions") renderActions();
   if (currentView === "inventory") renderInventoryExplorer();
   if (currentView === "check") renderDataQuality();
@@ -13968,7 +14752,7 @@ function renderAfterPresentationChange() {
 function renderAfterDatasetChange(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderGlobalChrome({ syncStateFromControls: false });
-  ["dashboard", "excess", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
+  ["dashboard", "excess", "slow-dead", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
   renderCurrentView({ globalChrome: false, syncStateFromControls: false });
 }
 
@@ -13980,6 +14764,7 @@ function renderEmptyDatasetState() {
   renderBars("plantBars", []);
   if ($("topTable")) $("topTable").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("excessPage")) $("excessPage").innerHTML = renderEmptyState(t("noDataLoaded"));
+  if ($("slowDeadPage")) $("slowDeadPage").innerHTML = renderEmptyState(t("noDataLoaded"));
   renderActionSummary([]);
   if ($("actionsTable")) $("actionsTable").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("inventoryTable")) $("inventoryTable").innerHTML = renderEmptyState(t("noDataLoaded"));
@@ -14303,6 +15088,167 @@ function historicalMetricsResultForCurrentSignature(runtimeState = historicalMet
   return runtimeState.result || null;
 }
 
+function commitSlowDeadRecoveryCaseRuntimeState(patch = {}) {
+  const generation = Object.prototype.hasOwnProperty.call(patch, "generation")
+    ? patch.generation
+    : (slowDeadRecoveryCaseRuntime?.generation || 0) + 1;
+  slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState({
+    ...patch,
+    generation,
+    buildCount: slowDeadRecoveryCaseBuildCount,
+    updatedAt: patch.updatedAt || new Date().toISOString()
+  });
+  return slowDeadRecoveryCaseRuntime;
+}
+
+function resetSlowDeadRecoveryCaseRuntime(reason = "input_changed") {
+  return commitSlowDeadRecoveryCaseRuntimeState({
+    status: "not_calculated",
+    reasonCode: reason,
+    reason
+  });
+}
+
+function slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState = historicalMetricsRuntimeForPresentation()) {
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
+  const relationshipResult = runtime?.inventoryHistoryRelationshipResult || null;
+  return {
+    inventoryPackage: currentInventoryPackage(),
+    historyPackage: currentConsumptionHistoryPackage(),
+    inventoryRows: enrichedRows,
+    historicalRuntime: runtimeState,
+    relationshipResult,
+    historicalMetricsByInventoryEntityKey: runtime?.historicalMetricsByInventoryEntityKey || {},
+    historicalMetricProvenanceByInventoryEntityKey: runtime?.historicalMetricProvenanceByInventoryEntityKey || {},
+    ownerContextByInventoryEntityKey: slowDeadOwnerContextByInventoryEntityKey(relationshipResult),
+    datasetId: currentDatasetId()
+  };
+}
+
+function updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(runtimeState = historicalMetricsRuntimeForPresentation(), options = {}) {
+  if (!runtimeState || !["available", "limited"].includes(runtimeState.status)) {
+    const mapped = slowDeadRuntimeState.fromHistoricalDependency(runtimeState);
+    if (["calculating", "unavailable", "error"].includes(mapped.status)) {
+      slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    }
+    return commitSlowDeadRecoveryCaseRuntimeState(mapped);
+  }
+  const expectedHistoricalSignature = historicalMetricsInputSignatureForCurrentState();
+  if (!runtimeState.completedInputSignature) {
+    slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "unavailable",
+      reasonCode: "historical_signature_missing",
+      reason: "historical_signature_missing",
+      inputSignature: expectedHistoricalSignature,
+      requestedInputSignature: expectedHistoricalSignature,
+      historicalMetricsInputSignature: ""
+    });
+  }
+  if (runtimeState.completedInputSignature !== expectedHistoricalSignature) {
+    slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "unavailable",
+      reasonCode: "historical_signature_mismatch",
+      reason: "historical_signature_mismatch",
+      inputSignature: expectedHistoricalSignature,
+      requestedInputSignature: expectedHistoricalSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature
+    });
+  }
+  const runtime = historicalMetricsResultForCurrentSignature(runtimeState);
+  if (!runtime) {
+    slowDeadRecoveryCaseDependencyNoBuildCount += 1;
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "unavailable",
+      reasonCode: "historical_signature_mismatch",
+      reason: "historical_signature_mismatch",
+      inputSignature: expectedHistoricalSignature,
+      requestedInputSignature: expectedHistoricalSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || ""
+    });
+  }
+  const buildInput = slowDeadRecoveryCaseBuildInputForCurrentState(runtimeState);
+  const inputSignature = slowDeadRecoveryCaseService.slowDeadRecoveryCaseInputSignature(buildInput);
+  if (!options.force && slowDeadRecoveryCaseRuntime.completedInputSignature === inputSignature && ["available", "limited"].includes(slowDeadRecoveryCaseRuntime.status)) {
+    return slowDeadRecoveryCaseRuntime;
+  }
+  const generation = (slowDeadRecoveryCaseRuntime?.generation || 0) + 1;
+  const requestedAt = new Date().toISOString();
+  const startedMs = Date.now();
+  slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState({
+    status: "calculating",
+    reasonCode: "building_slow_dead_cases",
+    reason: options.reason || "building_slow_dead_cases",
+    inputSignature,
+    requestedInputSignature: inputSignature,
+    historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+    generation,
+    requestedAt,
+    startedAt: requestedAt,
+    updatedAt: requestedAt
+  });
+  try {
+    if (options.forceServiceErrorForTest) throw new Error("Forced Slow / Dead case build failure.");
+    const result = slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(buildInput);
+    const status = ["available", "limited"].includes(result?.status) ? result.status : "unavailable";
+    slowDeadRecoveryCaseBuildCount += 1;
+    slowDeadRecoveryCaseBuildLog.push({
+      inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      reason: options.reason || "historical_runtime_changed",
+      requestedAt,
+      status
+    });
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status,
+      reasonCode: result?.reason || (status === "unavailable" ? "slow_dead_result_unavailable" : ""),
+      reason: result?.reason || (status === "unavailable" ? "slow_dead_result_unavailable" : ""),
+      inputSignature,
+      requestedInputSignature: inputSignature,
+      completedInputSignature: status === "unavailable" ? "" : inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      result: status === "unavailable" ? null : result,
+      summary: status === "unavailable" ? null : result.summary || null,
+      generation,
+      requestedAt,
+      startedAt: requestedAt,
+      completedAt: result?.evaluatedAt || new Date().toISOString(),
+      durationMs: result?.durationMs ?? Math.max(0, Date.now() - startedMs)
+    });
+  } catch (error) {
+    slowDeadRecoveryCaseFailedBuildCount += 1;
+    slowDeadRecoveryCaseBuildLog.push({
+      inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      reason: options.reason || "historical_runtime_changed",
+      requestedAt,
+      status: "error",
+      errorCode: error?.code || "slow_dead_case_build_failed"
+    });
+    return commitSlowDeadRecoveryCaseRuntimeState({
+      status: "error",
+      reasonCode: "slow_dead_case_build_failed",
+      reason: "slow_dead_case_build_failed",
+      inputSignature,
+      requestedInputSignature: inputSignature,
+      historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
+      errorCode: error?.code || "slow_dead_case_build_failed",
+      errorMessage: error?.message || String(error),
+      errorSource: "slow_dead_runtime",
+      generation,
+      requestedAt,
+      startedAt: requestedAt,
+      completedAt: new Date().toISOString(),
+      durationMs: Math.max(0, Date.now() - startedMs)
+    });
+  }
+}
+
+function slowDeadRecoveryCaseRuntimeForPresentation() {
+  return slowDeadRecoveryCaseRuntime;
+}
+
 function invalidateHistoricalMetricsRuntime(options = {}) {
   const nextInputSignature = options.nextInputSignature || "";
   return historicalMetricsRuntimeCoordinator.invalidate({
@@ -14342,11 +15288,29 @@ function retryHistoricalMetricsRuntime() {
   return onHistoricalMetricInputsChanged({ reason: "retry", force: true });
 }
 
-function handleHistoricalMetricsRuntimeStateChange() {
+function handleHistoricalMetricsRuntimeStateChange(state, options = {}) {
+  try {
+    updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state, options);
+  } catch (error) {
+    commitSlowDeadRecoveryCaseRuntimeState({
+      status: "error",
+      reasonCode: "slow_dead_case_build_failed",
+      reason: "slow_dead_case_build_failed",
+      inputSignature: state?.inputSignature || state?.requestedInputSignature || "",
+      requestedInputSignature: state?.requestedInputSignature || state?.inputSignature || "",
+      historicalMetricsInputSignature: state?.completedInputSignature || "",
+      errorCode: error?.code || "slow_dead_case_build_failed",
+      errorMessage: error?.message || String(error),
+      errorSource: "slow_dead_runtime"
+    });
+  }
   renderPackageAvailability();
   updateDownloadVariantAvailability();
   if (currentView === "inventory") {
     renderInventoryExplorer();
+  }
+  if (currentView === "slow-dead") {
+    renderSlowDeadPage();
   }
 }
 
@@ -15304,7 +16268,6 @@ async function loadTextDataset(text, sourceLabel, options = {}) {
 }
 
 function placeSharedToolbar(view = currentView) {
-  const toolbar = $("sharedToolbar");
   const slotId = view === "inventory"
     ? "inventoryToolbarSlot"
     : view === "actions"
@@ -15313,7 +16276,19 @@ function placeSharedToolbar(view = currentView) {
         ? "excessToolbarSlot"
       : "overviewToolbarSlot";
   const slot = $(slotId);
-  if (toolbar && slot && toolbar.parentElement !== slot) {
+  if (slot) {
+    moveSharedToolbarToSlot(slot);
+  }
+}
+
+function moveSharedToolbarToSlot(slot) {
+  const toolbar = $("sharedToolbar");
+  if (!toolbar || !slot || toolbar.parentElement === slot) return;
+  const activeElement = document.activeElement;
+  if (activeElement && toolbar.contains(activeElement) && typeof activeElement.blur === "function") {
+    activeElement.blur();
+  }
+  if (toolbar.parentElement !== slot) {
     slot.appendChild(toolbar);
   }
 }
@@ -15331,6 +16306,7 @@ const inventoryTabViewRoutes = {
   overview: "dashboard",
   "inventory-explorer": "inventory",
   "excess-stock": "excess",
+  "slow-dead-stock": "slow-dead",
   actions: "actions",
   "data-quality": "check"
 };
@@ -17295,6 +18271,12 @@ function localizedFilename(type, format, scope) {
       : scope === "all" ? "excess_intelligence_all_rows" : "excess_intelligence_filtered_view";
     return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
   }
+  if (type === "slowDead") {
+    const base = german
+      ? scope === "all" ? "slow_dead_cases_alle" : "slow_dead_cases_gefiltert"
+      : scope === "all" ? "slow_dead_cases_all" : "slow_dead_cases_filtered";
+    return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
+  }
   if (type === "top") {
     const base = german ? "top_recovery_potenziale" : "top_recovery_opportunities";
     return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
@@ -17303,8 +18285,104 @@ function localizedFilename(type, format, scope) {
   return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
 }
 
+function slowDeadExportLabel(key) {
+  const labels = {
+    case_id: t("caseId"),
+    entity_key: t("inventoryEntityKey"),
+    inventory_row_keys: t("inventoryRowKeys"),
+    material_id: "Material",
+    material_description: t("colDescription"),
+    plant: t("plantLabel"),
+    profit_center: "Profit Center",
+    program: t("colProgram"),
+    owner_function: t("colOwnerFunction"),
+    owner_reference: t("colOwnerReference"),
+    owner_reference_field: t("ownerReferenceField"),
+    owner_source: t("colOwnerSource"),
+    owner_assignment_confidence: t("colOwnerConfidence"),
+    condition_code: t("slowDeadCondition"),
+    condition_label: t("slowDeadCondition"),
+    evidence_strength: t("slowDeadEvidenceStrength"),
+    condition_confidence: t("slowDeadConditionConfidence"),
+    inventory_exposure_value: t("slowDeadInventoryExposure"),
+    stock_quantity: t("stockQuantity"),
+    base_unit: t("baseUnit"),
+    currency: t("currencyTitle"),
+    last_consumption: t("lastConsumption"),
+    months_since_last_consumption: t("monthsSinceLastConsumption"),
+    net_consumption_3m: t("netConsumption3m"),
+    net_consumption_6m: t("netConsumption6m"),
+    net_consumption_12m: t("netConsumption12m"),
+    average_monthly_consumption_12m: t("averageMonthlyConsumptionHistory"),
+    active_consumption_months_12m: t("activeConsumptionMonths12m"),
+    movement_frequency_12m: t("movementFrequency12m"),
+    history_completeness: t("historyCompleteness"),
+    history_coverage_months: t("historyCoverageMonths"),
+    relationship_state: t("historyRelationship"),
+    positive_evidence: t("slowDeadPositiveEvidence"),
+    counter_evidence: t("slowDeadCounterEvidence"),
+    limitation_codes: t("exclusionReasons"),
+    missing_evidence: t("slowDeadMissingEvidence"),
+    root_cause_hypotheses: t("slowDeadRootCauses"),
+    recovery_case_eligibility: t("slowDeadRecoveryEligibility"),
+    recovery_case_reason_codes: t("reason"),
+    action_eligibility: t("slowDeadActionEligibility"),
+    required_data_packages: t("slowDeadRequiredPackages"),
+    independent_dead_stock_signal: "Independent Dead Stock Signal",
+    strategic_reserve_signal: "Strategic Reserve Signal",
+    service_model_version: "Service Model Version",
+    runtime_model_version: "Runtime Model Version",
+    condition_model_version: t("conditionModelVersion"),
+    condition_policy_version: t("conditionPolicyVersion"),
+    root_cause_model_version: "Root Cause Model Version",
+    action_eligibility_version: "Action Eligibility Version",
+    inventory_package_id: `${t("inventorySnapshot")} ${t("packageId")}`,
+    inventory_package_type: `${t("inventorySnapshot")} ${t("type")}`,
+    inventory_package_dataset_id: `${t("inventorySnapshot")} Dataset ID`,
+    inventory_package_revision: `${t("inventorySnapshot")} ${t("packageRevision")}`,
+    history_package_id: `${t("consumptionHistory")} ${t("packageId")}`,
+    history_package_type: `${t("consumptionHistory")} ${t("type")}`,
+    history_package_dataset_id: `${t("consumptionHistory")} Dataset ID`,
+    history_package_revision: `${t("consumptionHistory")} ${t("packageRevision")}`,
+    historical_metrics_input_signature: "Historical Metrics Input Signature",
+    historical_runtime_completed_input_signature: "Historical Runtime Completed Signature",
+    relationship_signature: t("relationshipSignature"),
+    relationship_model_version: "Relationship Model Version",
+    historical_metric_model_version: "Historical Metric Model Version",
+    case_input_signature: t("caseInputSignature"),
+    evaluated_at: t("slowDeadEvaluatedAt")
+  };
+  return labels[key] || key;
+}
+
+function slowDeadRowsForExport(scope = "filtered") {
+  const model = currentSlowDeadPageModel || buildSlowDeadPageModel();
+  const cases = scope === "all" ? model.allCases : model.filteredCases;
+  const exportData = slowDeadExportBuilder.buildSlowDeadExportRows({
+    cases,
+    conditionLabel: value => translatedCodeLabel(`condition_${value}`, value)
+  });
+  return [
+    exportData.columns.map(slowDeadExportLabel),
+    ...exportData.rows
+  ];
+}
+
 function buildDownloadPayload(type, format, scope = "filtered") {
   if (!ensureData()) return;
+  if (type === "slowDead") {
+    const slowDeadRows = slowDeadRowsForExport(scope);
+    if (format === "excel") {
+      return {
+        blob: spreadsheetXmlBlob({ [t("slowDeadPageTitle")]: slowDeadRows }),
+        filename: localizedFilename(type, format, scope)
+      };
+    }
+    return {
+      blob: csvBlob(slowDeadRows),
+      filename: localizedFilename(type, format, scope)
+    };
+  }
   const data = exportDataForScope(scope, type);
   const top = type === "top" ? data : topRecoveryRows(data);
   const summary = [
@@ -17415,10 +18493,11 @@ function showDownloadDialog(type, options = {}) {
     inventory: t("inventoryDownload"),
     top: t("topDownload"),
     actions: t("actionsDownload"),
-    excess: t("excessExport")
+    excess: t("excessExport"),
+    slowDead: t("slowDeadDownload")
   };
   $("downloadTitle").textContent = labels[type] || t("downloadPrepare");
-  $("downloadSubtitle").textContent = t("downloadSubtitle");
+  $("downloadSubtitle").textContent = type === "slowDead" ? t("slowDeadDownloadSubtitle") : t("downloadSubtitle");
   $("downloadScopeFiltered").checked = true;
   const variantSection = $("downloadVariantSection");
   if (variantSection) variantSection.hidden = type !== "inventory";
@@ -17829,6 +18908,7 @@ window.addEventListener("keydown", event => {
   if (trapMappingModalFocus(event)) return;
   if (trapRemediationModalFocus(event)) return;
   if (handleColumnFilterPopoverKeydown(event)) return;
+  if (handleExcessCaseRowKeydown(event)) return;
   if (event.key === "Escape") {
     if ($("mappingModal")?.classList.contains("active")) {
       closeColumnMappingAssistant({ cancelled: true });
@@ -18077,6 +19157,13 @@ document.addEventListener("click", event => {
     openExcessCaseById(excessDetailButton.dataset.excessCaseDetail || "");
     return;
   }
+  const openExcessActionsButton = event.target.closest("[data-open-excess-actions]");
+  if (openExcessActionsButton) {
+    event.preventDefault();
+    closeColumnFilterPopover();
+    openActionsForExcessCase(openExcessActionsButton.dataset.openExcessActions || "");
+    return;
+  }
   const openActionsButton = event.target.closest("[data-open-actions]");
   if (openActionsButton) {
     event.preventDefault();
@@ -18259,6 +19346,10 @@ function createObsoliqTestBridge() {
     consumptionHistoryInterpretationServiceForTest: consumptionHistoryInterpretationService,
     consumptionHistoryBuilderForTest: ObsoliQModules.data.consumptionHistoryBuilder,
     historicalInventoryMetricsServiceForTest: historicalMetricsService,
+    slowDeadConditionEngineForTest: ObsoliQModules.slowDead.conditionEngine,
+    slowDeadRecoveryCaseServiceForTest: slowDeadRecoveryCaseService,
+    slowDeadPageModelForTest: slowDeadPageModelModule,
+    slowDeadExportBuilderForTest: slowDeadExportBuilder,
     getRegistrySnapshot: () => clonePlainRecord(dataPackageRegistry.snapshot()),
     getRegistryStats: () => clonePlainRecord(dataPackageRegistry.getStats()),
     getActiveInventoryPackage: () => clonePlainRecord(currentInventoryPackage()),
@@ -18270,6 +19361,73 @@ function createObsoliqTestBridge() {
     getActivePackageByType: packageType => clonePlainRecord(dataPackageRegistry.getActivePackage(packageType)),
     getHistoricalMetricsRuntimeForTest: () => clonePlainRecord(historicalMetricsRuntimeForPresentation()),
     getHistoricalMetricsRuntimeResultForTest: () => clonePlainRecord(historicalMetricsResultForCurrentSignature()),
+    getSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(slowDeadRecoveryCaseRuntimeForPresentation()),
+    buildSlowDeadPageModelForTest: input => clonePlainRecord(slowDeadPageModelModule.createSlowDeadPageModel(input || {
+      runtimeState: slowDeadRecoveryCaseRuntimeForPresentation(),
+      filters: slowDeadPageState.filters,
+      sort: slowDeadPageState.sort,
+      page: slowDeadPageState.page,
+      pageSize: slowDeadPageState.pageSize,
+      selectedCaseId: slowDeadPageState.selectedCaseId,
+      linkedActionTargets: slowDeadLinkedActionTargets()
+    })),
+    renderSlowDeadPageForTest: () => {
+      renderSlowDeadPage();
+      return $("slowDeadPage")?.textContent || "";
+    },
+    switchSlowDeadPageForTest: () => {
+      switchProcessTab("slow-dead-stock", t("navSlowDeadStock"));
+      return $("slowDeadPage")?.textContent || "";
+    },
+    getSlowDeadPageStateForTest: () => clonePlainRecord({
+      currentView,
+      activeProcessKey,
+      slowDeadPageState,
+      model: currentSlowDeadPageModel || buildSlowDeadPageModel()
+    }),
+    setSlowDeadPageStateForTest: patch => {
+      updateSlowDeadPageState(patch || {});
+      return clonePlainRecord(slowDeadPageState);
+    },
+    slowDeadRowsForExportForTest: scope => clonePlainArray(slowDeadRowsForExport(scope || "filtered")),
+    openInventoryForSlowDeadCaseForTest: caseId => {
+      openInventoryForSlowDeadCase(caseId);
+      return clonePlainRecord({ currentView, activeProcessKey, revealTarget: slowDeadInventoryRevealTarget });
+    },
+    openActionsForSlowDeadCaseForTest: caseId => {
+      openActionsForSlowDeadCase(caseId);
+      return clonePlainRecord({ currentView, activeProcessKey, revealTarget: slowDeadActionRevealTarget });
+    },
+    slowDeadActionRowForCaseForTest: caseRecord => clonePlainRecord(slowDeadActionRowForCase(caseRecord)),
+    slowDeadRowsMatchingTargetForTest: (rows, target) => clonePlainArray(slowDeadRowsMatchingTarget(rows || enrichedRows, target || {})),
+    slowDeadOwnerContextByInventoryEntityKeyForTest: relationshipResult => clonePlainRecord(slowDeadOwnerContextByInventoryEntityKey(relationshipResult)),
+    resetSlowDeadRecoveryCaseRuntimeForTest: () => clonePlainRecord(resetSlowDeadRecoveryCaseRuntime("test_reset")),
+    requestSlowDeadRecoveryCaseRuntimeForTest: options => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(historicalMetricsRuntimeForPresentation(), { reason: options?.reason || "test_request", force: options?.force === true, forceServiceErrorForTest: options?.forceServiceErrorForTest === true })),
+    updateSlowDeadRecoveryCaseRuntimeFromHistoricalStateForTest: (state, options = {}) => clonePlainRecord(updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(state, options)),
+    handleHistoricalMetricsRuntimeStateChangeForTest: (state, options = {}) => {
+      handleHistoricalMetricsRuntimeStateChange(state, options);
+      return clonePlainRecord({
+        slowDeadRuntime: slowDeadRecoveryCaseRuntimeForPresentation(),
+        historicalRuntime: historicalMetricsRuntimeForPresentation(),
+        packageAvailabilityText: $("dataPackagesPanel")?.textContent || ""
+      });
+    },
+    buildSlowDeadRecoveryCasesForTest: input => clonePlainRecord(slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(input)),
+    getSlowDeadRecoveryCaseBuildCountersForTest: () => clonePlainRecord({
+      buildCount: slowDeadRecoveryCaseBuildCount,
+      failedBuildCount: slowDeadRecoveryCaseFailedBuildCount,
+      dependencyNoBuildCount: slowDeadRecoveryCaseDependencyNoBuildCount,
+      buildLog: slowDeadRecoveryCaseBuildLog,
+      runtime: slowDeadRecoveryCaseRuntimeForPresentation()
+    }),
+    resetSlowDeadRecoveryCaseBuildCountersForTest: () => {
+      slowDeadRecoveryCaseBuildCount = 0;
+      slowDeadRecoveryCaseFailedBuildCount = 0;
+      slowDeadRecoveryCaseDependencyNoBuildCount = 0;
+      slowDeadRecoveryCaseBuildLog = [];
+      slowDeadRecoveryCaseRuntime = { ...slowDeadRecoveryCaseRuntime, buildCount: 0 };
+      return { buildCount: slowDeadRecoveryCaseBuildCount, failedBuildCount: 0, dependencyNoBuildCount: 0, buildLog: [] };
+    },
     requestHistoricalMetricsRuntimeForTest: options => clonePlainRecord(onHistoricalMetricInputsChanged({
       reason: options?.reason || "test_request",
       force: options?.force === true
@@ -18436,16 +19594,19 @@ function createObsoliqTestBridge() {
     restorePilotReviewsForTest: snapshot => clonePlainRecord(excessPilotReviewService.restore(snapshot)),
     exportPilotReviewsUiForTest: (scope = "current") => exportPilotReviews(scope),
     openExcessCaseByIdForTest: (caseId, options = {}) => clonePlainRecord(openExcessCaseById(caseId, options)),
+    openActionsForExcessCaseForTest: caseId => clonePlainRecord(openActionsForExcessCase(caseId)),
+    excessActionRowForCaseForTest: caseRecord => clonePlainRecord(excessActionRowForCase(caseRecord)),
+    excessCaseNavigationTargetForTest: caseRecord => clonePlainRecord(excessCaseNavigationTarget(caseRecord)),
     savePilotReviewFromButtonForTest: button => savePilotReviewFromButton(button),
     renderExcessPageForTest: () => {
       renderExcessPage();
       return $("excessPage")?.textContent || "";
     },
-    currentExcessPageModelForTest: () => clonePlainRecord(currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows))),
+    currentExcessPageModelForTest: () => clonePlainRecord(currentExcessPageModel(enrichedRows)),
     getExcessPageStateForTest: () => {
       const rows = currentExcessVisibleRows.length
         ? currentExcessVisibleRows
-        : filteredExcessRowsFromCases(currentExcessPageModel(applyGlobalBusinessFilters(enrichedRows)).cases);
+        : filteredExcessRowsFromCases(applyGlobalBusinessFilters(currentExcessPageModel(enrichedRows).cases));
       const pageCount = Math.max(1, Math.ceil(rows.length / excessPageSize));
       const pageNumber = Math.min(Math.max(1, excessPageNumber), pageCount);
       const pageStart = (pageNumber - 1) * excessPageSize;
@@ -18461,7 +19622,11 @@ function createObsoliqTestBridge() {
       });
     },
     getExcessRowsForTest: () => clonePlainArray(getExcessRows()),
+    getActionRowsForTest: () => clonePlainArray(getActionRows()),
+    getFilteredRowsForTest: scope => clonePlainArray(getFilteredRows(scope || "overview")),
     resetExcessPageModelBuildCountForTest: () => {
+      currentExcessPortfolioRowsRef = null;
+      currentExcessPortfolioModel = null;
       excessPageModelBuildCountForTest = 0;
       return excessPageModelBuildCountForTest;
     },

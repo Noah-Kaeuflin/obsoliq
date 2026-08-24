@@ -22,6 +22,13 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/consumption-history-relationship-engine.js` owns Inventory-to-Consumption-History entity matching, anti-fan-out diagnostics and relationship provenance.
 - `js/data/consumption-history-aggregation-engine.js` owns semantic-row-only rolling windows, monthly buckets, exclusions, historical metrics and metric provenance.
 - `js/application/historical-metrics-runtime-coordinator.js` owns Historical Metrics runtime scheduling, signature deduplication, explicit states, retry, stale-result rejection and state notifications.
+- `js/slow-dead/slow-dead-condition-engine.js` owns Slow / Dead condition policy, evidence, confidence, root-cause candidates and Action Eligibility.
+- `js/slow-dead/slow-dead-page-model.js` owns Slow / Dead page-only filtering, sorting, pagination, selected Case identity and display summaries.
+- `js/slow-dead/slow-dead-export-builder.js` owns deterministic Slow / Dead Recovery Case export rows and provenance serialization.
+- `js/application/slow-dead-recovery-case-service.js` owns entity-authoritative Slow / Dead Recovery Case Candidate construction and summaries.
+- `js/application/slow-dead-runtime-state.js` owns the explicit Slow / Dead Recovery Case Runtime state shape and Historical dependency mapping.
+- `js/application/slow-dead-page-view.js` owns the Slow / Dead Recovery Case Workbench markup.
+- `js/application/slow-dead-page-controller.js` owns scoped Slow / Dead page interactions.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -89,6 +96,55 @@ Ownership is separated as follows:
 - Data Foundation: presentation model only. It reads Package presence, Package validity, Interpretation Trust, History Readiness and Runtime availability; it does not build Runtime metrics, relationships or aggregations.
 
 Render functions are side-effect-free regarding Historical analytics. Opening or closing Data Foundation, rendering Overview, opening Inventory Explorer, changing filters, sorting, pagination, language, currency, theme or the export dialog must not trigger a Historical Metrics build. Changed analytical inputs invalidate the current Runtime before a new lifecycle request is accepted. A stale calculation completion cannot overwrite a newer signature, and Runtime recalculation does not create Data Package revisions.
+
+## AP 16.4d.1 Slow / Dead Condition And Evidence Engine
+
+The AP 16.4d.1 flow is:
+
+Inventory Entity + Historical Metrics Runtime + Material Master / Owner Context -> Slow / Dead Recovery Case Service -> Condition Engine -> Evidence -> Confidence -> Root-Cause Candidates -> Recovery Eligibility -> Action Eligibility -> Derived Case Runtime.
+
+Ownership is separated as follows:
+
+- `js/slow-dead/slow-dead-condition-engine.js`: owns the versioned Slow / Dead Condition Policy, condition precedence, critical evidence gate, condition classification, positive evidence, counter evidence, Evidence Strength, Condition Confidence, Root-Cause candidates, Recovery Case Eligibility, Action Eligibility, missing evidence and required existing Data Packages.
+- `js/application/slow-dead-recovery-case-service.js`: owns input validation, entity-level Inventory evidence composition, deterministic Case IDs, Case fingerprints, provenance, entity-deduplicated summaries and service Runtime results.
+- `js/application/slow-dead-runtime-state.js`: owns the six-state Runtime contract, state coherence and Historical dependency-state mapping.
+- `app.js`: owns only module guards, service instantiation, signature checking, build deduplication, Slow / Dead error isolation and targeted test-bridge exposure.
+
+The Condition Engine and Recovery Case Service are classic-script modules without DOM, UI-filter, presentation or direct Registry dependencies. They do not parse Raw History, reinterpret movement semantics, recalculate Historical Metrics, mutate Inventory rows, mutate Historical Metric rows, create Registry Packages or create Package revisions.
+
+The derived Slow / Dead Runtime is downstream from Historical Metrics Runtime. It can build only from completed current Historical Runtime results and rejects stale or missing evidence as explicit unavailable or insufficient evidence. It is not triggered by Overview, Data Foundation, Inventory Explorer, filters, sorting, language, currency, theme or export-dialog presentation.
+
+AP 16.4d.1 does not implement a visible Slow / Dead page, worklist, detail view, export, Expected Recovery Value, finance-grade recognition, execution workflow, persistence, outcome learning or SAP integration. Existing Recovery, Data Quality, Actions, Opportunity Score, Excess scenarios, Pilot Reviews, exports, Registry and Package revisions remain unchanged.
+
+### AP 16.4d.1.1 Slow / Dead Runtime Boundary
+
+The AP 16.4d.1.1 runtime boundary is:
+
+Historical Runtime State Change -> Slow / Dead Runtime Adapter -> Slow / Dead Recovery Case Service -> Coherent Derived Runtime -> Historical/Data Foundation presentation update.
+
+The Slow / Dead Runtime Adapter owns dependency-state mapping, current input-signature validation, build deduplication, Service-error isolation and the explicit derived Runtime state. It does not own rendering calculations, Condition thresholds, Condition precedence, Root-Cause rules or Action Eligibility rules.
+
+A Slow / Dead error cannot mutate Historical Runtime and cannot prevent the accepted Historical Metrics/Data Foundation presentation from updating. Historical dependency errors are represented with `errorSource: "historical_runtime"`, while Slow / Dead Service exceptions are represented with `errorSource: "slow_dead_runtime"`. Calculating, unavailable and error states do not retain stale Case results from another signature.
+
+The existing text-based Action Cockpit `slow_dead` signal may continue to support current Actions, but it is not Condition truth and is not Action Eligibility truth for the Slow / Dead Recovery Case Runtime. AP 16.4d.2 must consume the Recovery Case Runtime -> Condition & Evidence Engine result -> Action Eligibility path.
+
+## AP 16.4d.2 Slow / Dead Recovery Case Page
+
+The AP 16.4d.2 presentation flow is:
+
+Historical Metrics Runtime -> Slow / Dead Runtime State -> Slow / Dead Recovery Case Service -> entity-authoritative Recovery Cases -> Page Model -> View / Controller -> local export.
+
+The Page Model consumes an already completed or unavailable Runtime state. It may deduplicate Cases by Inventory entity, normalize page filters, build filter options, sort, paginate and preserve selected Case identity. It does not build Cases, classify Conditions, calculate Evidence Strength, calculate Condition Confidence, create Root-Cause candidates, calculate Action Eligibility or access the DOM.
+
+The View renders Runtime state, Portfolio Summary, controlled Condition chips, Worklist, mobile Case cards, selected Case detail, positive evidence, counter evidence, limitations, missing evidence, stronger-conclusion boundaries, Root-Cause hypotheses, Recovery Case Eligibility, pre-decisional Action Eligibility, required Data Packages and provenance. It is presentation-only and must not call the Slow / Dead Service.
+
+The Controller is scoped to `#slowDeadPage`. Search, filters, sorting, pagination, language, theme, currency, selected Case changes, Inventory navigation, Actions navigation and export-dialog opening do not rebuild Slow / Dead Cases and do not create Package revisions.
+
+Slow / Dead -> Inventory and Slow / Dead -> Actions navigation is entity-exact. `app.js` resolves targets by row key, entity key and Material/Plant identity, then uses temporary reveal state only to display a hidden target. Reveal state is consumed by the target view render, does not mutate persistent filters and does not change Summary or Export scope.
+
+The Slow / Dead Recovery Case Service keeps Inventory Exposure nullable, projects operational Owner Context into Cases and exposes available/unavailable exposure summary counts. The Slow / Dead export uses one row per Recovery Case, includes evidence and provenance, preserves text identities such as leading-zero material numbers and reuses the existing spreadsheet/CSV download path. Inventory Exposure remains exposure only; it is exported separately from Currency and is not Recovery Potential, cash release, P&L effect, Expected Recovery Value or realized value.
+
+AP 16.4d.2 does not change Condition rules, thresholds, precedence, Historical Metrics formulas, Recovery, Data Quality, existing Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry or Package revisions.
 
 ## DF-UX-02 Capability-Oriented Data Foundation Presentation
 
@@ -207,6 +263,10 @@ Excess page/detail ownership:
 - The Excess worklist owns the current visible page rows.
 - Active detail selection is reconciled after pagination, page-size, filter, sort and dataset changes.
 - A detail card cannot remain bound to a case outside the current visible page.
+- The Excess route owns its own page header, shared toolbar slot and active filter chips. Overview KPIs, Overview filters and Data Foundation remain Overview-owned.
+- The Excess runtime/view model separates the full portfolio model from the filtered presentation model. Filtering, sorting, pagination, scrolling, disclosure toggles, language, theme, currency and export-dialog opening must not rebuild Excess analytics.
+- The bounded Excess workspace gives Worklist and Detail independent scroll ownership while keeping Worklist header, pagination and Detail header reachable.
+- Excess -> Actions navigation uses scoped navigation adapters with row key, entity key, exact Material/Plant identity and unique-material fallback only; it does not mutate Actions, filters, Registry or Package revisions.
 
 Only the active `inventory_snapshot` package drives financial KPIs, Recovery and Data Quality. AP 16.2a added Material Master as the first importable non-Inventory package. AP 16.2b connects the active Inventory Snapshot with the active valid Material Master package for contextual matching and fill-missing-only enrichment. Material Master never owns Recovery values and does not recalculate Inventory KPIs.
 
@@ -263,6 +323,12 @@ The Owner Context Engine does not import or overwrite `owner_function`. The exis
 The Relationship Quality Engine is read-only. It classifies relationship quality as complete, limited, critical or unavailable from match rate, ambiguous rows, invalid keys and relationship/enrichment conflicts using the versioned `mvp-1` threshold contract. It supports Data Foundation and Excess decision transparency, but does not block analysis or change enrichment behavior.
 
 The Opportunity Score and Scenario engines are deterministic MVP decision-support layers. They provide explainable prioritization and scenario estimates; they are not predictive analytics and do not claim automated outcome certainty.
+
+EX-UX-01 closes the presentation ownership around this analytical model:
+
+Excess Runtime/View Model -> filtered presentation model -> bounded Worklist/Detail workspace -> scoped navigation adapters.
+
+The Excess page renders the full analytical portfolio once for the active Inventory dataset, then applies common and Excess-only filters as presentation filters. The visible Worklist is reduced to Material, Net Addressable, Gross Excess, Opportunity Score, Owner Reference, Match Quality and Details. Overlap, Owner assignment confidence, Owner source and technical relationship details remain in Case Detail and exports. Scroll containers and disclosure state are presentation-only and do not create analytical rebuilds, Registry writes or Package revisions.
 
 ## AP 16.3b Excess Pilot Review Boundary
 

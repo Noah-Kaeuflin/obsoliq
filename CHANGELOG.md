@@ -1,5 +1,192 @@
 # Changelog
 
+## 2026-08-24 - EX-UX-01.1:
+Excess Header, Worklist Density & Decision Core Final Closure
+
+### Fixed
+
+- Removed duplicate dataset status and visible-count metadata from the Excess page header.
+- Consolidated the header to one primary Excess export action.
+- Moved Pilot Review export into the Pilot Review context.
+- Removed the misleading Inventory-row limit from the Excess toolbar.
+- Removed the global 1500px `wide` table contract from the Excess Worklist.
+- Reduced the primary Worklist while preserving Gross Excess in-row, Detail and export evidence.
+- Made complete Worklist rows mouse- and keyboard-selectable.
+- Prioritized Net Addressable Excess in the Summary.
+- Consolidated Gross, Net and Overlap into one reconciliation card.
+- Reduced nested Detail cards and moved Match Quality into technical relationship detail.
+- Made Relationship diagnostics conditional on actionable issues.
+- Preserved all Excess calculations, scores, scenarios, Actions, reviews, Recovery, Data Quality, Registry and Package revisions.
+
+## 2026-08-24 - EX-UX-01:
+Excess Workspace View Ownership, Scroll & Decision Hierarchy Closure
+
+### Fixed
+
+- Isolated the Excess route from Overview-owned header, KPI, Data Foundation and Overview-filter regions.
+- Restored the dedicated Excess page header and functional shared toolbar.
+- Added bounded desktop Worklist/Detail scroll ownership.
+- Removed the large empty-space failure below the Excess Worklist.
+- Kept Worklist header, pagination and Detail header visible.
+- Added progressive disclosure for secondary scenario, evidence, context and Pilot Review content.
+- Removed redundant Portfolio Context when portfolio and filtered scope are identical.
+- Reduced the primary Excess Worklist width while retaining full detail and export evidence.
+- Replaced material-only Excess -> Actions navigation with entity-safe target resolution.
+- Preserved Excess calculations, Opportunity Scores, scenarios, Pilot Reviews, Recovery, Data Quality, current Actions, Registry and Package revisions.
+
+### Preserved
+
+- Excess formulas, opportunity-score weights, scenario formulas and relationship-quality thresholds.
+- Upload, parsing, sample data, package registry behavior and existing export data contracts.
+- Recovery, Data Quality, current Actions, Slow / Dead Runtime, Pilot Review lifecycle and package revisions.
+- Local `file://` browser MVP behavior.
+
+### Known Limitations
+
+- Excess remains a local MVP workspace without persistence, SAP write-back, approval workflow or realized financial tracking.
+- Scenario values remain deterministic decision-support estimates, not predictive analytics.
+- Relationship / Enrichment quality is transparent context only and does not automatically remediate source data.
+
+## 2026-08-23 - AP 16.4d.2.1:
+Entity-Exact Navigation, Case Contract & Final Acceptance Closure
+
+### Fixed
+
+- Replaced material-only Slow / Dead -> Inventory navigation with entity-exact target resolution by `inventory_row_keys`, `inventory_entity_key`, exact `material_id + plant` and unique material fallback only.
+- Replaced material-set Action linking with identity-safe linked Action targets so one plant does not mark another plant of the same material as linked.
+- Added temporary reveal state for Inventory and Actions navigation that makes hidden targets visible without changing Summary or Export scope.
+- Preserved nullable Inventory Exposure: missing or invalid `stock_value` remains unavailable, while actual numeric zero remains `0`.
+- Added available/unavailable Inventory Exposure summary counts to the Slow / Dead Page Model and Service summaries.
+- Projected operational Owner Context fields into Slow / Dead Recovery Cases without changing Condition, Evidence, Action status or workflow assignment logic.
+- Removed the hard-coded `(EUR)` suffix from the Slow / Dead Inventory Exposure export label and kept Currency as a separate export column.
+- Added structured tests for entity-exact navigation, same-material/multi-plant Action linking, nullable exposure, Owner Context projection, export owner/currency fields and non-mutating reveal behavior.
+
+### Preserved
+
+- Slow / Dead thresholds, Condition precedence, Evidence Strength, Condition Confidence, Root-Cause candidates and Action Eligibility logic.
+- Historical Metrics formulas and Runtime build boundaries.
+- Recovery, Data Quality, existing Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry semantics and Package revisions.
+- Upload, parsing, sample data and existing Inventory/Action export behavior.
+- Local `file://` browser MVP behavior.
+
+### Known Limitations
+
+- Slow / Dead thresholds remain uncalibrated MVP hypotheses.
+- Slow / Dead Action Eligibility is pre-decisional and not workflow execution or approval.
+- No persistent Slow / Dead review workflow, SAP integration, database, authentication, Expected Recovery Value, financial Recognition or realized cash/P&L tracking.
+
+## 2026-08-23 - AP 16.4d.2:
+Slow / Dead Recovery Case Page
+
+### Added
+
+- Replaced the Slow / Dead placeholder with a dedicated Recovery Case Workbench.
+- Added `js/slow-dead/slow-dead-page-model.js` for page-only filters, sorting, pagination, selected Case identity and summaries.
+- Added `js/slow-dead/slow-dead-export-builder.js` for deterministic Slow / Dead Recovery Case export rows.
+- Added `js/application/slow-dead-page-view.js` for Runtime-state, Worklist, detail, evidence, eligibility and provenance rendering.
+- Added `js/application/slow-dead-page-controller.js` for scoped Slow / Dead interactions.
+- Added a dedicated `#view-slow-dead` page root and route wiring for `slow-dead-stock`.
+- Added a truthful Runtime-state banner for not-calculated, calculating, available, limited, unavailable and error states.
+- Added Portfolio Summary, Condition chips, Worklist search, filters, deterministic sorting and pagination.
+- Added selected Case Detail with Positive Evidence, Counter Evidence, limitations, missing evidence and stronger-conclusion explanations.
+- Added Root-Cause hypotheses, Recovery Case Eligibility, pre-decisional Action Eligibility and required Data Packages.
+- Added exact Inventory Explorer navigation and controlled non-mutating Actions navigation.
+- Added dedicated Slow / Dead export through the existing local Excel/CSV download path.
+- Added structured tests for page model, View/Controller, export and route/presentation isolation.
+
+### Preserved
+
+- Slow / Dead Condition rules, thresholds, precedence, Evidence Strength, Condition Confidence, Root-Cause and Action Eligibility logic.
+- Historical Metrics formulas, runtime signatures and dependency isolation.
+- Inventory KPIs, Recovery, Data Quality, current Actions, Excess, Opportunity Scores, scenarios and Pilot Reviews.
+- Package Registry identity, Package revisions and existing export variants.
+- Local `file://` browser MVP behavior.
+
+### Known Limitations
+
+- thresholds remain uncalibrated MVP hypotheses.
+- no AP 16.4d.3 Pilot Calibration yet.
+- no final Action recommendation, approval or execution.
+- no Expected Recovery Value, financial Recognition, realized value or P&L effect.
+- no persistent Case review, multi-user workflow, SAP integration, database or authentication.
+- no Predictive Analytics.
+
+## 2026-08-23 - AP 16.4d.1.1:
+Slow / Dead Runtime Boundary & Final Acceptance Closure
+
+### Fixed
+
+- Added an explicit six-state Slow / Dead Recovery Case Runtime contract.
+- Distinguished not-calculated, calculating, available, limited, unavailable and error states.
+- Mapped Historical Runtime dependency states explicitly into the Slow / Dead Runtime.
+- Prevented missing, calculating, unavailable or failed Historical inputs from becoming false Slow / Dead classifications.
+- Added a dedicated Slow / Dead application error boundary.
+- Prevented Slow / Dead Service failures from interrupting accepted Historical Metrics presentation updates.
+- Preserved Historical Runtime state, results and signatures after Slow / Dead failures.
+- Added stable Slow / Dead error codes and error-source ownership.
+- Cleared stale Case results from calculating, unavailable and error states.
+- Preserved input-signature build deduplication.
+- Added Runtime-state, Service-error, dependency-state, deduplication, Action-separation and isolation regression tests.
+- Verified the physical Slow / Dead Engine, Service and structured-test files through the complete file:// package.
+- Added the Slow / Dead modules to the central Architecture module list.
+- Clarified that the existing text-based slow/dead Action logic is not the source of truth for Recovery Case Conditions or Action Eligibility.
+- Preserved Recovery, Data Quality, current Actions, Opportunity Scores, scenarios, Pilot Reviews, Historical Metrics, Registry and Package revisions.
+
+### Known Limitations
+
+- no visible Slow / Dead Recovery Case page
+- no Worklist or Case Detail
+- no Slow / Dead export
+- no pilot-calibrated thresholds
+- no final Action recommendation
+- no Expected Recovery Value
+- no financial Recognition
+- no Execution Workflow
+- no persistence
+- no Predictive Analytics
+- no SAP integration
+
+## 2026-08-22 - AP 16.4d.1:
+Slow / Dead Condition & Evidence Engine
+
+### Changed
+
+- Added a DOM-independent Slow / Dead Condition Engine.
+- Added a Slow / Dead Recovery Case Service.
+- Added one central versioned Slow / Dead Condition Policy.
+- Added controlled conditions for Insufficient Evidence, Intermittent Expected, Slow-Moving Candidate, Non-Moving Candidate, Dead Stock Candidate and Strategic Reserve.
+- Prevented age alone from creating a Dead Stock Candidate.
+- Required an independent Demand, Planning or Lifecycle signal for Dead Stock Candidate classification.
+- Protected explicit Strategic Reserve evidence from false Slow / Dead classification.
+- Separated intermittent recurring demand from Slow / Dead conditions.
+- Required multiple evidence dimensions for Slow-Moving Candidate classification.
+- Added positive evidence, counter evidence and limitation codes.
+- Added categorical Evidence Strength and Condition Confidence.
+- Added evidence-backed Root-Cause candidates without pseudo-probabilities.
+- Added Recovery Case Eligibility.
+- Added Action Eligibility without modifying current Action recommendations.
+- Prevented Disposal from becoming automatically approved.
+- Added missing-evidence and existing-Data-Package requirements.
+- Added deterministic entity-level Case IDs and full Package/model provenance.
+- Added an entity-deduplicated Slow / Dead Case Runtime and Summary.
+- Added Condition, precedence, evidence, confidence, Root-Cause, Action Eligibility, provenance, isolation and performance tests.
+- Preserved Historical Metrics, Inventory KPIs, Recovery, Data Quality, Actions, Opportunity Scores, scenarios, Pilot Reviews, Registry and all existing exports.
+
+### Known Limitations
+
+- no visible Slow / Dead Recovery Case page
+- no Worklist or Case Detail
+- no Slow / Dead export
+- no pilot-calibrated thresholds
+- no full Root Cause & Feasibility Engine
+- no optimized Action Portfolio
+- no Expected Recovery Value
+- no finance-grade recognition
+- no execution workflow
+- no persistence
+- no Predictive Inventory Risk
+- no SAP integration
+
 ## 2026-08-22 - DF-UX-02.1:
 Data Foundation Visual Hierarchy & Data Quality Header Closure
 
