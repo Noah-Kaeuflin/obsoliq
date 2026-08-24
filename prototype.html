@@ -193,6 +193,14 @@
             <label for="categoryFilter" data-i18n="categoryLabel">Kategorie</label>
             <select id="categoryFilter"><option value="">Alle</option></select>
           </div>
+          <div class="field excess-only-filter">
+            <label for="excessOwnerFilter" data-i18n="excessOwnerFilter">Verantwortlich</label>
+            <select id="excessOwnerFilter"><option value="">Alle</option></select>
+          </div>
+          <div class="field excess-only-filter">
+            <label for="excessPriorityFilter" data-i18n="colPriority">Priorität</label>
+            <select id="excessPriorityFilter"><option value="">Alle</option></select>
+          </div>
           <div class="field">
             <label for="rowLimit" data-i18n="rowLimitLabel">Bestandszeilen</label>
             <select id="rowLimit">
@@ -202,6 +210,7 @@
               <option value="all" data-i18n="all">Alle</option>
             </select>
           </div>
+          <button id="excessResetFilters" class="secondary excess-only-filter excess-reset-button" type="button" data-i18n="resetFilters">Filter zurücksetzen</button>
         </div>
       </section>
     </div>
@@ -547,6 +556,7 @@
   <script src="js/excess/excess-analysis-engine.js"></script>
   <script src="js/excess/opportunity-score-engine.js"></script>
   <script src="js/excess/excess-scenario-engine.js"></script>
+  <script src="js/excess/excess-decision-workspace-model.js"></script>
   <script src="js/application/input-trust-service.js"></script>
   <script src="js/application/consumption-history-interpretation-service.js"></script>
   <script src="js/application/historical-inventory-metrics-service.js"></script>

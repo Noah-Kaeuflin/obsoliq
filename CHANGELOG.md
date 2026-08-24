@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-24 - EX-UX-01.2:
+Excess Decision Core & Risk-Workbench Alignment
+
+### Changed
+
+- Reduced the vertical Excess page area before the operational Worklist.
+- Rebalanced the desktop Worklist and Detail panes to approximately 54 / 46.
+- Replaced the primary Match Quality Worklist column with Priority.
+- Moved relationship quality into technical Case details and row-level issue indicators.
+- Replaced the generic Excess Category filter with Excess-specific Owner and Priority filters.
+- Reprioritized the Summary around Net Addressable Excess, Case count, prioritization and Gross-to-Net addressability.
+- Added a fixed selected-Case header and compact inline decision stats above the Detail scroll.
+- Moved Why Prioritized and Next Review Step above the Detail fold.
+- Preserved existing next-step and decision-type truth without generating new Action recommendations.
+- Added current Historical evidence presentation where an exact, completed Historical Runtime relationship exists.
+- Added an explicit unavailable state when History is missing or cannot be assigned safely.
+- Prevented Forecast or predicted-demand presentation without a Demand Forecast Package.
+- Moved scenarios, relationship quality, Owner context, Pilot Review and provenance into progressive disclosures.
+- Aligned German and English Excess terminology with the future Risk-Workbench direction without introducing a unified risk domain.
+- Preserved Excess calculations, Opportunity Scores, scenarios, Recovery, Data Quality, current Actions, Pilot Reviews, Historical Runtime, Slow / Dead Runtime, Registry and Package revisions.
+
+### Known Limitations
+
+- no unified Inventory Risks cockpit or shared cross-family score
+- no Demand Forecast or Expected Recovery Value
+- no financial Recognition or Action execution
+- no persistence, Predictive Analytics or SAP integration
+
 ## 2026-08-24 - EX-UX-01.1:
 Excess Header, Worklist Density & Decision Core Final Closure
 

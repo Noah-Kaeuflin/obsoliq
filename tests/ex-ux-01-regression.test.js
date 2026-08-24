@@ -88,8 +88,8 @@
     assert.equal(app.getComputedStyle(worklistPanel).overflowY, "hidden", "Worklist panel should not expand the document");
     assert.equal(app.getComputedStyle(detailPanel).overflowY, "hidden", "Detail panel should not expand the document");
     assert.ok(app.document.querySelector(".excess-pagination"), "Pagination should remain outside the table scroll area");
-    assert.ok(app.document.querySelector(".excess-detail-panel > .panel-head"), "Detail header should remain outside the detail scroll area");
-    assert.ok(app.document.querySelector(".excess-detail-disclosure[open]"), "Decision basis should be open by default");
+    assert.ok(app.document.querySelector(".excess-detail-panel > .excess-decision-core"), "Decision Core should remain outside the detail scroll area");
+    assert.equal(app.document.querySelector(".excess-detail-disclosure[open]"), null, "Secondary disclosures should be closed by default");
     assert.ok(app.document.querySelector(".scenario-detail-disclosure"), "Scenario evidence should remain available as disclosure");
   });
 
@@ -127,10 +127,10 @@
     const changingCategory = categoryOptions.find(value => (
       portfolioBefore.cases.filter(item => [item.category, item.primary_category].some(candidate => String(candidate || "") === value)).length !== initialRows
     ));
-    assert.ok(changingCategory, "Sample data should expose a category value that changes the Excess case scope");
+    assert.ok(changingCategory, "Sample data should expose a category value for the hidden-state regression");
     setControl(app, "#groupFilter", "", "change");
     setControl(app, "#categoryFilter", changingCategory, "change");
-    assert.notEqual(bridge.getExcessPageStateForTest().totalRows, initialRows, "Category filter should change visible Excess cases");
+    assert.equal(bridge.getExcessPageStateForTest().totalRows, initialRows, "Hidden Category must not change visible Excess cases");
 
     setControl(app, "#categoryFilter", "", "change");
     assert.equal(bridge.getExcessPageStateForTest().totalRows, initialRows, "Resetting common filters should restore the complete Excess portfolio");

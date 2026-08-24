@@ -32,6 +32,7 @@ The local MVP remains a file-compatible browser prototype:
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
+- `js/excess/excess-decision-workspace-model.js` owns the pure Excess presentation projection for page-local filters, Summary context, relationship warnings, exact Historical evidence lookup and the selected Case Decision Core.
 - `js/actions/action-owner-context-engine.js` derives contextual owner references beside the existing rule-based owner function.
 - `js/excess/excess-analysis-engine.js` builds Excess decision cases from enriched analytical inventory rows.
 - `js/excess/opportunity-score-engine.js` scores Excess opportunities through deterministic, explainable MVP components.
@@ -324,11 +325,13 @@ The Relationship Quality Engine is read-only. It classifies relationship quality
 
 The Opportunity Score and Scenario engines are deterministic MVP decision-support layers. They provide explainable prioritization and scenario estimates; they are not predictive analytics and do not claim automated outcome certainty.
 
-EX-UX-01 closes the presentation ownership around this analytical model:
+EX-UX-01 through EX-UX-01.2 close presentation ownership around this analytical model:
 
-Excess Runtime/View Model -> filtered presentation model -> bounded Worklist/Detail workspace -> scoped navigation adapters.
+Accepted Excess Cases + current completed Historical evidence -> Excess Decision Workspace projection -> filters / Summary / Worklist / Decision Core -> View.
 
-The Excess page renders the full analytical portfolio once for the active Inventory dataset, then applies common and Excess-only filters as presentation filters. The visible Worklist is reduced to Material, Net Addressable, Gross Excess, Opportunity Score, Owner Reference, Match Quality and Details. Overlap, Owner assignment confidence, Owner source and technical relationship details remain in Case Detail and exports. Scroll containers and disclosure state are presentation-only and do not create analytical rebuilds, Registry writes or Package revisions.
+The Excess page reads the current completed Runtime state and does not calculate Excess or Historical metrics. Search, Plant, Program, Owner and Priority are presentation-only filters; the hidden generic Category state is deliberately excluded from the Excess projection. The Worklist presents Material, Net Addressable, Opportunity Score, Responsible Owner, Priority and the Detail affordance. Gross Excess remains secondary evidence, while relationship quality, scenarios, assumptions, Pilot Review and provenance remain available in the Decision Core disclosures.
+
+Historical evidence is projected only through an exact current `inventory_row_key` relationship. Missing or ambiguous evidence remains unavailable and never triggers a Historical build or a raw-history rescan. Future Risk-Workbench reuse is visual and structural only: no shared cross-family Case contract or unified risk domain exists yet.
 
 ## AP 16.3b Excess Pilot Review Boundary
 

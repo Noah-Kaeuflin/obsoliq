@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <base href="../">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ObsoliQ</title>
@@ -145,19 +144,17 @@
     </section>
 
     <section id="dataQualityHeader" class="tab-page-header data-quality-page-header">
-      <div class="overview-heading">
+      <div class="data-quality-header-title-row">
         <h2 data-i18n="dataQualityTitle">Data Quality</h2>
-        <p data-i18n="dataQualitySubtitle">Datenprobleme erkennen, priorisieren und kontrolliert bereinigen.</p>
+        <span class="data-quality-source-badge dataset-source-chip source">Beispieldaten</span>
       </div>
-      <div class="dataset-context" aria-label="Dataset context">
-        <span class="dataset-chip state">
-          <span class="status-dot"></span>
-          <span class="dataset-status-text" data-i18n="dataLoaded">Daten geladen</span>
-        </span>
-        <span class="dataset-chip dataset-rows-chip">0 Zeilen</span>
-        <span class="dataset-chip dataset-columns-chip">0 Spalten</span>
-        <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
-      </div>
+      <p class="data-quality-header-meta-line">
+        <span class="data-quality-header-subtitle" data-i18n="dataQualitySubtitle">Datenprobleme erkennen, priorisieren und kontrolliert bereinigen.</span>
+        <span class="data-quality-meta-separator" aria-hidden="true">·</span>
+        <span class="dataset-rows-chip">0 Zeilen</span>
+        <span class="data-quality-meta-separator" aria-hidden="true">·</span>
+        <span class="dataset-columns-chip">0 Spalten</span>
+      </p>
     </section>
 
     <section id="actionsHeader" class="tab-page-header">
@@ -196,6 +193,14 @@
             <label for="categoryFilter" data-i18n="categoryLabel">Kategorie</label>
             <select id="categoryFilter"><option value="">Alle</option></select>
           </div>
+          <div class="field excess-only-filter">
+            <label for="excessOwnerFilter" data-i18n="excessOwnerFilter">Verantwortlich</label>
+            <select id="excessOwnerFilter"><option value="">Alle</option></select>
+          </div>
+          <div class="field excess-only-filter">
+            <label for="excessPriorityFilter" data-i18n="colPriority">Priorität</label>
+            <select id="excessPriorityFilter"><option value="">Alle</option></select>
+          </div>
           <div class="field">
             <label for="rowLimit" data-i18n="rowLimitLabel">Bestandszeilen</label>
             <select id="rowLimit">
@@ -205,6 +210,7 @@
               <option value="all" data-i18n="all">Alle</option>
             </select>
           </div>
+          <button id="excessResetFilters" class="secondary excess-only-filter excess-reset-button" type="button" data-i18n="resetFilters">Filter zurücksetzen</button>
         </div>
       </section>
     </div>
@@ -244,6 +250,10 @@
 
     <section id="view-excess" class="view">
       <div id="excessPage"></div>
+    </section>
+
+    <section id="view-slow-dead" class="view">
+      <div id="slowDeadPage" class="slow-dead-page" data-view="slow-dead-stock"></div>
     </section>
 
     <section id="view-actions" class="view">
@@ -338,7 +348,7 @@
           <span data-i18n="materialMasterDesc">Materialstammdaten als zweites Data Package importieren.</span>
         </button>
         <button id="packageTypeConsumptionHistoryButton" class="package-type-card" type="button">
-          <strong data-i18n="consumptionHistory">Consumption History</strong>
+          <strong data-i18n="consumptionHistory">Verbrauchshistorie</strong>
           <span data-i18n="consumptionHistoryDesc">Historische Verbrauchsbewegungen als optionale Intelligence-Quelle importieren.</span>
         </button>
       </div>
@@ -385,6 +395,13 @@
               <span>
                 <strong data-i18n="exportVariantEnriched">Angereicherter Analysedatensatz</strong>
                 <small data-i18n="exportVariantEnrichedDesc">Originalspalten plus angereicherte Materialstammfelder.</small>
+              </span>
+            </label>
+            <label class="scope-option">
+              <input id="downloadVariantHistorical" name="downloadVariant" type="radio" value="historical" />
+              <span>
+                <strong data-i18n="exportVariantHistorical">Bestand + historische Kennzahlen</strong>
+                <small data-i18n="exportVariantHistoricalDesc">Originalspalten plus abgeleitete Verbrauchshistorien-Kennzahlen.</small>
               </span>
             </label>
             <label class="scope-option">
@@ -530,6 +547,8 @@
   <script src="js/data/material-master-builder.js"></script>
   <script src="js/data/consumption-history-semantics-engine.js"></script>
   <script src="js/data/consumption-history-builder.js"></script>
+  <script src="js/data/consumption-history-relationship-engine.js"></script>
+  <script src="js/data/consumption-history-aggregation-engine.js"></script>
   <script src="js/data/package-relationship-engine.js"></script>
   <script src="js/data/package-enrichment-engine.js"></script>
   <script src="js/actions/action-owner-context-engine.js"></script>
@@ -537,8 +556,18 @@
   <script src="js/excess/excess-analysis-engine.js"></script>
   <script src="js/excess/opportunity-score-engine.js"></script>
   <script src="js/excess/excess-scenario-engine.js"></script>
+  <script src="js/excess/excess-decision-workspace-model.js"></script>
   <script src="js/application/input-trust-service.js"></script>
   <script src="js/application/consumption-history-interpretation-service.js"></script>
+  <script src="js/application/historical-inventory-metrics-service.js"></script>
+  <script src="js/application/historical-metrics-runtime-coordinator.js"></script>
+  <script src="js/slow-dead/slow-dead-condition-engine.js"></script>
+  <script src="js/slow-dead/slow-dead-page-model.js"></script>
+  <script src="js/slow-dead/slow-dead-export-builder.js"></script>
+  <script src="js/application/slow-dead-recovery-case-service.js"></script>
+  <script src="js/application/slow-dead-runtime-state.js"></script>
+  <script src="js/application/slow-dead-page-view.js"></script>
+  <script src="js/application/slow-dead-page-controller.js"></script>
   <script src="js/application/package-import-service.js"></script>
   <script src="js/application/inventory-enrichment-service.js"></script>
   <script src="js/application/excess-analysis-service.js"></script>

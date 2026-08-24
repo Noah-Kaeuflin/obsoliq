@@ -127,6 +127,9 @@ if (!ObsoliQModules.data?.packageRelationshipQualityEngine) {
 if (!ObsoliQModules.application?.excessAnalysisService) {
   throw new Error("ObsoliQ Excess Analysis Service failed to load.");
 }
+if (!ObsoliQModules.excess?.decisionWorkspaceModel) {
+  throw new Error("ObsoliQ Excess Decision Workspace Model failed to load.");
+}
 if (!ObsoliQModules.application?.excessPilotReviewService) {
   throw new Error("ObsoliQ Excess Pilot Review Service failed to load.");
 }
@@ -251,6 +254,7 @@ let slowDeadInventoryRevealTarget = null;
 let slowDeadActionRevealTarget = null;
 let excessActionRevealTarget = null;
 const excessAnalysisService = ObsoliQModules.application.excessAnalysisService;
+const excessDecisionWorkspaceModel = ObsoliQModules.excess.decisionWorkspaceModel;
 const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewService;
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
 let excessPilotReviewView = null;
@@ -731,16 +735,16 @@ const translations = {
     topOwner: "Verantwortlich",
     topAction: "Aktion",
     excessTitle: "Überbestand",
-    excessSubtitle: "Priorisierte Überbestandsfälle mit Netto-Potenzial, Evidenz, Owner-Kontext und Szenarien.",
-    excessSummaryCases: "Excess-Fälle",
+    excessSubtitle: "Priorisierte Überbestandsfälle mit Netto-Potenzial, Evidenz und konkretem nächsten Prüfschritt.",
+    excessSummaryCases: "Überbestandsfälle",
     excessSummaryGross: "Brutto-Überbestand",
     excessSummaryNet: "Netto adressierbar",
     excessSummaryOverlap: "Doppelzählung / Überlappung",
     excessSummaryScore: "Ø Opportunity Score",
     portfolioContext: "Portfolio-Kontext",
-    excessTableTitle: "Excess-Entscheidungsliste",
+    excessTableTitle: "Priorisierte Überbestandsfälle",
     excessTableSubtitle: "Sortiert nach Score und adressierbarem Netto-Potenzial.",
-    excessDetailsTitle: "Entscheidungsdetails",
+    excessDetailsTitle: "Fallentscheidung",
     excessDetailsSubtitle: "Score-Treiber, Szenarien, Evidenz und bekannte Grenzen für den ausgewählten Fall.",
     excessNoSelection: "Wähle einen Excess-Fall aus der Liste.",
     excessOpenActions: "In Maßnahmen öffnen",
@@ -753,14 +757,14 @@ const translations = {
     excessQualitySubtitle: "Read-only Arbeitsliste für Match-Lücken, Mehrdeutigkeiten und Feldkonflikte.",
     excessQualityNoIssues: "Keine Relationship- oder Enrichment-Probleme im aktuellen Kontext.",
     excessRelationshipIssueCount: "{count} Relationship-Probleme",
-    excessScoreDrivers: "Score-Treiber",
+    excessScoreDrivers: "Priorisierungstreiber",
     excessLimitations: "Bekannte Grenzen",
     excessEvidence: "Evidenz",
     excessDecisionBasis: "Entscheidungsbasis",
     excessScenarioEvidence: "Szenario-Evidenz",
     excessEvidenceLimitations: "Evidenz & Grenzen",
     excessPilotReviewDisclosure: "Pilotbewertung",
-    excessTechnicalRelationshipDetails: "Technische Relationship-Details",
+    excessTechnicalRelationshipDetails: "Datenverknüpfung",
     excessFilteredContext: "Gefilterte Sicht: {filteredCases} von {portfolioCases} Fällen · {filteredNet} von {portfolioNet} netto adressierbar",
     excessNoLinkedAction: "Für diesen Überbestandsfall existiert aktuell keine verknüpfte Maßnahme.",
     matchQuality: "Match-Qualität",
@@ -768,6 +772,35 @@ const translations = {
     grossNetFlow: "{gross} → {net}",
     grossNetOverlap: "{overlap} Überlappung",
     excessRowDetails: "Fall öffnen",
+    excessOwnerFilter: "Verantwortlich",
+    excessResponsible: "Verantwortlich",
+    excessPrimaryPortfolioOpportunity: "Primäre Portfoliochance",
+    excessCasePortfolioMeta: "{materials} Materialien · {plants} Werke",
+    excessSummaryPrioritization: "Priorisierung",
+    excessPrioritizationMeta: "Bester Fall: {maximum} · {high} hohe Prioritäten",
+    excessAddressability: "Adressierbarkeit",
+    excessFullyAddressable: "Vollständig netto adressierbar",
+    excessAddressabilityReduced: "{overlap} durch Cap / Überlappung reduziert",
+    excessAddressabilityUnavailable: "Brutto-Basis nicht verfügbar",
+    excessAddressabilityMeta: "Brutto {gross} · Überlappung {overlap}",
+    excessOpportunityScoreExplanation: "Transparente Priorisierung von 0 bis 100 – keine Erfolgswahrscheinlichkeit.",
+    excessScoreShortNote: "keine Wahrscheinlichkeit",
+    excessCaseBadge: "Überbestand",
+    excessOpenInventory: "Im Bestand öffnen",
+    excessNoLinkedInventory: "Der Bestandsdatensatz dieses Überbestandsfalls konnte nicht eindeutig geöffnet werden.",
+    excessNextReviewStep: "Nächster Prüfschritt",
+    excessNoNextReviewStep: "Kein nächster Prüfschritt verfügbar.",
+    excessDecisionRequired: "Entscheidung erforderlich",
+    excessOperationalEvidence: "Operative Evidenz",
+    excessHistoricalEvidence: "Historische Evidenz",
+    excessHistoricalUnavailableTitle: "Historischer Verlauf nicht verfügbar.",
+    excessHistoricalUnavailableBody: "Verbrauchshistorie importieren, um letzten Verbrauch, 12-Monatsverbrauch, Trend und Reichweite zu ergänzen.",
+    excessImportHistory: "Verbrauchshistorie importieren",
+    excessScenarioAssumptions: "Szenarien & Annahmen",
+    excessDataRelationship: "Daten- und Relationship-Qualität",
+    excessTechnicalProvenance: "Technische Provenance",
+    excessRelationshipWarning: "Datenverknüpfung prüfen",
+    modelVersion: "Modellversion",
     whyPrioritized: "Warum priorisiert",
     whyNotHigher: "Warum nicht höher",
     grossNetExplanation: "Brutto-zu-Netto-Erklärung",
@@ -2242,16 +2275,16 @@ const translations = {
     topOwner: "Owner",
     topAction: "Action",
     excessTitle: "Excess Inventory",
-    excessSubtitle: "Prioritized excess cases with net addressable exposure, evidence, owner context and scenarios.",
+    excessSubtitle: "Prioritized excess cases with net addressable exposure, evidence and a concrete next review step.",
     excessSummaryCases: "Excess cases",
     excessSummaryGross: "Gross excess",
     excessSummaryNet: "Net addressable",
     excessSummaryOverlap: "Double counting / overlap",
     excessSummaryScore: "Avg. opportunity score",
     portfolioContext: "Portfolio context",
-    excessTableTitle: "Excess decision list",
+    excessTableTitle: "Prioritized Excess Cases",
     excessTableSubtitle: "Sorted by score and addressable net potential.",
-    excessDetailsTitle: "Decision details",
+    excessDetailsTitle: "Case Decision",
     excessDetailsSubtitle: "Score drivers, scenarios, evidence and known limitations for the selected case.",
     excessNoSelection: "Select an excess case from the list.",
     excessOpenActions: "Open in Actions",
@@ -2264,14 +2297,14 @@ const translations = {
     excessQualitySubtitle: "Read-only worklist for match gaps, ambiguities and field conflicts.",
     excessQualityNoIssues: "No relationship or enrichment issues in the current context.",
     excessRelationshipIssueCount: "{count} relationship issues",
-    excessScoreDrivers: "Score drivers",
+    excessScoreDrivers: "Prioritization Drivers",
     excessLimitations: "Known limitations",
     excessEvidence: "Evidence",
     excessDecisionBasis: "Decision basis",
     excessScenarioEvidence: "Scenario evidence",
     excessEvidenceLimitations: "Evidence & limitations",
     excessPilotReviewDisclosure: "Pilot Review",
-    excessTechnicalRelationshipDetails: "Technical relationship details",
+    excessTechnicalRelationshipDetails: "Data Relationship",
     excessFilteredContext: "Filtered view: {filteredCases} of {portfolioCases} cases · {filteredNet} of {portfolioNet} net addressable",
     excessNoLinkedAction: "No linked action exists for this excess case in the current action worklist.",
     matchQuality: "Match quality",
@@ -2279,6 +2312,35 @@ const translations = {
     grossNetFlow: "{gross} → {net}",
     grossNetOverlap: "{overlap} overlap",
     excessRowDetails: "Open case",
+    excessOwnerFilter: "Responsible",
+    excessResponsible: "Responsible",
+    excessPrimaryPortfolioOpportunity: "Primary portfolio opportunity",
+    excessCasePortfolioMeta: "{materials} materials · {plants} plants",
+    excessSummaryPrioritization: "Prioritization",
+    excessPrioritizationMeta: "Best case: {maximum} · {high} high priorities",
+    excessAddressability: "Addressability",
+    excessFullyAddressable: "Fully net addressable",
+    excessAddressabilityReduced: "{overlap} reduced by cap / overlap",
+    excessAddressabilityUnavailable: "Gross basis unavailable",
+    excessAddressabilityMeta: "Gross {gross} · overlap {overlap}",
+    excessOpportunityScoreExplanation: "Transparent prioritization from 0 to 100 – not a probability of success.",
+    excessScoreShortNote: "not a probability",
+    excessCaseBadge: "Excess",
+    excessOpenInventory: "Open in Inventory",
+    excessNoLinkedInventory: "The inventory record for this excess case could not be opened unambiguously.",
+    excessNextReviewStep: "Next Review Step",
+    excessNoNextReviewStep: "No next review step available.",
+    excessDecisionRequired: "Decision required",
+    excessOperationalEvidence: "Operational Evidence",
+    excessHistoricalEvidence: "Historical Evidence",
+    excessHistoricalUnavailableTitle: "Historical trend unavailable.",
+    excessHistoricalUnavailableBody: "Import consumption history to add last consumption, 12-month consumption, trend and inventory coverage.",
+    excessImportHistory: "Import Consumption History",
+    excessScenarioAssumptions: "Scenarios & Assumptions",
+    excessDataRelationship: "Data and Relationship Quality",
+    excessTechnicalProvenance: "Technical Provenance",
+    excessRelationshipWarning: "Review data relationship",
+    modelVersion: "Model version",
     whyPrioritized: "Why Prioritized",
     whyNotHigher: "Why Not Higher",
     grossNetExplanation: "Gross-to-net explanation",
@@ -3860,6 +3922,10 @@ const filterState = {
     program: "all",
     category: "all"
   },
+  excess: {
+    owner: "all",
+    priority: "all"
+  },
   priority: "all",
   status: "all",
   ownerFunction: "all",
@@ -3906,6 +3972,10 @@ const filterDefaults = {
     program: "all",
     category: "all"
   },
+  excess: {
+    owner: "all",
+    priority: "all"
+  },
   actions: {
     priority: "all",
     status: "all",
@@ -3936,6 +4006,7 @@ const filterDefaults = {
 const filterScopeKeys = {
   common: ["search", "profitCenter", "program", "category", "rowLimit"],
   overview: ["search", "profitCenter", "program", "category"],
+  excess: ["owner", "priority"],
   actions: ["priority", "status", "ownerFunction", "decisionType", "confidence"],
   inventory: ["advancedInventory"],
   dataQuality: ["dataQualityStatus", "dataQualityColumn", "dataQualityNote"],
@@ -3951,7 +4022,9 @@ function cloneFilterDefaults(value) {
 }
 
 function filterTargetForScope(scope = "common") {
-  return scope === "overview" ? filterState.overview : filterState;
+  if (scope === "overview") return filterState.overview;
+  if (scope === "excess") return filterState.excess;
+  return filterState;
 }
 
 function warnUnknownFilterScope(scope) {
@@ -4009,6 +4082,10 @@ function hasActiveFilters(scope = "common") {
   if (scope === "actions") {
     return ["priority", "status", "ownerFunction", "decisionType", "confidence"]
       .some(key => Boolean(activeValue(filterState[key])));
+  }
+  if (scope === "excess") {
+    const state = getFilterState("excess");
+    return Boolean(activeValue(state.owner) || activeValue(state.priority));
   }
   if (scope === "inventory") {
     return Object.values(filterState.advancedInventory || {}).some(value => Boolean(activeValue(value)));
@@ -4390,6 +4467,10 @@ function updateFilterStateFromControls() {
     decisionType: controlValue("actionDecisionFilter") || "all",
     confidence: controlValue("actionConfidenceFilter") || "all"
   });
+  updateFilterState("excess", {
+    owner: controlValue("excessOwnerFilter") || "all",
+    priority: controlValue("excessPriorityFilter") || "all"
+  });
   updateFilterState("remediation", {
     remediationType: controlValue("remediationTypeFilter") || "all",
     remediationSeverity: controlValue("remediationSeverityFilter") || "all",
@@ -4411,7 +4492,7 @@ function setControlValue(id, value) {
 
 function snapshotFilterControlState() {
   const ids = [
-    "searchInput", "plantFilter", "groupFilter", "categoryFilter", "rowLimit",
+    "searchInput", "plantFilter", "groupFilter", "categoryFilter", "rowLimit", "excessOwnerFilter", "excessPriorityFilter",
     "overviewGlobalSearch", "overviewGlobalProfitCenter", "overviewGlobalProgram", "overviewGlobalCategory",
     "actionPriorityFilter", "actionStatusFilter", "actionOwnerFilter", "actionDecisionFilter", "actionConfidenceFilter",
     "remediationTypeFilter", "remediationSeverityFilter", "remediationStatusFilter", "remediationSearchFilter",
@@ -4434,6 +4515,8 @@ function applyFilterStateToControls(state = filterState, options = {}) {
   setControlValue("groupFilter", state.program === "all" ? "" : state.program || "");
   setControlValue("categoryFilter", state.category === "all" ? "" : state.category || "");
   setControlValue("rowLimit", state.rowLimit || "500");
+  setControlValue("excessOwnerFilter", state.excess?.owner === "all" ? "" : state.excess?.owner || "");
+  setControlValue("excessPriorityFilter", state.excess?.priority === "all" ? "" : state.excess?.priority || "");
   setControlValue("overviewGlobalSearch", overviewState.search || "");
   setControlValue("overviewGlobalProfitCenter", overviewState.profitCenter || "all");
   setControlValue("overviewGlobalProgram", overviewState.program || "all");
@@ -4529,6 +4612,12 @@ function clearSingleFilter(scope, key) {
     if (key === "ownerFunction") setControlValue("actionOwnerFilter", "");
     if (key === "decisionType") setControlValue("actionDecisionFilter", "");
     if (key === "confidence") setControlValue("actionConfidenceFilter", "");
+  }
+  if (scope === "excess") {
+    if (key === "owner") setControlValue("excessOwnerFilter", "");
+    if (key === "priority") setControlValue("excessPriorityFilter", "");
+    updateFilterState("excess", { [key]: "all" });
+    excessPageNumber = 1;
   }
   if (scope === "inventory") {
     const def = inventoryAdvancedFilterDefs.find(item => item.key === key);
@@ -5103,6 +5192,19 @@ function actionFilterChips() {
   return [...chips, ...columnFilterChips("actions")];
 }
 
+function excessFilterChips() {
+  const chips = [];
+  const state = getFilterState("excess");
+  addFilterChip(chips, "common", "search", t("searchLabel"), filterState.search);
+  addFilterChip(chips, "common", "profitCenter", t("plantLabel"), activeValue(filterState.profitCenter));
+  addFilterChip(chips, "common", "program", t("groupLabel"), activeValue(filterState.program));
+  const ownerOption = excessDecisionWorkspaceModel.ownerOptions(currentExcessPageModel(enrichedRows).cases || [])
+    .find(option => option.value === activeValue(state.owner));
+  addFilterChip(chips, "excess", "owner", t("excessOwnerFilter"), ownerOption?.label || activeValue(state.owner));
+  addFilterChip(chips, "excess", "priority", t("colPriority"), displayActionValue(activeValue(state.priority)));
+  return [...chips, ...columnFilterChips("excess")];
+}
+
 function inventoryFilterChips() {
   const chips = [];
   inventoryAdvancedFilterDefs.forEach(def => {
@@ -5138,7 +5240,7 @@ function renderActiveFilterChips(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderFilterChipGroup("inventoryActiveFilters", [...commonFilterChips(), ...inventoryFilterChips()]);
   renderFilterChipGroup("actionsActiveFilters", [...commonFilterChips(), ...actionFilterChips()]);
-  renderFilterChipGroup("excessActiveFilters", [...commonFilterChips({ includeRowLimit: false }), ...columnFilterChips("excess")]);
+  renderFilterChipGroup("excessActiveFilters", excessFilterChips());
   updateOverviewFilterResetState();
 }
 
@@ -5195,6 +5297,8 @@ function refreshFilterOptions(options = {}) {
     setSelectOptions("plantFilter", [], t("all"));
     setSelectOptions("groupFilter", [], t("all"));
     setSelectOptions("categoryFilter", [], t("all"), displayCategory);
+    setSelectOptions("excessOwnerFilter", [], t("all"));
+    setSelectOptions("excessPriorityFilter", [], t("all"), displayActionValue);
     setSelectOptions("actionPriorityFilter", [], t("all"), displayActionValue);
     setSelectOptions("actionStatusFilter", [], t("all"), displayActionValue);
     setSelectOptions("actionOwnerFilter", [], t("all"), displayActionValue);
@@ -5274,7 +5378,7 @@ function clearFilters(options = {}) {
   const scope = options.scope || "all";
   const clearEverything = scope === "all";
   const clearOverview = clearEverything || scope === "dashboard" || scope === "overview";
-  const clearShared = clearEverything || scope === "actions" || scope === "inventory" || scope === "excess";
+  const clearShared = clearEverything || scope === "actions" || scope === "inventory";
   const clearActions = clearEverything || scope === "actions";
   const clearInventory = clearEverything || scope === "inventory";
   const clearExcess = clearEverything || scope === "excess";
@@ -5304,8 +5408,16 @@ function clearFilters(options = {}) {
     clearColumnSort("actions");
   }
   if (clearExcess) {
+    setControlValue("searchInput", "");
+    setControlValue("plantFilter", "");
+    setControlValue("groupFilter", "");
+    setControlValue("excessOwnerFilter", "");
+    setControlValue("excessPriorityFilter", "");
+    updateFilterState("common", { search: "", profitCenter: "all", program: "all" });
+    resetFilterState("excess");
     clearColumnFilterScope("excess");
     clearColumnSort("excess");
+    excessPageNumber = 1;
   }
   if (clearInventory) {
     inventoryAdvancedFilterDefs.forEach(def => setControlValue(def.id, ""));
@@ -5344,6 +5456,16 @@ function setSelectOptions(id, values, label, formatter = value => value) {
     `<option value="${html(value)}">${html(formatter(value))}</option>`
   )).join("");
   if (values.includes(old)) select.value = old;
+}
+
+function setSelectRecordOptions(id, options, label) {
+  const select = $(id);
+  if (!(select instanceof HTMLSelectElement)) return;
+  const old = select.value;
+  select.innerHTML = `<option value="">${html(label)}</option>` + options.map(option => (
+    `<option value="${html(option.value)}">${html(option.label)}</option>`
+  )).join("");
+  if (options.some(option => option.value === old)) select.value = old;
 }
 
 function filterableText(row, key) {
@@ -5630,13 +5752,28 @@ function filteredExcessRowsFromCases(cases = []) {
   return sortRowsForScope(applyColumnFilters(decorated, "excess"), "excess");
 }
 
+function currentExcessPresentationFilters() {
+  const state = getFilterState("excess");
+  return {
+    search: filterState.search,
+    profitCenter: activeValue(filterState.profitCenter),
+    program: activeValue(filterState.program),
+    owner: activeValue(state.owner),
+    priority: activeValue(state.priority)
+  };
+}
+
+function excessPresentationFilteredCases(cases = []) {
+  return excessDecisionWorkspaceModel.filterCases(cases, currentExcessPresentationFilters());
+}
+
 function excessCaseRows(data = applyGlobalBusinessFilters(enrichedRows)) {
   return decorateExcessCases(currentExcessPageModel(data).cases);
 }
 
 function getExcessRows() {
   updateFilterStateFromControls();
-  return filteredExcessRowsFromCases(applyGlobalBusinessFilters(currentExcessPageModel(enrichedRows).cases));
+  return filteredExcessRowsFromCases(excessPresentationFilteredCases(currentExcessPageModel(enrichedRows).cases));
 }
 
 function getFilteredRows(scope = "overview") {
@@ -5803,7 +5940,7 @@ function columnFilterSourceRows(scope, key) {
     return applyColumnFiltersExcept(topRecoveryRows(actionControlFilteredRows(base)), scope, key);
   }
   if (scope === "excess") {
-    return applyColumnFiltersExcept(excessCaseRows(base), scope, key);
+    return applyColumnFiltersExcept(decorateExcessCases(excessPresentationFilteredCases(currentExcessPageModel(enrichedRows).cases)), scope, key);
   }
   if (scope === "inventory") {
     return applyColumnFiltersExcept(inventoryControlFilteredRows(composeHistoricalInventoryRows(base)), scope, key);
@@ -6819,8 +6956,8 @@ function updatePilotReviewRegions(item = currentActiveExcessCase) {
     return;
   }
   if (summaryHtml) {
-    const summaryGrid = target.querySelector(".excess-summary-grid");
-    if (summaryGrid) summaryGrid.insertAdjacentHTML("afterend", summaryHtml);
+    const pilotActions = target.querySelector(".pilot-review-actions");
+    if (pilotActions) pilotActions.insertAdjacentHTML("afterend", summaryHtml);
   }
 }
 
@@ -6900,47 +7037,73 @@ function exportPilotReviews(scope = "current") {
 function renderExcessSummaryCards(model) {
   const summary = model.summary || {};
   const portfolioSummary = model.portfolioSummary || summary;
-  const scopeDiffers = [
-    "caseCount",
-    "grossExcessValue",
-    "netAddressableExcessValue",
-    "overlapValue",
-    "averageOpportunityScore"
-  ].some(key => Number(summary[key] || 0) !== Number(portfolioSummary[key] || 0));
+  const scopeDiffers = Number(summary.casePortfolio?.caseCount || 0) !== Number(portfolioSummary.casePortfolio?.caseCount || 0)
+    || Number(summary.netAddressable?.value || 0) !== Number(portfolioSummary.netAddressable?.value || 0);
   const portfolioContext = scopeDiffers
     ? `<div class="excess-summary-context">${html(t("excessFilteredContext")
-      .replace("{filteredCases}", formatCount(summary.caseCount || 0))
-      .replace("{portfolioCases}", formatCount(portfolioSummary.caseCount || 0))
-      .replace("{filteredNet}", formatCompactMoney(summary.netAddressableExcessValue || 0))
-      .replace("{portfolioNet}", formatCompactMoney(portfolioSummary.netAddressableExcessValue || 0)))}</div>`
+      .replace("{filteredCases}", formatCount(summary.casePortfolio?.caseCount || 0))
+      .replace("{portfolioCases}", formatCount(portfolioSummary.casePortfolio?.caseCount || 0))
+      .replace("{filteredNet}", formatCompactMoney(summary.netAddressable?.value || 0))
+      .replace("{portfolioNet}", formatCompactMoney(portfolioSummary.netAddressable?.value || 0)))}</div>`
     : "";
-  const gross = formatCompactMoney(summary.grossExcessValue || 0);
-  const net = formatCompactMoney(summary.netAddressableExcessValue || 0);
-  const overlap = formatCompactMoney(summary.overlapValue || 0);
+  const addressability = summary.addressability || {};
+  const gross = formatCompactMoney(addressability.grossValue || 0);
+  const net = formatCompactMoney(summary.netAddressable?.value || 0);
+  const overlap = formatCompactMoney(addressability.overlapValue || 0);
+  const addressabilityPercent = addressability.available
+    ? `${(Number(addressability.addressabilityRatio || 0) * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })} %`
+    : t("notAvailable");
+  const addressabilitySub = !addressability.available
+    ? t("excessAddressabilityUnavailable")
+    : Number(addressability.overlapValue || 0) > 0
+      ? t("excessAddressabilityReduced").replace("{overlap}", overlap)
+      : t("excessFullyAddressable");
   const grossNetTitle = [
-    money(summary.grossExcessValue || 0),
-    money(summary.netAddressableExcessValue || 0),
-    money(summary.overlapValue || 0)
+    money(addressability.grossValue || 0),
+    money(addressability.netValue || 0),
+    money(addressability.overlapValue || 0)
   ].join(" | ");
   const cards = [
-    { label: t("excessSummaryNet"), value: net, title: money(summary.netAddressableExcessValue || 0), variant: "primary" },
-    { label: t("excessSummaryCases"), value: formatCount(summary.caseCount || 0), title: "" },
-    { label: t("excessSummaryScore"), value: `${formatCount(summary.averageOpportunityScore || 0)}/100`, title: "" },
     {
-      label: t("grossNetReconciliation"),
-      value: t("grossNetFlow").replace("{gross}", gross).replace("{net}", net),
-      sub: t("grossNetOverlap").replace("{overlap}", overlap),
+      label: t("excessSummaryNet"),
+      value: net,
+      sub: t("excessPrimaryPortfolioOpportunity"),
+      title: money(summary.netAddressable?.value || 0),
+      variant: "primary"
+    },
+    {
+      label: t("excessSummaryCases"),
+      value: formatCount(summary.casePortfolio?.caseCount || 0),
+      sub: t("excessCasePortfolioMeta")
+        .replace("{materials}", formatCount(summary.casePortfolio?.uniqueMaterialCount || 0))
+        .replace("{plants}", formatCount(summary.casePortfolio?.uniquePlantCount || 0)),
+      title: ""
+    },
+    {
+      label: t("excessSummaryPrioritization"),
+      value: `Ø ${formatCount(summary.prioritization?.averageScore || 0)} / 100`,
+      sub: t("excessPrioritizationMeta")
+        .replace("{maximum}", formatCount(summary.prioritization?.maximumScore || 0))
+        .replace("{high}", formatCount(summary.prioritization?.highPriorityCaseCount || 0)),
+      title: t("excessOpportunityScoreExplanation")
+    },
+    {
+      label: t("excessAddressability"),
+      value: addressabilityPercent,
+      sub: addressabilitySub,
+      meta: t("excessAddressabilityMeta").replace("{gross}", gross).replace("{overlap}", overlap),
       title: grossNetTitle,
       variant: "reconciliation"
     }
   ];
   return `
     <div class="excess-summary-grid">
-      ${cards.map(({ label, value, sub, title, variant }) => `
+      ${cards.map(({ label, value, sub, meta, title, variant }) => `
         <div class="excess-summary-card${variant ? ` ${variant}` : ""}"${title ? ` title="${html(title)}"` : ""}>
           <span>${html(label)}</span>
           <strong>${html(value)}</strong>
           ${sub ? `<small>${html(sub)}</small>` : ""}
+          ${meta ? `<small class="excess-summary-meta">${html(meta)}</small>` : ""}
         </div>
       `).join("")}
     </div>
@@ -6996,26 +7159,117 @@ function renderExcessDisclosure(titleKey, bodyHtml, options = {}) {
   `;
 }
 
+function currentExcessRelationshipIssueRowKeys(model = currentExcessViewModel || {}) {
+  return (model.relationshipIssues || [])
+    .map(issue => issue.inventoryRowKey || issue.inventory_row_key || "")
+    .filter(Boolean);
+}
+
+function currentExcessDecisionCore(item = {}) {
+  return excessDecisionWorkspaceModel.projectDecisionCore(item, {
+    historicalResult: historicalMetricsResultForCurrentSignature(),
+    relationshipIssueRowKeys: currentExcessRelationshipIssueRowKeys()
+  });
+}
+
+function renderExcessOperationalEvidence(item = {}) {
+  const rows = [
+    [t("inventoryValue"), formatCompactMoney(item.stock_value || 0)],
+    [t("colNetExcess"), formatCompactMoney(item.net_addressable_excess_value || 0)],
+    [t("colGrossExcess"), formatCompactMoney(item.gross_excess_value || 0)],
+    [t("excessResponsible"), item.owner_reference || t("notAvailable")]
+  ];
+  return `
+    <section class="excess-detail-section excess-operational-evidence">
+      <h4>${html(t("excessOperationalEvidence"))}</h4>
+      <dl>
+        ${rows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}
+      </dl>
+    </section>
+  `;
+}
+
+function formatHistoryCompleteness(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed)
+    ? `${(parsed * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })} %`
+    : t("notAvailable");
+}
+
+function renderExcessHistoricalEvidence(core = {}) {
+  const evidence = core.historicalEvidence || { status: "unavailable" };
+  if (!evidence.exact || !evidence.metric) {
+    return `
+      <section class="excess-historical-state unavailable" data-history-state="unavailable">
+        <div>
+          <h4>${html(t("excessHistoricalUnavailableTitle"))}</h4>
+          <p>${html(t("excessHistoricalUnavailableBody"))}</p>
+        </div>
+        <button class="secondary" type="button" data-data-foundation-import-consumption-history>${html(t("excessImportHistory"))}</button>
+      </section>
+    `;
+  }
+  const metric = evidence.metric;
+  const rows = [
+    [t("lastConsumption"), metric.last_consumption_date || metric.last_consumption_period || t("notAvailable")],
+    [t("netConsumption12m"), formatHistoryQuantity(metric.net_consumption_quantity_12m)],
+    [t("consumptionTrend"), displayHistoryTrend(metric.consumption_trend)],
+    [t("inventoryCoverage"), formatHistoryMonths(metric.inventory_coverage_months)],
+    [t("historyCompleteness"), formatHistoryCompleteness(metric.history_completeness)]
+  ];
+  const limitations = evidence.limitations.length
+    ? `<p class="excess-history-limitations">${html(evidence.limitations.map(code => translatedCodeLabel(`historyReason_${code}`, code)).join(" · "))}</p>`
+    : "";
+  return `
+    <section class="excess-historical-state ${html(evidence.status)}" data-history-state="${html(evidence.status)}">
+      <div class="excess-history-heading">
+        <h4>${html(t("excessHistoricalEvidence"))}</h4>
+        <span>${html(displayHistoricalMetricStatus(evidence.status))}</span>
+      </div>
+      <dl>
+        ${rows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}
+      </dl>
+      ${limitations}
+    </section>
+  `;
+}
+
+function renderExcessTechnicalProvenance(item = {}) {
+  const rows = [
+    [t("packageId"), item.inventory_package_id || t("notAvailable")],
+    [t("packageRevision"), item.inventory_package_revision || t("notAvailable")],
+    [t("materialMaster"), item.material_master_package_id || t("notAvailable")],
+    [t("packageRevision"), item.material_master_package_revision || t("notAvailable")],
+    [t("modelVersion"), item.opportunity_score_model_version || ObsoliQModules.excess.opportunityScoreEngine.version || t("notAvailable")],
+    [t("sourceRow"), item.source_row_number || t("notAvailable")]
+  ];
+  return `<div class="pilot-context-grid">${rows.map(([label, value]) => `<div><span>${html(label)}</span><strong>${html(value)}</strong></div>`).join("")}</div>`;
+}
+
 function renderExcessDetail(item) {
   if (!item) {
     return `<div class="empty">${html(t("excessNoSelection"))}</div>`;
   }
+  const core = currentExcessDecisionCore(item);
+  const primaryReasons = core.whyPrioritized.slice(0, 3);
   const decisionBasis = `
-    <section class="excess-detail-section">
-      <h4>${html(t("excessScoreDrivers"))}</h4>
-      ${renderExcessScoreComponents(item)}
-      <ul>${excessTextList((item.opportunity_score_drivers || []).map(key => `evidence_${key}`))}</ul>
-    </section>
-    ${renderTextList("whyPrioritized", item.whyPrioritized || [])}
-    ${renderTextList("whyNotHigher", item.whyNotHigher || [])}
-    ${renderGrossNetExplanation(item)}
+    <div class="excess-decision-basis-grid">
+      <section class="excess-detail-section">
+        <h4>${html(t("excessScoreDrivers"))}</h4>
+        ${renderExcessScoreComponents(item)}
+        <p class="excess-score-explanation">${html(t("excessOpportunityScoreExplanation"))}</p>
+      </section>
+      ${renderExcessOperationalEvidence(item)}
+    </div>
   `;
   const evidenceLimitations = `
+    ${renderTextList("whyNotHigher", core.whyNotHigher)}
     <section class="excess-detail-section">
       <h4>${html(t("excessLimitations"))}</h4>
       <ul>${excessTextList((item.limitations || []).map(key => `limitation_${key}`))}</ul>
     </section>
     ${renderEvidenceRecords(item)}
+    ${renderGrossNetExplanation(item)}
   `;
   const technicalDetails = `
     <div class="pilot-context-grid">
@@ -7030,29 +7284,54 @@ function renderExcessDetail(item) {
     <div class="pilot-review-actions">
       <button class="secondary" type="button" data-export-pilot-reviews>${html(t("pilotReviewExport"))}</button>
     </div>
+    ${renderPilotReviewSummary()}
     ${renderPilotReviewForm(item)}
   `;
   return `
-    <div class="excess-detail-card">
-      <div class="excess-detail-head">
-        <div>
-          <span>${html(item.material_id || "-")}</span>
-          <strong>${html(item.material_description || "-")}</strong>
+    <div class="excess-decision-core" data-excess-decision-core="${html(core.caseId)}">
+      <div class="excess-case-head">
+        <div class="excess-case-identity">
+          <div class="excess-case-badges">
+            <span class="excess-case-badge">${html(t("excessCaseBadge"))}</span>
+            ${actionBadge("priority", core.priority || "None")}
+          </div>
+          <strong>${html(core.materialId || "-")}</strong>
+          <span>${html(core.materialDescription || t("notAvailable"))}${core.plant ? ` · ${html(core.plant)}` : ""}</span>
         </div>
-        <button class="secondary" type="button" data-open-excess-actions="${html(item.case_id || "")}">${html(t("excessOpenActions"))}</button>
+        <div class="excess-case-actions">
+          <button class="secondary" type="button" data-open-excess-inventory="${html(core.caseId)}">${html(t("excessOpenInventory"))}</button>
+          <button class="secondary" type="button" data-open-excess-actions="${html(core.caseId)}">${html(t("excessOpenActions"))}</button>
+        </div>
       </div>
-      <div class="excess-detail-kpis">
-        <div><span>${html(t("colNetExcess"))}</span><strong title="${html(money(item.net_addressable_excess_value))}">${html(formatCompactMoney(item.net_addressable_excess_value))}</strong></div>
-        <div><span>${html(t("colOpportunityScore"))}</span><strong>${html(formatCount(item.excess_opportunity_score))}/100</strong></div>
-        <div><span>${html(t("colOwnerReference"))}</span><strong>${html(item.owner_reference || t("notAvailable"))}</strong></div>
-        <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(item.priority || t("notAvailable")))}</strong></div>
+      <div class="excess-inline-stats">
+        <div><span>${html(t("colNetExcess"))}</span><strong title="${html(money(core.netAddressableValue))}">${html(formatCompactMoney(core.netAddressableValue))}</strong><small>${html(t("colGrossExcess"))}: ${html(formatCompactMoney(core.grossExcessValue))}</small></div>
+        <div><span>${html(t("colOpportunityScore"))}</span><strong>${html(formatCount(core.opportunityScore))}/100</strong><small>${html(t("excessScoreShortNote"))}</small></div>
+        <div><span>${html(t("excessResponsible"))}</span><strong>${html(core.ownerReference || t("notAvailable"))}</strong><small>${html(displayActionValue(core.ownerFunction || t("notAvailable")))}</small></div>
+        <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(core.priority || t("notAvailable")))}</strong></div>
       </div>
-      ${renderExcessDisclosure("excessDecisionBasis", decisionBasis, { open: true })}
-      ${renderExcessDisclosure("excessScenarioTitle", renderExcessScenarios(item))}
-      ${renderExcessDisclosure("excessEvidenceLimitations", evidenceLimitations)}
-      ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
-      ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
-      ${renderExcessDisclosure("excessTechnicalRelationshipDetails", technicalDetails)}
+      <div class="excess-primary-decision-grid">
+        <section class="excess-primary-decision">
+          <h4>${html(t("whyPrioritized"))}</h4>
+          <ul>${excessTextList(primaryReasons)}</ul>
+        </section>
+        <section class="excess-primary-decision next-step" data-next-step="${html(core.nextStep)}">
+          <h4>${html(t("excessNextReviewStep"))}</h4>
+          <p>${html(core.nextStep ? displayGeneratedText(core.nextStep) : t("excessNoNextReviewStep"))}</p>
+          ${core.decisionType ? `<small><span>${html(t("excessDecisionRequired"))}</span><strong>${html(displayDecisionType(core.decisionType))}</strong></small>` : ""}
+        </section>
+      </div>
+    </div>
+    <div class="excess-detail-scroll">
+      <div class="excess-detail-card">
+        ${decisionBasis}
+        ${renderExcessHistoricalEvidence(core)}
+        ${renderExcessDisclosure("excessScenarioAssumptions", renderExcessScenarios(item))}
+        ${renderExcessDisclosure("excessEvidenceLimitations", evidenceLimitations)}
+        ${renderExcessDisclosure("excessDataRelationship", technicalDetails)}
+        ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
+        ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
+        ${renderExcessDisclosure("excessTechnicalProvenance", renderExcessTechnicalProvenance(item))}
+      </div>
     </div>
   `;
 }
@@ -7063,8 +7342,8 @@ function renderExcessCaseTable(rows) {
     ["material_action", "Material"],
     ["net_addressable_excess_value", t("colNetExcess")],
     ["excess_opportunity_score", t("colOpportunityScore")],
-    ["owner_reference", t("colOwnerReference")],
-    ["relationship_match_type", t("matchQuality")],
+    ["owner_reference", t("excessResponsible")],
+    ["priority", t("colPriority")],
     ["action", t("topAction")]
   ];
   return `
@@ -7078,11 +7357,14 @@ function renderExcessCaseTable(rows) {
         </tr>
       </thead>
       <tbody>
-        ${rows.map(row => `
+        ${rows.map(row => {
+          const relationshipWarning = excessDecisionWorkspaceModel.relationshipWarning(row, currentExcessRelationshipIssueRowKeys());
+          const materialContext = [row.material_description, row.plant || row.profit_center].filter(Boolean).join(" · ");
+          return `
           <tr class="${row.case_id === activeExcessCaseId ? "selected" : ""}" data-excess-case-detail="${html(row.case_id)}" tabindex="0" aria-selected="${row.case_id === activeExcessCaseId ? "true" : "false"}">
             <td class="action-material-cell">
-              <div class="action-material-id">${html(row.material_id || "-")}</div>
-              <div class="action-material-desc">${html(row.material_description || "-")}</div>
+              <div class="action-material-id">${html(row.material_id || "-")}${relationshipWarning ? `<span class="excess-relationship-warning" role="img" aria-label="${html(t("excessRelationshipWarning"))}" title="${html(t("excessRelationshipWarning"))}">!</span>` : ""}</div>
+              <div class="action-material-desc">${html(materialContext || "-")}</div>
             </td>
             <td class="excess-net-cell" title="${html(`${money(row.net_addressable_excess_value)} | ${money(row.gross_excess_value)}`)}">
               <strong>${html(formatCompactMoney(row.net_addressable_excess_value))}</strong>
@@ -7093,10 +7375,11 @@ function renderExcessCaseTable(rows) {
               <strong>${html(row.owner_reference || t("notAvailable"))}</strong>
               <small>${html(displayActionValue(row.owner_function || t("notAvailable")))}</small>
             </td>
-            <td>${html(relationshipMatchTypeLabel(row.relationship_match_type))}</td>
+            <td>${actionBadge("priority", row.priority || "None")}</td>
             <td class="excess-case-affordance" aria-label="${html(t("excessRowDetails"))}"><span aria-hidden="true">›</span></td>
           </tr>
-        `).join("")}
+        `;
+        }).join("")}
       </tbody>
     </table>
   `;
@@ -7173,20 +7456,28 @@ function openExcessCaseById(caseId, options = {}) {
   const targetCaseId = String(caseId || "");
   if (!targetCaseId) return { status: "missing" };
   const portfolioCases = currentExcessPageModel(enrichedRows).cases || [];
-  const cases = currentExcessViewModel?.cases?.length ? currentExcessViewModel.cases : applyGlobalBusinessFilters(portfolioCases);
-  const targetCase = cases.find(row => row.case_id === targetCaseId);
+  const targetCase = portfolioCases.find(row => row.case_id === targetCaseId);
   if (!targetCase) {
     setFeedback(t("excessTargetCaseMissing"), "warning", { autoReset: true });
     return { status: "missing" };
   }
 
+  let cases = excessPresentationFilteredCases(portfolioCases);
   const visibleWithoutOverride = filteredExcessRowsFromCases(cases);
   const hiddenByExcessFilters = !visibleWithoutOverride.some(row => row.case_id === targetCaseId);
 
   if (hiddenByExcessFilters && options.adjustFilters !== false) {
+    setControlValue("searchInput", "");
+    setControlValue("plantFilter", "");
+    setControlValue("groupFilter", "");
+    setControlValue("excessOwnerFilter", "");
+    setControlValue("excessPriorityFilter", "");
+    updateFilterState("common", { search: "", profitCenter: "all", program: "all" });
+    resetFilterState("excess");
     filterState.columnFilters.excess = {};
     closeColumnFilterPopover();
     setFeedback(t("excessTargetFilterAdjusted"), "ok", { autoReset: true });
+    cases = excessPresentationFilteredCases(portfolioCases);
   }
 
   const rows = filteredExcessRowsFromCases(cases);
@@ -7251,15 +7542,41 @@ function openActionsForExcessCase(caseId) {
   return { status: "opened", target: excessActionRevealTarget };
 }
 
+function openInventoryForExcessCase(caseId) {
+  const targetCase = excessCaseById(caseId) || (currentExcessPageModel(enrichedRows).cases || []).find(item => item.case_id === caseId);
+  if (!targetCase) return { status: "missing" };
+  const target = excessCaseNavigationTarget(targetCase);
+  const targetRows = slowDeadRowsMatchingTarget(composeHistoricalInventoryRows(enrichedRows), target);
+  if (!targetRows.length) {
+    setFeedback(t("excessNoLinkedInventory"), "error", { autoReset: true });
+    return { status: "missing" };
+  }
+  slowDeadInventoryRevealTarget = target;
+  switchProcessTab("inventory-explorer", t("navInventoryExplorer"));
+  return { status: "opened", target };
+}
+
+function refreshExcessFilterOptions(cases = []) {
+  setSelectRecordOptions("excessOwnerFilter", excessDecisionWorkspaceModel.ownerOptions(cases), t("all"));
+  setSelectRecordOptions("excessPriorityFilter", excessDecisionWorkspaceModel.priorityOptions(cases).map(value => ({
+    value,
+    label: displayActionValue(value)
+  })), t("all"));
+  const state = getFilterState("excess");
+  setControlValue("excessOwnerFilter", activeValue(state.owner));
+  setControlValue("excessPriorityFilter", activeValue(state.priority));
+}
+
 function renderExcessPage() {
   const model = currentExcessPageModel(enrichedRows);
-  const commonFilteredCases = applyGlobalBusinessFilters(model.cases);
-  const rows = filteredExcessRowsFromCases(commonFilteredCases);
-  const filteredSummary = excessSummaryFromCases(rows);
+  refreshExcessFilterOptions(model.cases || []);
+  const presentationFilteredCases = excessPresentationFilteredCases(model.cases);
+  const rows = filteredExcessRowsFromCases(presentationFilteredCases);
+  const filteredSummary = excessDecisionWorkspaceModel.summarize(rows);
   const viewModel = {
     ...model,
-    cases: commonFilteredCases,
-    portfolioSummary: model.summary,
+    cases: presentationFilteredCases,
+    portfolioSummary: excessDecisionWorkspaceModel.summarize(model.cases),
     summary: filteredSummary
   };
   const target = $("excessPage");
@@ -7297,7 +7614,6 @@ function renderExcessPage() {
       <div id="excessActiveFilters" class="active-filter-row hidden" aria-live="polite"></div>
     </section>
     ${renderExcessSummaryCards(viewModel)}
-    ${renderPilotReviewSummary()}
     <section class="excess-layout">
       <div class="panel excess-worklist-panel">
         <div class="panel-head">
@@ -7310,15 +7626,7 @@ function renderExcessPage() {
         ${renderExcessPagination(rows.length, excessPageNumber, pageCount)}
       </div>
       <aside class="panel excess-detail-panel">
-        <div class="panel-head">
-          <div class="panel-title">
-            <h2>${html(t("excessDetailsTitle"))}</h2>
-            <small>${html(t("excessDetailsSubtitle"))}</small>
-          </div>
-        </div>
-        <div class="excess-detail-scroll">
-          ${renderExcessDetail(activeCase)}
-        </div>
+        ${renderExcessDetail(activeCase)}
       </aside>
     </section>
     ${renderRelationshipIssueWorklist(viewModel)}
@@ -18955,12 +19263,32 @@ window.addEventListener("drop", event => {
     alert(error.message);
   });
 });
-["searchInput", "plantFilter", "groupFilter", "categoryFilter", "rowLimit", "actionPriorityFilter", "actionStatusFilter", "actionOwnerFilter", "actionDecisionFilter", "actionConfidenceFilter"].forEach(id => {
+["searchInput", "plantFilter", "groupFilter", "categoryFilter", "rowLimit", "excessOwnerFilter", "excessPriorityFilter", "actionPriorityFilter", "actionStatusFilter", "actionOwnerFilter", "actionDecisionFilter", "actionConfidenceFilter"].forEach(id => {
   const control = $(id);
   if (!control) return;
   control.addEventListener("input", renderCurrentView);
   control.addEventListener("change", renderCurrentView);
 });
+const excessResetFilters = $("excessResetFilters");
+if (excessResetFilters) {
+  excessResetFilters.addEventListener("click", event => {
+    event.preventDefault();
+    clearFilters({ scope: "excess", render: false });
+    renderCurrentView({ syncStateFromControls: false });
+  });
+}
+const excessPageRoot = $("excessPage");
+if (excessPageRoot) {
+  excessPageRoot.addEventListener("click", event => {
+    if (!(event.target instanceof Element)) return;
+    const inventoryButton = event.target.closest("[data-open-excess-inventory]");
+    if (!(inventoryButton instanceof HTMLElement)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeColumnFilterPopover();
+    openInventoryForExcessCase(inventoryButton.dataset.openExcessInventory || "");
+  });
+}
 const overviewGlobalSearch = $("overviewGlobalSearch");
 if (overviewGlobalSearch) {
   overviewGlobalSearch.addEventListener("input", event => {
@@ -19594,6 +19922,7 @@ function createObsoliqTestBridge() {
     restorePilotReviewsForTest: snapshot => clonePlainRecord(excessPilotReviewService.restore(snapshot)),
     exportPilotReviewsUiForTest: (scope = "current") => exportPilotReviews(scope),
     openExcessCaseByIdForTest: (caseId, options = {}) => clonePlainRecord(openExcessCaseById(caseId, options)),
+    openInventoryForExcessCaseForTest: caseId => clonePlainRecord(openInventoryForExcessCase(caseId)),
     openActionsForExcessCaseForTest: caseId => clonePlainRecord(openActionsForExcessCase(caseId)),
     excessActionRowForCaseForTest: caseRecord => clonePlainRecord(excessActionRowForCase(caseRecord)),
     excessCaseNavigationTargetForTest: caseRecord => clonePlainRecord(excessCaseNavigationTarget(caseRecord)),
@@ -19606,7 +19935,7 @@ function createObsoliqTestBridge() {
     getExcessPageStateForTest: () => {
       const rows = currentExcessVisibleRows.length
         ? currentExcessVisibleRows
-        : filteredExcessRowsFromCases(applyGlobalBusinessFilters(currentExcessPageModel(enrichedRows).cases));
+        : filteredExcessRowsFromCases(excessPresentationFilteredCases(currentExcessPageModel(enrichedRows).cases));
       const pageCount = Math.max(1, Math.ceil(rows.length / excessPageSize));
       const pageNumber = Math.min(Math.max(1, excessPageNumber), pageCount);
       const pageStart = (pageNumber - 1) * excessPageSize;
@@ -19622,6 +19951,8 @@ function createObsoliqTestBridge() {
       });
     },
     getExcessRowsForTest: () => clonePlainArray(getExcessRows()),
+    getExcessPresentationSummaryForTest: cases => clonePlainRecord(excessDecisionWorkspaceModel.summarize(cases || currentExcessVisibleRows)),
+    getExcessDecisionCoreForTest: item => clonePlainRecord(currentExcessDecisionCore(item || currentActiveExcessCase || {})),
     getActionRowsForTest: () => clonePlainArray(getActionRows()),
     getFilteredRowsForTest: scope => clonePlainArray(getFilteredRows(scope || "overview")),
     resetExcessPageModelBuildCountForTest: () => {

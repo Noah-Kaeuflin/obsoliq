@@ -7717,12 +7717,15 @@ body.is-scrolled .main-nav {
 
 .excess-control-card {
   display: grid;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px 14px;
 }
 
 .excess-page-header .control-card-top {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  gap: 10px;
 }
 
 .excess-page-header .control-card-actions {
@@ -7733,13 +7736,46 @@ body.is-scrolled .main-nav {
   align-items: center;
 }
 
-.excess-page-header .field:has(#rowLimit) {
+.excess-only-filter {
   display: none;
+}
+
+.excess-page-header .field:has(#rowLimit),
+.excess-page-header .field:has(#categoryFilter) {
+  display: none;
+}
+
+.excess-page-header .excess-only-filter.field {
+  display: grid;
+}
+
+.excess-page-header .excess-reset-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+
+.excess-page-header .overview-heading {
+  gap: 2px;
+}
+
+.excess-page-header .overview-heading h2 {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.excess-page-header .overview-heading p {
+  max-width: 780px;
+  font-size: 12px;
+  line-height: 17px;
 }
 
 .excess-page-header .control-toolbar-slot .filters {
   display: grid;
-  grid-template-columns: minmax(280px, 1.4fr) repeat(3, minmax(150px, 0.72fr));
+  grid-template-columns: minmax(220px, 1.35fr) repeat(4, minmax(120px, 0.72fr)) auto;
   gap: 8px;
   align-items: end;
 }
@@ -7747,13 +7783,13 @@ body.is-scrolled .main-nav {
 .excess-summary-grid {
   display: grid;
   grid-template-columns: minmax(210px, 1.25fr) repeat(3, minmax(150px, 1fr));
-  gap: 10px;
-  margin: 0 0 12px;
+  gap: 8px;
+  margin: 0 0 8px;
 }
 
 .excess-summary-card {
-  min-height: 82px;
-  padding: 14px 16px;
+  min-height: 70px;
+  padding: 10px 13px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -7762,7 +7798,7 @@ body.is-scrolled .main-nav {
 
 .excess-summary-card span {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 750;
@@ -7771,7 +7807,7 @@ body.is-scrolled .main-nav {
 .excess-summary-card strong {
   display: block;
   color: var(--text);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 850;
   line-height: 1.1;
   white-space: nowrap;
@@ -7780,7 +7816,7 @@ body.is-scrolled .main-nav {
 
 .excess-summary-card small {
   display: block;
-  margin-top: 7px;
+  margin-top: 3px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 760;
@@ -7793,11 +7829,16 @@ body.is-scrolled .main-nav {
 }
 
 .excess-summary-card.reconciliation strong {
-  font-size: 19px;
+  font-size: 20px;
+}
+
+.excess-summary-card .excess-summary-meta {
+  margin-top: 2px;
+  font-size: 10px;
 }
 
 .excess-summary-context {
-  margin: -4px 0 12px;
+  margin: -2px 0 8px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
@@ -7809,10 +7850,10 @@ body.is-scrolled .main-nav {
 
 .excess-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(400px, 0.9fr);
+  grid-template-columns: minmax(610px, 1.08fr) minmax(540px, 0.92fr);
   gap: 12px;
   align-items: stretch;
-  height: clamp(560px, calc(100dvh - 330px), 760px);
+  height: clamp(560px, calc(100dvh - 305px), 720px);
   min-height: 0;
 }
 
@@ -7826,6 +7867,7 @@ body.is-scrolled .main-nav {
 .excess-detail-panel {
   min-height: 0;
   overflow: hidden;
+  padding: 12px 14px;
 }
 
 .excess-worklist-panel {
@@ -7856,7 +7898,7 @@ body.is-scrolled .main-nav {
 }
 
 .excess-table {
-  min-width: 760px;
+  min-width: 740px;
   width: 100%;
 }
 
@@ -7870,11 +7912,13 @@ body.is-scrolled .main-nav {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding-right: 3px;
+  padding: 10px 3px 0 0;
+  border-top: 1px solid var(--border);
 }
 
 .excess-table tbody tr.selected {
   background: rgba(25, 118, 210, 0.07);
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 
 .excess-table tbody tr[data-excess-case-detail] {
@@ -7892,6 +7936,27 @@ body.is-scrolled .main-nav {
 
 .excess-net-cell small {
   white-space: nowrap;
+}
+
+.excess-table th,
+.excess-table td {
+  padding: 8px 10px;
+}
+
+.excess-relationship-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin-left: 6px;
+  border: 1px solid rgba(184, 127, 28, 0.34);
+  border-radius: 50%;
+  color: var(--warning);
+  background: rgba(184, 127, 28, 0.08);
+  font-size: 10px;
+  font-weight: 900;
+  vertical-align: 1px;
 }
 
 .excess-case-affordance {
@@ -7928,9 +7993,266 @@ body.is-scrolled .main-nav {
   font-variant-numeric: tabular-nums;
 }
 
+.excess-decision-core {
+  display: grid;
+  gap: 9px;
+  padding-bottom: 10px;
+  background: var(--surface);
+}
+
+.excess-case-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.excess-case-identity {
+  min-width: 0;
+}
+
+.excess-case-badges,
+.excess-case-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.excess-case-badges {
+  margin-bottom: 5px;
+}
+
+.excess-case-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: rgba(25, 118, 210, 0.09);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.excess-case-identity > strong {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 21px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excess-case-identity > span {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excess-case-actions {
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.excess-case-actions button {
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 11px;
+}
+
+.excess-inline-stats {
+  display: grid;
+  grid-template-columns: 1.15fr 0.72fr 1fr 0.68fr;
+  gap: 0;
+  border-block: 1px solid var(--border);
+}
+
+.excess-inline-stats > div {
+  min-width: 0;
+  padding: 7px 9px;
+  border-right: 1px solid var(--border);
+}
+
+.excess-inline-stats > div:first-child {
+  padding-left: 0;
+}
+
+.excess-inline-stats > div:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.excess-inline-stats span,
+.excess-inline-stats small {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excess-inline-stats strong {
+  display: block;
+  overflow: hidden;
+  margin: 2px 0 1px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 830;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.excess-primary-decision-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.excess-primary-decision {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.excess-primary-decision h4,
+.excess-historical-state h4 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.excess-primary-decision ul {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.excess-primary-decision p {
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.excess-primary-decision small {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.excess-primary-decision small strong {
+  color: var(--text);
+}
+
 .excess-detail-card {
   display: grid;
+  gap: 10px;
+}
+
+.excess-decision-basis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
   gap: 12px;
+}
+
+.excess-score-explanation {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.excess-operational-evidence dl,
+.excess-historical-state dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 10px;
+  margin: 0;
+}
+
+.excess-operational-evidence dl > div,
+.excess-historical-state dl > div {
+  min-width: 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.excess-operational-evidence dt,
+.excess-historical-state dt {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.excess-operational-evidence dd,
+.excess-historical-state dd {
+  overflow: hidden;
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 780;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excess-historical-state {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-subtle);
+}
+
+.excess-historical-state.unavailable {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.excess-historical-state.unavailable p,
+.excess-history-limitations {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.excess-history-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.excess-history-heading h4 {
+  margin-bottom: 0;
+}
+
+.excess-history-heading span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
 }
 
 .excess-detail-head {
@@ -8461,6 +8783,15 @@ body.is-scrolled .main-nav {
   .excess-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .excess-case-head {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .excess-case-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 720px) {
@@ -8473,5 +8804,29 @@ body.is-scrolled .main-nav {
   .excess-page-header .control-card-actions,
   .pilot-review-actions {
     justify-content: flex-start;
+  }
+
+  .excess-inline-stats,
+  .excess-primary-decision-grid,
+  .excess-decision-basis-grid,
+  .excess-operational-evidence dl,
+  .excess-historical-state dl {
+    grid-template-columns: 1fr;
+  }
+
+  .excess-inline-stats > div,
+  .excess-inline-stats > div:first-child,
+  .excess-inline-stats > div:last-child {
+    padding: 6px 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .excess-inline-stats > div:last-child {
+    border-bottom: 0;
+  }
+
+  .excess-historical-state.unavailable {
+    grid-template-columns: 1fr;
   }
 }

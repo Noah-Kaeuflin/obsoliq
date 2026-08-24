@@ -79,7 +79,9 @@
     assert.equal(isVisible(app, "#searchInput"), true, "Search should remain visible in Excess");
     assert.equal(isVisible(app, "#plantFilter"), true, "Plant / Profit Center should remain visible in Excess");
     assert.equal(isVisible(app, "#groupFilter"), true, "Program / Group should remain visible in Excess");
-    assert.equal(isVisible(app, "#categoryFilter"), true, "Category should remain visible in Excess");
+    assert.equal(isVisible(app, "#categoryFilter"), false, "Category should be hidden in Excess");
+    assert.equal(isVisible(app, "#excessOwnerFilter"), true, "Owner should be visible in Excess");
+    assert.equal(isVisible(app, "#excessPriorityFilter"), true, "Priority should be visible in Excess");
 
     const beforeRows = bridge.getExcessPageStateForTest().totalRows;
     setControl(app, "#rowLimit", "250", "change");
@@ -104,21 +106,22 @@
     assert.ok(cards[0].classList.contains("primary"), "Net Addressable should be first and primary");
     assert.ok(cards[0].textContent.includes("Netto adressierbar"), "First card should be Net Addressable");
     assert.ok(cards[1].textContent.includes(String(summary.caseCount)), "Case count should remain available in summary");
-    assert.ok(cards[2].textContent.includes(`${summary.averageOpportunityScore}/100`), "Average Opportunity Score should remain available");
-    assert.ok(cards[3].textContent.includes("Brutto"), "Gross-to-net reconciliation should be visible");
+    assert.ok(cards[2].textContent.includes(String(summary.averageOpportunityScore)), "Average Opportunity Score should remain available");
+    assert.ok(cards[3].textContent.includes("Adressierbarkeit"), "Gross-to-net addressability should be visible");
     assert.ok(cards[3].textContent.includes("Überlappung"), "Overlap should remain visible in reconciliation card");
 
     const table = app.document.querySelector(".excess-table");
     assert.ok(table, "Excess worklist table should render");
     assert.equal(table.classList.contains("wide"), false, "Excess table should not use the global wide table contract");
-    assert.equal(app.getComputedStyle(table).minWidth, "760px", "Excess table should use the scoped compact minimum width");
+    assert.equal(app.getComputedStyle(table).minWidth, "740px", "Excess table should use the scoped compact minimum width");
     const headerText = [...table.querySelectorAll("thead th")].map(cell => cell.textContent.trim()).join("|");
     assert.equal(headerText.includes("Brutto-Überbestand"), false, "Separate Gross Excess column should be absent");
     assert.ok(headerText.includes("Material"), "Material column should remain");
     assert.ok(headerText.includes("Netto adressierbar"), "Net Addressable column should remain");
     assert.ok(headerText.includes("Score"), "Opportunity Score column should remain");
-    assert.ok(headerText.includes("Owner-Referenz"), "Owner column should remain");
-    assert.ok(headerText.includes("Match-Qualität"), "Match column should remain");
+    assert.ok(headerText.includes("Verantwortlich"), "Responsible column should remain");
+    assert.equal(headerText.includes("Match-Qualität"), false, "Match column should be removed from the primary Worklist");
+    assert.ok(headerText.includes("Priorität"), "Priority column should be visible");
     assert.ok(headerText.includes("Aktion"), "Compact action affordance column should remain");
 
     const firstRow = table.querySelector("tbody tr[data-excess-case-detail]");
@@ -164,19 +167,20 @@
     const beforePackage = bridge.activeInventoryPackageIdentityForTest();
     const beforeExport = bridge.rowsForExportForTest(beforeModel.cases, bridge.excessExportColumnsForTest());
 
-    const detailKpiText = app.document.querySelector(".excess-detail-kpis")?.textContent || "";
+    const detailKpiText = app.document.querySelector(".excess-inline-stats")?.textContent || "";
     assert.ok(detailKpiText.includes("Netto adressierbar"), "Detail KPIs should include Net Addressable");
     assert.ok(detailKpiText.includes("Score"), "Detail KPIs should include Score");
-    assert.ok(detailKpiText.includes("Owner-Referenz"), "Detail KPIs should include Owner Reference");
+    assert.ok(detailKpiText.includes("Verantwortlich"), "Detail stats should include Responsible");
     assert.ok(detailKpiText.includes("Priorität"), "Detail KPIs should include Priority");
     assert.equal(detailKpiText.includes("Match-Qualität"), false, "Match Quality should not be a primary KPI");
     assert.ok(app.document.querySelector(".excess-score-list .excess-score-row"), "Score drivers should render as compact rows");
-    assert.ok(app.document.querySelector(".excess-detail-disclosure[open] summary")?.textContent.includes("Entscheidungsbasis"), "Decision Basis should be open by default");
+    assert.equal(app.document.querySelector(".excess-detail-disclosure[open]"), null, "Secondary disclosures should be closed by default");
+    assert.ok(app.document.querySelector(".excess-decision-core [data-next-step]"), "Next Review Step should be visible in the Decision Core");
     const scenarioDisclosure = [...app.document.querySelectorAll(".excess-detail-disclosure")]
       .find(disclosure => disclosure.querySelector("summary")?.textContent.includes("Szenarien"));
     assert.ok(scenarioDisclosure, "Scenario disclosure should remain available");
     assert.equal(scenarioDisclosure.open, false, "Scenarios should be closed by default");
-    assert.ok(app.document.body.textContent.includes("Technische Relationship-Details"), "Technical relationship details should be available");
+    assert.ok(app.document.body.textContent.includes("Technische Provenance"), "Technical provenance should be available");
     assert.equal(app.document.querySelector(".excess-quality-panel"), null, "No full relationship diagnostics panel should render without actionable issues");
 
     const closedDisclosure = app.document.querySelector(".excess-detail-disclosure:not([open]) > summary");

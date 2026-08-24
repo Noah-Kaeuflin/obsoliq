@@ -6,6 +6,18 @@ ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. 
 
 The product helps users move from SAP or Excel inventory data to classification, recovery potential, root cause, recommended action, owner, status tracking and exportable management reporting.
 
+### EX-UX-01.2 — Excess Decision Core & Risk-Workbench Alignment
+
+The Excess workspace uses a compact page header, a one-row desktop filter contract and exactly four Summary items: Net Addressable, Excess Cases, Prioritization and Addressability. Search, Plant / Profit Center and Program / Group reuse the shared controls; Owner and Priority are Excess-only presentation filters. Category and row limit remain available to other views but are neither visible nor applied on Excess.
+
+The operational workspace uses an approximately 54 / 46 Worklist-to-Detail split on desktop. The primary Worklist shows Material, Net Addressable with Gross as secondary evidence, Opportunity Score, Responsible, existing Priority and a compact Case affordance. Match Quality is not a primary column; only real relationship issues receive a restrained warning, with complete context retained in secondary detail.
+
+The selected Case Decision Core remains above the Detail scroll and exposes exact Case identity, material and plant, existing priority, exact Inventory and Actions navigation, compact decision stats, up to three accepted prioritization reasons and the existing `next_step` / `decision_type`. Opportunity Score is explicitly presented as transparent prioritization rather than a probability.
+
+Historical evidence is read only from the already completed Historical Runtime for the exact current `inventory_row_key`. Available or limited scalar metrics may be presented; missing, stale or ambiguous evidence renders an unavailable state and may open the existing Consumption History import flow. The view does not trigger historical calculation, scan Raw History, aggregate monthly data or invent Forecast evidence.
+
+Scenarios and assumptions, Evidence and limitations, Data and Relationship Quality, Owner and Action Context, Pilot Review and Technical Provenance remain available through closed-by-default disclosures. The page projection is presentation-only and does not alter Excess formulas, Opportunity Scores, scenarios, Recovery, Data Quality, Actions, Pilot Reviews, Runtime state, Registry records or Package revisions.
+
 ### AP 16.4b.1 — Source-Bound Interpretation & History Readiness Closure
 
 Consumption History interpretation policies are now bound to the exact physical source columns that were reviewed. Quantity, Posting Date and Period policies store `canonicalField`, `sourceIndex`, `sourceKey` and `sourceColumn`, so duplicate visible headers remain distinct and a confirmed policy cannot silently move to another uploaded column.
