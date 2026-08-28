@@ -105,7 +105,9 @@
     assert.equal(missingCase.inventory_exposure_missing, true, "Missing service value should be displayed as unavailable exposure");
     assert.equal(zeroCase.inventory_exposure_missing, false, "Actual zero should remain an available zero exposure value");
     assert.equal(zeroCase.inventory_exposure_value, 0, "Actual zero exposure should remain zero");
-    assert.equal(model.portfolioSummary.inventoryExposureValue, 0, "Unavailable exposure should not be invented");
+    assert.equal(model.portfolioSummary.inventoryExposureValue, null, "Incomplete exposure must not be presented as a complete zero total");
+    assert.equal(model.portfolioSummary.inventoryExposureAvailableValue, 0, "The explicitly partial available-value subtotal should preserve a true zero");
+    assert.equal(model.portfolioSummary.inventoryExposureAggregate.status, "incomplete", "Incomplete exposure must carry an explicit aggregate status");
     assert.equal(model.portfolioSummary.inventoryExposureAvailableCaseCount, 1, "Only actual numeric exposure should count as available");
     assert.equal(model.portfolioSummary.inventoryExposureUnavailableCaseCount, 1, "Missing exposure should count as unavailable");
   });

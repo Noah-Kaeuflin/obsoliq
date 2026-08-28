@@ -93,6 +93,10 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
+  function financialNumber(value) {
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+
   function stringList(values = []) {
     return [...new Set((Array.isArray(values) ? values : [values])
       .map(value => String(value ?? "").trim())
@@ -219,7 +223,7 @@
         availability: String(scenario.availability || (scenario.available ? "available" : "unavailable")),
         baselineFacts: stableValue(scenario.observedInputs || {}),
         calculatedOutputs: stableValue(scenario.calculatedOutputs || {
-          estimated_impact_value: scenario.estimated_impact_value ?? 0
+          estimated_impact_value: financialNumber(scenario.estimated_impact_value)
         }),
         missingEvidence: stringList(scenario.missingEvidence || []),
         requiredPackages: stringList(scenario.requiredPackages || []),
@@ -266,11 +270,11 @@
       packageId: packageIdentity.packageId,
       packageRevision: packageIdentity.packageRevision,
       opportunityScoreModelVersion: scoreModelVersion,
-      opportunityScore: number(caseRecord.excess_opportunity_score ?? caseRecord.opportunity_score),
+      opportunityScore: financialNumber(caseRecord.excess_opportunity_score ?? caseRecord.opportunity_score),
       opportunityScoreComponents: stableValue(caseRecord.opportunity_score_components || {}),
-      grossExcessValue: number(caseRecord.gross_excess_value),
-      netAddressableExcessValue: number(caseRecord.net_addressable_excess_value),
-      excessOverlapValue: number(caseRecord.excess_overlap_value),
+      grossExcessValue: financialNumber(caseRecord.gross_excess_value),
+      netAddressableExcessValue: financialNumber(caseRecord.net_addressable_excess_value),
+      excessOverlapValue: financialNumber(caseRecord.excess_overlap_value),
       recommendedAction: String(caseRecord.recommended_action || caseRecord.ownerActionContext?.recommendation || ""),
       nextStep: String(caseRecord.next_step || caseRecord.ownerActionContext?.nextStep || ""),
       priority: String(caseRecord.priority || ""),
@@ -305,7 +309,7 @@
       reasons.push("score_model_changed");
     }
     if (
-      number(review.opportunityScore ?? savedPayload.opportunityScore) !== number(currentPayload.opportunityScore)
+      financialNumber(review.opportunityScore ?? savedPayload.opportunityScore) !== financialNumber(currentPayload.opportunityScore)
       || !compareStable(savedPayload.opportunityScoreComponents || {}, currentPayload.opportunityScoreComponents || {})
     ) {
       reasons.push("score_changed");
@@ -334,9 +338,9 @@
       reasons.push("relationship_changed");
     }
     if (
-      number(savedPayload.grossExcessValue) !== number(currentPayload.grossExcessValue)
-      || number(savedPayload.netAddressableExcessValue) !== number(currentPayload.netAddressableExcessValue)
-      || number(savedPayload.excessOverlapValue) !== number(currentPayload.excessOverlapValue)
+      financialNumber(savedPayload.grossExcessValue) !== financialNumber(currentPayload.grossExcessValue)
+      || financialNumber(savedPayload.netAddressableExcessValue) !== financialNumber(currentPayload.netAddressableExcessValue)
+      || financialNumber(savedPayload.excessOverlapValue) !== financialNumber(currentPayload.excessOverlapValue)
     ) {
       reasons.push("case_metrics_changed");
     }
@@ -392,7 +396,7 @@
         reviewLifecycleReasonCodes: legacy
           ? uniqueList([...(review.reviewLifecycleReasonCodes || []), "legacy_record_unverified"])
           : uniqueList(review.reviewLifecycleReasonCodes || []),
-        opportunityScore: typeof review.opportunityScore === "number" && Number.isFinite(review.opportunityScore) ? review.opportunityScore : 0,
+        opportunityScore: financialNumber(review.opportunityScore),
         opportunityScoreModelVersion: String(review.opportunityScoreModelVersion || "")
       };
     }

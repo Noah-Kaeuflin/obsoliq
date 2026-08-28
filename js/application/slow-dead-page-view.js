@@ -7,8 +7,12 @@
     const t = dependencies.t || (key => key);
     const formatMoney = dependencies.formatMoney || (() => t("notAvailable"));
     const formatCompactMoney = dependencies.formatCompactMoney || formatMoney;
-    const formatCount = dependencies.formatCount || (value => String(value ?? 0));
-    const formatNumber = dependencies.formatNumber || (value => String(value ?? ""));
+    const fallbackNumber = value => {
+      const number = root.core?.valueUtils?.toNumber?.(value);
+      return number === null ? t("notAvailable") : String(number);
+    };
+    const formatCount = dependencies.formatCount || fallbackNumber;
+    const formatNumber = dependencies.formatNumber || fallbackNumber;
     const conditionLabel = dependencies.conditionLabel || (value => value);
     const codeLabel = dependencies.codeLabel || ((_prefix, value) => value);
     const actionCodeLabel = dependencies.actionCodeLabel || (value => value);
@@ -23,19 +27,18 @@
     }
 
     function displayMoney(value, compact = false) {
-      if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return t("notAvailable");
-      return Number.isFinite(Number(value)) ? (compact ? formatCompactMoney(value) : formatMoney(value)) : t("notAvailable");
+      const number = root.core?.valueUtils?.toNumber?.(value);
+      return number === null ? t("notAvailable") : (compact ? formatCompactMoney(number) : formatMoney(number));
     }
 
     function displayQuantity(value, unit = "") {
-      if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return t("notAvailable");
-      return Number.isFinite(Number(value)) ? `${formatNumber(value)} ${unit || ""}`.trim() : t("notAvailable");
+      const number = root.core?.valueUtils?.toNumber?.(value);
+      return number === null ? t("notAvailable") : `${formatNumber(number)} ${unit || ""}`.trim();
     }
 
     function displayPercent(value) {
-      if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return t("notAvailable");
-      if (!Number.isFinite(Number(value))) return t("notAvailable");
-      return `${formatNumber(Number(value) * 100, { maximumFractionDigits: 0 })} %`;
+      const number = root.core?.valueUtils?.toNumber?.(value);
+      return number === null ? t("notAvailable") : `${formatNumber(number * 100, { maximumFractionDigits: 0 })} %`;
     }
 
     function severityClass(status = "") {
@@ -187,7 +190,12 @@
           <td>${html(displayOptional(row.plant))}</td>
           <td>${renderConditionCell(row)}</td>
           <td title="${html(displayMoney(row.inventory_exposure_value))}">${html(displayMoney(row.inventory_exposure_value, true))}</td>
-          <td>${html(displayOptional(row.last_consumption || (Number.isFinite(Number(row.months_since_last_consumption)) ? `${formatNumber(row.months_since_last_consumption)} ${t("monthsShort")}` : "")))}</td>
+          <td>${html(displayOptional(row.last_consumption || (row.months_since_last_consumption !== null
+            && row.months_since_last_consumption !== undefined
+            && String(row.months_since_last_consumption).trim() !== ""
+            && Number.isFinite(Number(row.months_since_last_consumption))
+            ? `${formatNumber(row.months_since_last_consumption)} ${t("monthsShort")}`
+            : "")))}</td>
           <td>${html(displayQuantity(row.net_consumption_12m, row.stock_unit))}</td>
           <td>${html(displayPercent(row.history_completeness))}</td>
           <td>${html(displayCode("slowDeadEvidenceStrength", row.evidence_strength))}</td>
@@ -394,7 +402,7 @@
       `;
     }
 
-    return Object.freeze({ render });
+    return Object.freeze({ render, renderDetail: renderCaseDetail });
   }
 
   root.application.slowDeadPageView = Object.freeze({

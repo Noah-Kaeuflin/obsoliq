@@ -19,62 +19,190 @@ function hasMagnitudeSuffix(value, key = "") {
 }
 
 function isMissingInputValue(value) {
-  return value === null || value === undefined || String(value).trim() === "";
+  return value === null
+    || value === undefined
+    || (typeof value === "string" && value.trim() === "");
 }
 
 function normalizeLocalizedNumber(text) {
-  let value = String(text || "").trim();
-  if (!value) return "";
-  const negative = value.includes("-");
-  value = value.replace(/[+\-]/g, "");
-  const lastDot = value.lastIndexOf(".");
-  const lastComma = value.lastIndexOf(",");
-
-  if (lastDot >= 0 && lastComma >= 0) {
-    value = lastComma > lastDot
-      ? value.replace(/\./g, "").replace(",", ".")
-      : value.replace(/,/g, "");
-  } else if (lastComma >= 0) {
-    const parts = value.split(",");
-    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3)) {
-      value = parts.join("");
-    } else {
-      value = `${parts[0]}.${parts.slice(1).join("")}`;
-    }
-  } else if (lastDot >= 0) {
-    const parts = value.split(".");
-    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3)) {
-      value = parts.join("");
-    } else {
-      value = `${parts[0]}.${parts.slice(1).join("")}`;
-    }
-  }
-
-  return negative ? `-${value}` : value;
+  const envelope = extractNumericEnvelope(text);
+  if (envelope.status !== "valid") return "";
+  const parsed = parseStrictNumericCore(envelope.numericCore, "");
+  if (parsed.status !== "valid") return "";
+  const signed = envelope.negative ? -Math.abs(parsed.value) : parsed.value;
+  return String(signed === 0 ? 0 : signed);
 }
 
 function toNumber(value, key = "") {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   const structured = parseLocalizedNumericValue({
     rawValue: value,
-    fieldDefinition: { type: "number", fieldKey: key },
-    normalizationPolicy: { allowAmbiguousFallback: true }
+    fieldDefinition: { type: "number", fieldKey: key }
   });
   if (structured.status === "valid" && Number.isFinite(structured.normalizedValue)) {
     return structured.normalizedValue;
   }
-  const factor = magnitudeFactor(value, key);
-  const text = String(value ?? "")
-    .replace(/\(([^)]+)\)/g, "-$1")
-    .replace(/[€$£]/g, "")
-    .replace(/\b(eur|euro|usd|dollar|dollars|gbp|pound|pounds|sterling|chf|pln|czk|sek|nok|dkk)\b/gi, "")
-    .replace(/([0-9])\s*(mrd\.?|mio\.?|tsd\.?|bn|mn|[kmb])(?=\s|$|[^a-z])/gi, "$1")
-    .replace(/\b(mrd\.?|mio\.?|tsd\.?|bn|mn|billion(?:en|s)?|million(?:en|s)?|milliarden|tausend|thousand)(?=\s|$|[^a-z])/gi, "")
-    .replace(/%/g, "")
-    .replace(/[\s\u00a0\u202f']/g, "")
-    .replace(/[^\d,.\-+]/g, "");
-  const parsed = Number(normalizeLocalizedNumber(text));
-  return Number.isFinite(parsed) ? parsed * factor : 0;
+  return null;
+}
+
+function canonicalNumericStatus(status = "") {
+  if (["missing", "valid", "ambiguous"].includes(status)) return status;
+  if (status === "double_scale") return "ambiguous";
+  return "invalid";
+}
+
+function numericEvidence(value, options = {}) {
+  const explicitResult = options.parseResult && typeof options.parseResult === "object"
+    ? options.parseResult
+    : null;
+  const parsed = explicitResult || parseLocalizedNumericValue({
+    rawValue: value,
+    fieldDefinition: options.fieldDefinition || { type: "number", fieldKey: options.fieldKey || "" },
+    localeProfile: options.localeProfile || {},
+    headerHints: options.headerHints || {},
+    normalizationPolicy: options.normalizationPolicy || {}
+  });
+  const status = canonicalNumericStatus(parsed.status);
+  const normalizedValue = status === "valid" && Number.isFinite(parsed.normalizedValue)
+    ? parsed.normalizedValue
+    : null;
+  return {
+    status: normalizedValue === null && status === "valid" ? "invalid" : status,
+    normalizedValue,
+    reasonCodes: [...(parsed.reasonCodes || parsed.warnings || [])]
+  };
+}
+
+function nonfiniteInputValue(value) {
+  if (typeof value === "number") return !Number.isFinite(value);
+  const token = String(value ?? "").trim().toLowerCase();
+  return ["nan", "infinity", "+infinity", "-infinity"].includes(token);
+}
+
+function strictNonNegativeFinancialValue(value, options = {}) {
+  const rawValue = Object.prototype.hasOwnProperty.call(options, "rawValue")
+    ? options.rawValue
+    : value;
+  const parseStatus = options.parseResult?.status || "";
+  if (parseStatus === "missing" || (!parseStatus && isMissingInputValue(rawValue))) {
+    return { status: "unavailable", value: null, reason: "missing_value" };
+  }
+  if (nonfiniteInputValue(rawValue)) {
+    return { status: "unavailable", value: null, reason: "nonfinite_input" };
+  }
+  if (parseStatus && parseStatus !== "valid") {
+    return { status: "unavailable", value: null, reason: "invalid_input" };
+  }
+  const evidence = numericEvidence(value, {
+    fieldDefinition: options.fieldDefinition || { type: "currency", fieldKey: options.fieldKey || "" },
+    fieldKey: options.fieldKey || ""
+  });
+  if (evidence.status === "missing") {
+    return { status: "unavailable", value: null, reason: "missing_value" };
+  }
+  if (evidence.status !== "valid" || !Number.isFinite(evidence.normalizedValue)) {
+    return { status: "unavailable", value: null, reason: "nonfinite_input" };
+  }
+  if (evidence.normalizedValue < 0) {
+    return { status: "unavailable", value: null, reason: "negative_input" };
+  }
+  return {
+    status: "available",
+    value: evidence.normalizedValue === 0 ? 0 : evidence.normalizedValue,
+    reason: ""
+  };
+}
+
+function deriveNonNegativeFinancialProduct(quantity, unitPrice, options = {}) {
+  const quantityEvidence = strictNonNegativeFinancialValue(quantity, {
+    fieldKey: options.quantityFieldKey || "stock_quantity",
+    fieldDefinition: { type: "number", fieldKey: options.quantityFieldKey || "stock_quantity" },
+    parseResult: options.quantityParseResult,
+    rawValue: Object.prototype.hasOwnProperty.call(options, "rawQuantity") ? options.rawQuantity : quantity
+  });
+  if (quantityEvidence.status !== "available") return quantityEvidence;
+  const priceEvidence = strictNonNegativeFinancialValue(unitPrice, {
+    fieldKey: options.priceFieldKey || "standard_price",
+    fieldDefinition: { type: "currency", fieldKey: options.priceFieldKey || "standard_price" },
+    parseResult: options.priceParseResult,
+    rawValue: Object.prototype.hasOwnProperty.call(options, "rawUnitPrice") ? options.rawUnitPrice : unitPrice
+  });
+  if (priceEvidence.status !== "available") return priceEvidence;
+  const derivedValue = quantityEvidence.value * priceEvidence.value;
+  if (!Number.isFinite(derivedValue) || derivedValue < 0) {
+    return { status: "unavailable", value: null, reason: "derived_value_overflow" };
+  }
+  return {
+    status: "available",
+    value: derivedValue === 0 ? 0 : derivedValue,
+    reason: ""
+  };
+}
+
+function aggregateNumericValues(records = [], options = {}) {
+  const rows = Array.isArray(records) ? records : [];
+  const valueAccessor = typeof options.valueAccessor === "function"
+    ? options.valueAccessor
+    : value => value;
+  const parseResultAccessor = typeof options.parseResultAccessor === "function"
+    ? options.parseResultAccessor
+    : () => null;
+  const rawValues = rows.map((record, index) => valueAccessor(record, index));
+  const localeProfile = options.localeProfile || inferNumericLocaleProfile(rawValues);
+  const result = {
+    totalCount: rows.length,
+    validCount: 0,
+    missingCount: 0,
+    invalidCount: 0,
+    ambiguousCount: 0,
+    status: "unavailable",
+    value: null,
+    limited: true,
+    reasonCodes: []
+  };
+  let total = 0;
+
+  rows.forEach((record, index) => {
+    const evidence = numericEvidence(rawValues[index], {
+      fieldDefinition: options.fieldDefinition,
+      fieldKey: options.fieldKey,
+      localeProfile,
+      parseResult: parseResultAccessor(record, index)
+    });
+    if (evidence.status === "valid") {
+      result.validCount += 1;
+      total += evidence.normalizedValue;
+      return;
+    }
+    if (evidence.status === "missing") result.missingCount += 1;
+    else if (evidence.status === "ambiguous") result.ambiguousCount += 1;
+    else result.invalidCount += 1;
+    evidence.reasonCodes.forEach(code => {
+      if (code && !result.reasonCodes.includes(code)) result.reasonCodes.push(code);
+    });
+  });
+
+  const complete = rows.length > 0 && result.validCount === rows.length;
+  const partialAllowed = options.allowPartial === true && result.validCount > 0;
+  if (!Number.isFinite(total)) {
+    result.status = "invalid";
+    result.reasonCodes.push("non_finite_aggregate_total");
+    return result;
+  }
+  if (complete) {
+    result.status = "complete";
+    result.value = total === 0 ? 0 : total;
+    result.limited = false;
+    return result;
+  }
+  if (partialAllowed) {
+    result.status = "partial";
+    result.value = total === 0 ? 0 : total;
+    return result;
+  }
+  if (result.invalidCount) result.status = "invalid";
+  else if (result.ambiguousCount) result.status = "ambiguous";
+  else if (result.missingCount) result.status = "incomplete";
+  return result;
 }
 
 const currencyTokenPattern = /\b(EUR|EURO|USD|DOLLARS?|GBP|POUNDS?|STERLING|CHF|PLN|CZK|SEK|NOK|DKK)\b|[€$£]/i;
@@ -102,88 +230,229 @@ function detectedUnitToken(text) {
   return match ? match[1].toLowerCase() : "";
 }
 
-function magnitudeToken(value, fieldDefinition = {}) {
-  const type = fieldDefinition.type || "number";
-  const text = String(value ?? "").trim();
-  if (!["number", "currency", "percentage"].includes(type)) return { factor: 1, token: "" };
-  const match = text.match(/(?:^|[\s({[+\-])[\d.,'\u00a0\u202f\s]+(mrd\.?|bn|billion(?:en|s)?|milliarden|mio\.?|mn|million(?:en|s)?|tsd\.?|tausend|thousand|k|m|b)(?=\s|$|[^a-z0-9])/i);
-  if (!match) return { factor: 1, token: "" };
-  const token = match[1].toLowerCase();
-  if (/^(mrd\.?|bn|billion|milliarden|b)$/i.test(token)) return { factor: 1000000000, token };
-  if (/^(mio\.?|mn|million|m)$/i.test(token)) return { factor: 1000000, token };
-  if (/^(tsd\.?|tausend|thousand|k)$/i.test(token)) return { factor: 1000, token };
+function magnitudeDetails(token = "") {
+  const normalized = String(token || "").toLowerCase();
+  if (/^(mrd\.?|bn|billion(?:en|s)?|milliarden|b)$/i.test(normalized)) return { factor: 1000000000, token: normalized };
+  if (/^(mio\.?|mn|million(?:en|s)?|m)$/i.test(normalized)) return { factor: 1000000, token: normalized };
+  if (/^(tsd\.?|tausend|thousand|k)$/i.test(normalized)) return { factor: 1000, token: normalized };
   return { factor: 1, token: "" };
 }
 
-function stripNumericNoise(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/^\((.*)\)$/, "-$1")
-    .replace(/[€$£]/g, "")
-    .replace(/\b(eur|euro|usd|dollar|dollars|gbp|pound|pounds|sterling|chf|pln|czk|sek|nok|dkk)\b/gi, "")
-    .replace(/\b(qty|quantity|stk|stück|stueck|pcs|pieces|ea|kg|tons?|tonnen)\b/gi, "")
-    .replace(/([0-9])\s*(mrd\.?|mio\.?|tsd\.?|bn|mn|billion(?:en|s)?|million(?:en|s)?|milliarden|tausend|thousand|[kmb])(?=\s|$|[^a-z])/gi, "$1")
-    .replace(/\b(mrd\.?|mio\.?|tsd\.?|bn|mn|billion(?:en|s)?|million(?:en|s)?|milliarden|tausend|thousand)(?=\s|$|[^a-z])/gi, "")
-    .replace(/%/g, "")
-    .replace(/[^\d,.'\-\+eE\u00a0\u202f\s]/g, "")
-    .trim();
+function magnitudeToken(value, fieldDefinition = {}) {
+  const type = fieldDefinition.type || "number";
+  if (!["number", "currency", "percentage"].includes(type)) return { factor: 1, token: "" };
+  const envelope = extractNumericEnvelope(value);
+  if (envelope.status !== "valid") return { factor: 1, token: "" };
+  return magnitudeDetails(envelope.magnitudeToken);
+}
+
+function currencyMatchAtStart(text) {
+  return String(text).match(/^(€|\$|£|EUR|EURO|USD|DOLLARS?|GBP|POUNDS?|STERLING|CHF|PLN|CZK|SEK|NOK|DKK)(?=\s|[+\-]?\d)/i);
+}
+
+function currencyMatchAtEnd(text) {
+  return String(text).match(/(?:\s|^)(€|\$|£|EUR|EURO|USD|DOLLARS?|GBP|POUNDS?|STERLING|CHF|PLN|CZK|SEK|NOK|DKK)$/i);
+}
+
+function suffixMatch(text, pattern) {
+  return String(text).match(new RegExp(`^(.*?\\d)\\s*(${pattern})$`, "i"));
+}
+
+function extractNumericEnvelope(rawValue) {
+  if (typeof rawValue !== "string" && typeof rawValue !== "number") {
+    return { status: "invalid", reason: "unsupported_numeric_type" };
+  }
+  if (typeof rawValue === "number") {
+    return Number.isFinite(rawValue)
+      ? {
+          status: "valid",
+          numericCore: String(Math.abs(rawValue)),
+          negative: rawValue < 0 || Object.is(rawValue, -0),
+          magnitudeToken: "",
+          currencyToken: "",
+          unitToken: "",
+          percentage: false
+        }
+      : { status: "invalid", reason: "non_finite_number" };
+  }
+  let text = rawValue.trim();
+  if (!text) return { status: "missing", reason: "missing_numeric_value" };
+  let accountingNegative = false;
+  if (text.startsWith("(") || text.endsWith(")")) {
+    if (!/^\([^()]+\)$/.test(text)) return { status: "invalid", reason: "invalid_accounting_parentheses" };
+    accountingNegative = true;
+    text = text.slice(1, -1).trim();
+  }
+
+  let explicitSign = "";
+  const leadingSign = text.match(/^([+\-])\s*/);
+  if (leadingSign) {
+    explicitSign = leadingSign[1];
+    text = text.slice(leadingSign[0].length).trim();
+  }
+
+  let currencyToken = "";
+  const leadingCurrency = currencyMatchAtStart(text);
+  if (leadingCurrency) {
+    currencyToken = leadingCurrency[1];
+    text = text.slice(leadingCurrency[0].length).trim();
+    const postCurrencySign = text.match(/^([+\-])\s*/);
+    if (postCurrencySign) {
+      if (explicitSign) return { status: "invalid", reason: "multiple_numeric_signs" };
+      explicitSign = postCurrencySign[1];
+      text = text.slice(postCurrencySign[0].length).trim();
+    }
+  }
+
+  const trailingCurrency = currencyMatchAtEnd(text);
+  if (trailingCurrency) {
+    if (currencyToken) return { status: "invalid", reason: "multiple_currency_tokens" };
+    currencyToken = trailingCurrency[1];
+    text = text.slice(0, trailingCurrency.index).trim();
+  }
+
+  let percentage = false;
+  if (/%$/.test(text)) {
+    percentage = true;
+    text = text.slice(0, -1).trim();
+  }
+
+  let unitToken = "";
+  const unit = suffixMatch(text, "qty|quantity|stk|stück|stueck|pcs|pieces|ea|kg|tons?|tonnen");
+  if (unit) {
+    text = unit[1].trim();
+    unitToken = unit[2];
+  }
+
+  let magnitude = "";
+  const magnitudeSuffix = suffixMatch(text, "mrd\\.?|bn|billion(?:en|s)?|milliarden|mio\\.?|mn|million(?:en|s)?|tsd\\.?|tausend|thousand|k|m|b");
+  if (magnitudeSuffix) {
+    text = magnitudeSuffix[1].trim();
+    magnitude = magnitudeSuffix[2];
+  }
+
+  if (!text || !/\d/.test(text)) return { status: "invalid", reason: "numeric_digits_missing" };
+  if (accountingNegative && explicitSign) return { status: "invalid", reason: "multiple_numeric_signs" };
+  return {
+    status: "valid",
+    numericCore: text,
+    negative: accountingNegative || explicitSign === "-",
+    magnitudeToken: magnitude,
+    currencyToken,
+    unitToken,
+    percentage
+  };
+}
+
+function normalizedLocale(locale = "") {
+  const value = String(locale || "").toLowerCase();
+  if (["de", "de-de", "german"].includes(value)) return "de";
+  if (["en", "en-us", "en-gb", "english"].includes(value)) return "en";
+  if (["swiss", "de-ch", "ch"].includes(value)) return "swiss";
+  if (value === "space") return "space";
+  return "";
+}
+
+function parsedCoreResult(value, locale, decimalSeparator = "", thousandsSeparator = "") {
+  return Number.isFinite(value)
+    ? { status: "valid", value, locale, decimalSeparator, thousandsSeparator }
+    : { status: "invalid", value: null, locale, decimalSeparator, thousandsSeparator };
+}
+
+function parseStrictNumericCore(core, locale = "") {
+  const text = String(core ?? "").trim().replace(/[\u00a0\u202f]/g, " ");
+  const requestedLocale = normalizedLocale(locale);
+  if (!text || !/\d/.test(text) || /[+\-]/.test(text.replace(/[eE][+\-]?\d+$/, ""))) {
+    return { status: "invalid", value: null, locale: requestedLocale };
+  }
+  if (/^\d+(?:[.,]\d+)?[eE][+\-]?\d+$/.test(text)) {
+    const decimalSeparator = text.includes(",") ? "," : text.includes(".") ? "." : "";
+    return parsedCoreResult(Number(text.replace(",", ".")), requestedLocale || (decimalSeparator === "," ? "de" : "en"), decimalSeparator, "");
+  }
+  if (/[eE]/.test(text)) return { status: "invalid", value: null, locale: requestedLocale };
+  if (/^\d+$/.test(text)) return parsedCoreResult(Number(text), requestedLocale || "plain");
+
+  const apostrophe = text.match(/^(\d{1,3}(?:'\d{3})+)(?:([.,])(\d+))?$/);
+  if (apostrophe) {
+    const decimalSeparator = apostrophe[2] || "";
+    const localeValue = decimalSeparator === "," ? "de" : "swiss";
+    if (requestedLocale === "en" && decimalSeparator === ",") return { status: "invalid", value: null, locale: requestedLocale };
+    return parsedCoreResult(Number(apostrophe[1].replace(/'/g, "") + (decimalSeparator ? `.${apostrophe[3]}` : "")), requestedLocale || localeValue, decimalSeparator, "'");
+  }
+
+  const spaced = text.match(/^(\d{1,3}(?: \d{3})+)(?:([.,])(\d+))?$/);
+  if (spaced) {
+    const decimalSeparator = spaced[2] || "";
+    return parsedCoreResult(Number(spaced[1].replace(/ /g, "") + (decimalSeparator ? `.${spaced[3]}` : "")), requestedLocale || "space", decimalSeparator, " ");
+  }
+
+  const lastDot = text.lastIndexOf(".");
+  const lastComma = text.lastIndexOf(",");
+  if (lastDot >= 0 && lastComma >= 0) {
+    if (lastComma > lastDot && /^\d{1,3}(?:\.\d{3})+,\d+$/.test(text)) {
+      if (requestedLocale && !["de", "swiss", "space"].includes(requestedLocale)) return { status: "invalid", value: null, locale: requestedLocale };
+      return parsedCoreResult(Number(text.replace(/\./g, "").replace(",", ".")), requestedLocale || "de", ",", ".");
+    }
+    if (lastDot > lastComma && /^\d{1,3}(?:,\d{3})+\.\d+$/.test(text)) {
+      if (requestedLocale && requestedLocale !== "en") return { status: "invalid", value: null, locale: requestedLocale };
+      return parsedCoreResult(Number(text.replace(/,/g, "")), requestedLocale || "en", ".", ",");
+    }
+    return { status: "invalid", value: null, locale: requestedLocale };
+  }
+
+  const separator = lastComma >= 0 ? "," : lastDot >= 0 ? "." : "";
+  if (!separator) return { status: "invalid", value: null, locale: requestedLocale };
+  const escaped = separator === "." ? "\\." : ",";
+  const occurrences = text.split(separator).length - 1;
+  if (occurrences > 1) {
+    const grouped = new RegExp(`^\\d{1,3}(?:${escaped}\\d{3})+$`);
+    const groupingLocale = separator === "." ? "de" : "en";
+    if (!grouped.test(text) || (requestedLocale && requestedLocale !== groupingLocale)) {
+      return { status: "invalid", value: null, locale: requestedLocale };
+    }
+    return parsedCoreResult(Number(text.split(separator).join("")), requestedLocale || groupingLocale, "", separator);
+  }
+
+  const single = text.match(/^(\d+)[.,](\d+)$/);
+  if (!single) return { status: "invalid", value: null, locale: requestedLocale };
+  const integerDigits = single[1].length;
+  const fractionDigits = single[2].length;
+  const groupingLocale = separator === "." ? "de" : "en";
+  const decimalLocale = separator === "." ? "en" : "de";
+  const groupedCandidate = fractionDigits === 3 && integerDigits <= 3;
+  if (!requestedLocale && groupedCandidate) {
+    return { status: "ambiguous", value: null, locale: "", decimalSeparator: "", thousandsSeparator: "" };
+  }
+  if (requestedLocale === groupingLocale && groupedCandidate) {
+    return parsedCoreResult(Number(`${single[1]}${single[2]}`), requestedLocale, "", separator);
+  }
+  if (requestedLocale && requestedLocale !== decimalLocale && !["swiss", "space"].includes(requestedLocale)) {
+    return { status: "invalid", value: null, locale: requestedLocale };
+  }
+  return parsedCoreResult(Number(`${single[1]}.${single[2]}`), requestedLocale || decimalLocale, separator, "");
 }
 
 function localeEvidenceForValue(value) {
-  const cleaned = stripNumericNoise(value);
-  const compact = cleaned.replace(/[\s\u00a0\u202f]/g, " ");
-  if (!/\d/.test(compact)) return { status: "invalid" };
-  if (/[eE][+\-]?\d+$/.test(compact.replace(/,/g, "."))) return { status: "scientific", locale: "en" };
-  if (/'\d{3}/.test(compact)) return { status: "locale", locale: "swiss", decimalSeparator: compact.includes(",") ? "," : ".", thousandsSeparator: "'" };
-  const lastDot = compact.lastIndexOf(".");
-  const lastComma = compact.lastIndexOf(",");
-  if (lastDot >= 0 && lastComma >= 0) {
-    return lastComma > lastDot
-      ? { status: "locale", locale: "de", decimalSeparator: ",", thousandsSeparator: "." }
-      : { status: "locale", locale: "en", decimalSeparator: ".", thousandsSeparator: "," };
-  }
-  if (lastComma >= 0) {
-    const decimals = compact.length - lastComma - 1;
-    if (decimals === 3 && compact.slice(0, lastComma).replace(/[+\-\s]/g, "").length <= 3) {
-      return { status: "ambiguous", candidates: ["de_decimal", "en_thousands"] };
-    }
-    return { status: "locale", locale: "de", decimalSeparator: ",", thousandsSeparator: "." };
-  }
-  if (lastDot >= 0) {
-    const decimals = compact.length - lastDot - 1;
-    if (decimals === 3 && compact.slice(0, lastDot).replace(/[+\-\s]/g, "").length <= 3) {
-      return { status: "ambiguous", candidates: ["en_decimal", "de_thousands"] };
-    }
-    return { status: "locale", locale: "en", decimalSeparator: ".", thousandsSeparator: "," };
-  }
-  if (/[\d]\s+\d{3}/.test(compact)) return { status: "locale", locale: "space", decimalSeparator: compact.includes(",") ? "," : ".", thousandsSeparator: " " };
-  return { status: "plain", locale: "plain" };
+  const envelope = extractNumericEnvelope(value);
+  if (envelope.status !== "valid") return { status: envelope.status === "missing" ? "missing" : "invalid" };
+  const parsed = parseStrictNumericCore(envelope.numericCore, "");
+  if (parsed.status === "ambiguous") return { status: "ambiguous", candidates: ["decimal", "thousands"] };
+  if (parsed.status !== "valid") return { status: "invalid" };
+  return {
+    status: parsed.locale === "plain" ? "plain" : parsed.locale === "en" && /[eE]/.test(envelope.numericCore) ? "scientific" : "locale",
+    locale: parsed.locale,
+    decimalSeparator: parsed.decimalSeparator || "",
+    thousandsSeparator: parsed.thousandsSeparator || ""
+  };
 }
 
 function parseNumberForLocale(value, locale = "") {
-  let text = stripNumericNoise(value);
-  if (!text || !/\d/.test(text)) return NaN;
-  text = text.replace(/[\u00a0\u202f]/g, " ");
-  const negative = /^\(.*\)$/.test(String(value ?? "").trim()) || /^\s*-/.test(text);
-  text = text.replace(/[+\-]/g, "").trim();
-  if (/[eE]/.test(text)) {
-    const scientific = Number(text.replace(",", ".").replace(/[\s']/g, ""));
-    return negative && scientific > 0 ? -scientific : scientific;
-  }
-  if (locale === "de") {
-    text = text.replace(/\./g, "").replace(/'/g, "").replace(/\s/g, "").replace(",", ".");
-  } else if (locale === "swiss") {
-    text = text.replace(/'/g, "").replace(/\s/g, "").replace(",", ".");
-  } else if (locale === "space") {
-    text = text.replace(/\s/g, "").replace(",", ".");
-  } else if (locale === "en") {
-    text = text.replace(/,/g, "").replace(/'/g, "").replace(/\s/g, "");
-  } else {
-    text = normalizeLocalizedNumber(text.replace(/'/g, "").replace(/\s/g, ""));
-  }
-  const parsed = Number(text);
-  if (!Number.isFinite(parsed)) return NaN;
-  return negative && parsed > 0 ? -parsed : parsed;
+  const envelope = extractNumericEnvelope(value);
+  if (envelope.status !== "valid") return NaN;
+  const parsed = parseStrictNumericCore(envelope.numericCore, locale);
+  if (parsed.status !== "valid") return NaN;
+  const signed = envelope.negative ? -Math.abs(parsed.value) : parsed.value;
+  return signed === 0 ? 0 : signed;
 }
 
 function inferNumericLocaleProfile(values = [], options = {}) {
@@ -272,7 +541,6 @@ function resolveLocale(evidence, localeProfile = {}, normalizationPolicy = {}) {
   if (normalizationPolicy.localeOverride) return normalizationPolicy.localeOverride;
   if (evidence.locale && !["plain"].includes(evidence.locale) && evidence.status !== "ambiguous") return evidence.locale;
   if (localeProfile.status === "dominant" && localeProfile.dominantLocale) return localeProfile.dominantLocale;
-  if (normalizationPolicy.allowAmbiguousFallback) return "";
   return "";
 }
 
@@ -316,12 +584,49 @@ function parseLocalizedNumericValue({ rawValue, fieldDefinition = {}, localeProf
       warnings
     };
   }
-  const cellMagnitude = magnitudeToken(raw, fieldDefinition);
+  if (typeof raw !== "string" && typeof raw !== "number") {
+    return {
+      status: "invalid",
+      rawValue: raw,
+      numericValue: null,
+      normalizedValue: null,
+      detectedLocale: "",
+      decimalSeparator: "",
+      thousandsSeparator: "",
+      cellScaleFactor: 1,
+      headerScaleFactor: headerHints.sourceScaleFactor || 1,
+      appliedScaleFactor: 1,
+      detectedCurrency: headerHints.sourceCurrency || "",
+      detectedUnit: headerHints.sourceUnit || "",
+      confidence: 0,
+      warnings: ["unsupported_numeric_type"]
+    };
+  }
+  const envelope = extractNumericEnvelope(raw);
+  if (envelope.status !== "valid") {
+    return {
+      status: envelope.status === "missing" ? "missing" : "invalid",
+      rawValue: raw,
+      numericValue: null,
+      normalizedValue: null,
+      detectedLocale: "",
+      decimalSeparator: "",
+      thousandsSeparator: "",
+      cellScaleFactor: 1,
+      headerScaleFactor: headerHints.sourceScaleFactor || 1,
+      appliedScaleFactor: 1,
+      detectedCurrency: headerHints.sourceCurrency || "",
+      detectedUnit: headerHints.sourceUnit || "",
+      confidence: envelope.status === "missing" ? 1 : 0,
+      warnings: [envelope.reason || "invalid_numeric_value"]
+    };
+  }
+  const cellMagnitude = magnitudeDetails(envelope.magnitudeToken);
   const headerScaleFactor = Number(headerHints.sourceScaleFactor || 1) || 1;
   const evidence = localeEvidenceForValue(raw);
   const locale = resolveLocale(evidence, localeProfile, normalizationPolicy);
-  const detectedCurrency = detectedCurrencyToken(raw) || headerHints.sourceCurrency || "";
-  const detectedUnit = detectedUnitToken(raw) || headerHints.sourceUnit || "";
+  const detectedCurrency = detectedCurrencyToken(envelope.currencyToken) || headerHints.sourceCurrency || "";
+  const detectedUnit = String(envelope.unitToken || "").toLowerCase() || headerHints.sourceUnit || "";
   if (evidence.status === "ambiguous" && !locale) {
     return {
       status: "ambiguous",
@@ -340,7 +645,10 @@ function parseLocalizedNumericValue({ rawValue, fieldDefinition = {}, localeProf
       warnings: [...warnings, "ambiguous_numeric_locale"]
     };
   }
-  const numericValue = parseNumberForLocale(raw, locale);
+  const strictNumeric = parseStrictNumericCore(envelope.numericCore, locale);
+  const numericValue = strictNumeric.status === "valid"
+    ? (envelope.negative ? -Math.abs(strictNumeric.value) : strictNumeric.value)
+    : NaN;
   if (!Number.isFinite(numericValue)) {
     return {
       status: "invalid",
@@ -384,9 +692,10 @@ function parseLocalizedNumericValue({ rawValue, fieldDefinition = {}, localeProf
   else if (normalizationPolicy.scaleSource === "explicit") appliedScaleFactor = Number(normalizationPolicy.sourceScaleFactor || 1) || 1;
   else appliedScaleFactor = cellMagnitude.factor !== 1 ? cellMagnitude.factor : headerScaleFactor;
   let normalizedValue = numericValue * appliedScaleFactor;
-  if (type === "percentage" && /%/.test(String(raw))) {
+  if (type === "percentage" && envelope.percentage) {
     normalizedValue = fieldDefinition.percentageStorage === "ratio" ? normalizedValue / 100 : normalizedValue;
   }
+  if (normalizedValue === 0) normalizedValue = 0;
   return {
     status: "valid",
     rawValue: raw,
@@ -412,6 +721,10 @@ function parseLocalizedNumericValue({ rawValue, fieldDefinition = {}, localeProf
     isMissingInputValue,
     normalizeLocalizedNumber,
     toNumber,
+    numericEvidence,
+    strictNonNegativeFinancialValue,
+    deriveNonNegativeFinancialProduct,
+    aggregateNumericValues,
     parseLocalizedNumericValue,
     inferNumericLocaleProfile,
     extractSourceHeaderHints

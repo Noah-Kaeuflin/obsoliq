@@ -46,8 +46,9 @@
     const baseline = bridge.getExcessPageStateForTest().totalRows;
     const buildCount = bridge.getExcessPageModelBuildCountForTest();
 
-    ["#searchInput", "#plantFilter", "#groupFilter", "#excessOwnerFilter", "#excessPriorityFilter", "#excessResetFilters"]
+    ["#searchInput", "#plantFilter", "#groupFilter", "#excessOwnerFilter", "#excessPriorityFilter"]
       .forEach(selector => assert.equal(isVisible(app, selector), true, `${selector} should be visible in Excess`));
+    assert.equal(isVisible(app, "#excessResetFilters"), false, "Reset should remain hidden until an Excess filter is active");
     assert.equal(isVisible(app, "#categoryFilter"), false, "Category should be hidden only on Excess");
     assert.equal(isVisible(app, "#rowLimit"), false, "Row limit should remain hidden on Excess");
 
@@ -58,8 +59,10 @@
     const owner = [...app.document.querySelectorAll("#excessOwnerFilter option")].map(option => option.value).find(Boolean);
     setControl(app, "#excessOwnerFilter", owner, "change");
     assert.ok(bridge.getExcessPageStateForTest().totalRows > 0 && bridge.getExcessPageStateForTest().totalRows < baseline, "Owner should filter current Cases");
+    assert.equal(isVisible(app, "#excessResetFilters"), true, "Reset should appear with an active Excess filter");
     app.document.getElementById("excessResetFilters").click();
     assert.equal(bridge.getExcessPageStateForTest().totalRows, baseline, "Reset should restore the visible Excess projection");
+    assert.equal(isVisible(app, "#excessResetFilters"), false, "Reset should disappear after restoring the null-filter state");
     assert.equal(app.document.getElementById("categoryFilter").value, category || "", "Excess Reset must preserve hidden common Category state");
 
     const priority = [...app.document.querySelectorAll("#excessPriorityFilter option")].map(option => option.value).find(Boolean);
@@ -87,7 +90,7 @@
     assert.ok(cards[1].textContent.includes(String(presentation.casePortfolio.caseCount)), "Case count should use accepted Cases");
     assert.ok(cards[1].textContent.includes(String(presentation.casePortfolio.uniqueMaterialCount)), "Unique material count should be visible");
     assert.ok(cards[2].textContent.includes(String(presentation.prioritization.maximumScore)), "Maximum score should be visible");
-    assert.ok(cards[3].textContent.includes("Adressierbarkeit"), "Gross-to-Net should be labelled Addressability");
+    assert.ok(cards[3].textContent.includes("Brutto → Netto"), "Gross-to-Net should use the concise reconciliation label");
     assert.equal(/Realisierungsrate|realization rate/i.test(cards[3].textContent), false, "Addressability must not claim realization");
 
     const headers = [...app.document.querySelectorAll(".excess-table thead th")].map(cell => cell.textContent.trim()).join("|");
@@ -103,7 +106,7 @@
     assert.ok(firstRow.querySelector(".action-badge"), "Existing priority should render as a restrained badge");
   });
 
-  test("EX-UX-01.2 Decision Core exposes accepted rationale and next step above the Detail scroll", async assert => {
+  test("EX-UX-01.2 Decision Core identity remains fixed while accepted rationale starts the Detail scroll", async assert => {
     const app = await helpers.loadSampleApp();
     const bridge = app.__obsoliqTestBridge;
     bridge.switchViewForTest("excess");
@@ -115,9 +118,10 @@
 
     assert.equal(core?.dataset.excessDecisionCore, active.case_id, "Decision Core should preserve exact Case identity");
     assert.ok(core.textContent.includes(active.material_id), "Case header should expose the selected material");
-    assert.ok(core.textContent.includes("Warum priorisiert"), "Why Prioritized should be outside the Detail scroll");
+    assert.equal(core.textContent.includes("Warum priorisiert"), false, "The fixed Decision Core should remain a compact Case header");
+    assert.ok(app.document.querySelector(".excess-detail-scroll")?.textContent.includes("Warum priorisiert"), "Why Prioritized should remain visible at the start of the Detail scroll");
     assert.equal(nextStep?.dataset.nextStep, active.next_step || "", "Next Review Step must equal accepted current data verbatim");
-    assert.ok(core.textContent.includes("keine Wahrscheinlichkeit"), "Opportunity Score should not be presented as probability");
+    assert.ok(core.textContent.includes("kein Erfolgsversprechen"), "Opportunity Score should not be presented as a success promise");
     assert.equal(core.textContent.includes("Match-Qualität"), false, "Match Quality should not be a primary stat");
     assert.ok(core.querySelector("[data-open-excess-inventory]"), "Exact Inventory navigation should be available");
     assert.ok(core.querySelector("[data-open-excess-actions]"), "Accepted Actions navigation should be available");

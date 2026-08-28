@@ -6,7 +6,7 @@ The current project is prepared for local Git version control and later publicat
 
 ## Product Summary
 
-The MVP supports a local workflow from SAP/Excel-style inventory data to recovery KPIs, Data Quality checks, remediation review, Excess Intelligence and session-only Pilot Review evidence.
+The MVP supports a local workflow from SAP/Excel-style inventory data to recovery KPIs, Data Quality checks, remediation review, a Unified Inventory Risks workbench and session-only Pilot Review evidence.
 
 ObsoliQ is not a production SaaS, not a SAP live integration and not a predictive analytics system.
 
@@ -31,12 +31,27 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - entity-exact Slow / Dead navigation to Inventory and linked Actions
 - nullable Slow / Dead Inventory Exposure with unavailable-state presentation
 - dedicated Slow / Dead Recovery Case export
+- one visible Unified Inventory Risks route with separate Excess & Demand, Slow / Dead and Blocked / Quality Family Cases
+- entity-deduplicated Portfolio Cases with preserved Primary and Secondary Family evidence
+- conservative Portfolio Evidence aggregation and separated family-specific financial semantics
+- limited Blocked / Quality exposure and evidence presentation without invented recovery quantities or values
 - Input Trust
 - Data Quality and Remediation
 - Recovery calculation
 - Actions
 - Excess Intelligence
+- Excess Cause Hypothesis based on existing rule evidence
+- versioned Excess Decision Readiness
+- evidence-bound Excess Action Options
+- null-safe Gross-to-Net Value Narrative
+- Historical Unit Context for Excess quantities and monthly buckets
+- session-only Excess Work Context
 - session-only Pilot Review
+- file-safe functional icon system for global navigation and Shell actions
+- versioned Slow / Dead synthetic Calibration Contract, Safety Fixtures and reproducible Synthetic Contract Agreement baseline
+- versioned synthetic Calibration Metrics plus 17-scenario OFAT threshold-sensitivity artifacts without Policy recommendation or activation
+
+Current cross-package relationships are limited to Inventory-to-Material-Master Context Enrichment and Inventory-to-Consumption-History Derived Historical Metrics. Arbitrary joins and a standalone Purchase Orders import are not available.
 
 ## Quick Start
 
@@ -52,11 +67,69 @@ Supported local upload formats include `.xlsx`, `.csv` and `.tsv`. Uploaded data
 2. Confirm that the structured test result reports zero failures.
 3. Production startup through `prototype.html` does not execute tests.
 
+The four Slow / Dead Calibration modules are analysis-only. They are intentionally absent from `prototype.html` and are loaded in fixed dependency order through `tests/test-helpers.js` when Calibration tests run.
+
 JavaScript syntax can be checked locally with Node:
 
 ```powershell
 Get-ChildItem -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }
 ```
+
+## Package Integrity
+
+Run the portable package commands from the repository root:
+
+```powershell
+node scripts/generate-sha256-manifest.cjs
+node scripts/verify-sha256-manifest.cjs
+node scripts/build-pkg-02-review-bundle.cjs
+```
+
+To write the audit handoff outside the payload root, use an output path that does not already exist:
+
+```powershell
+node scripts/build-pkg-02-review-bundle.cjs --output ..\deliverables\pkg-02a\obsoliq-review-pkg-02a.zip
+```
+
+The package path set is an explicit allowlist in `scripts/sha256-manifest-lib.cjs`; the builder does not recursively pack the repository. The captured PKG-02A baseline and every later authorized addition or removal are declared separately. The canonical generator and verifier are the source of truth for the current path count; no acceptance gate relies on a manually maintained README count.
+
+The secure builder:
+
+- rejects absolute, drive-qualified, UNC, traversal, backslash-alias, duplicate and case-colliding paths
+- checks every payload path component with `lstat`, rejects symlinks, junctions and non-regular files, and validates canonical real paths inside the payload root
+- reads each source payload file once, hashes that buffer and writes the same buffer into a fresh immutable snapshot
+- generates and verifies the internal manifest from snapshot bytes
+- creates the ZIP only from verified snapshot files
+- verifies exact ZIP contents and hashes, performs a fresh safe extraction, and repeats path, file-type, provenance and secret checks
+- publishes the temporary ZIP only after all checks pass and computes the external ZIP checksum only after finalization
+- refuses to overwrite an existing final ZIP or checksum
+
+`SHA256SUMS.txt` covers the product, test/analysis bootstrap, Icon Pack, Calibration contracts, fixtures, reports, deterministic artifacts, package scripts and active documentation. The generated ZIP contains all manifest-listed files under one stable root plus exactly one internal manifest. Its companion `.sha256` file makes transport integrity verifiable against the supplied checksum, but does not authenticate the publisher without an independent signature or trust root.
+
+## Current Safety And Release State
+
+R0A closed the verified numeric, transaction, identity and evidence-aggregation defects. Derived financial values must be finite and non-negative; invalid, negative, overflow and non-finite derivations remain `null`/unavailable. Header-only Inventory uploads are rejected before commit and preserve the previous active Dataset, Registry, identity sequence and presentation state. Missing Inventory Entity identities are contained fail-closed, and mixed-family Evidence is aggregated conservatively.
+
+Evidence Readiness is the number of readiness-capable, currently filtered Portfolio Cases divided by all currently filtered Portfolio Cases. The UI exposes numerator and denominator; an empty denominator is unavailable rather than `0%`.
+
+R0B closes local Runtime, test, manifest and Git reproducibility only. It does not authorize a product release. Unless independently verified otherwise, `TRUST-01` remains open, the Product Release Gate remains `HOLD`, and a local Closure commit is only a reproducible local candidate.
+
+### Packaged data provenance
+
+Every packaged CSV, JSON, sample-data source and fixture has a fail-closed provenance record. `synthetic` means generated or hand-authored fictitious test data. `structural-template` means metadata without real records. No packaged data artifact is currently classified as public customer data.
+
+| Path | Classification | Provenance |
+| --- | --- | --- |
+| `artifacts/ap-16-4d-3b-metrics.json` | synthetic | Deterministic output from synthetic Slow/Dead calibration fixtures. |
+| `artifacts/ap-16-4d-3b-sensitivity.csv` | synthetic | Deterministic OFAT output from synthetic calibration fixtures. |
+| `assets/icons/obsoliq/icon-manifest.json` | structural-template | Icon identifiers and metadata only; no business or personal records. |
+| `data/sample_existing_excel_export.csv` | synthetic | Generated SAP-like demonstration rows with fictitious material identifiers. |
+| `data/sample_inventory.csv` | synthetic | Small hand-authored demonstration inventory with fictitious identifiers. |
+| `sample-data.js` | synthetic | Embedded generated demonstration dataset with fictitious identifiers. |
+| `tests/fixtures/excess-pilot-cases.js` | synthetic | Deterministic test-only fixtures. |
+| `tests/fixtures/slow-dead-calibration-baseline-evidence.json` | synthetic | Aggregate synthetic calibration evidence and fingerprints. |
+| `tests/fixtures/slow-dead-calibration-fixtures.js` | synthetic | Synthetic safety and calibration cases with frozen expected outcomes. |
+| `tests/fixtures/slow-dead-calibration-sensitivity-evidence.json` | synthetic | Aggregate synthetic sensitivity evidence and fingerprints. |
 
 ## Project Structure
 
@@ -70,6 +143,10 @@ inventory-recovery-mvp/
 ├── tests/
 ├── assets/
 ├── data/
+├── scripts/
+├── artifacts/
+├── SHA256SUMS.txt
+├── PKG_02_VERIFICATION.md
 ├── README.md
 ├── PRODUCT_SPEC.md
 ├── ARCHITECTURE.md
@@ -81,8 +158,10 @@ inventory-recovery-mvp/
 - `app.js` contains the current application orchestration.
 - `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence, Slow / Dead evidence, Slow / Dead page presentation and Pilot Review.
 - `tests/` contains the file-based structured test package.
-- `assets/` contains local UI assets.
+- `assets/` contains local UI assets, including the licensed ObsoliQ functional Icon Pack under `assets/icons/obsoliq/`.
 - `data/` is reserved for anonymized sample or test fixtures only.
+- `scripts/` contains portable manifest generation, verification and review-bundle tooling.
+- `artifacts/` contains controlled deterministic analysis artifacts and the generated portable review bundle; obsolete extracted review directories and screenshots are not part of PKG-02.
 - `PRODUCT_SPEC.md`, `ARCHITECTURE.md`, `DATA_CONTRACT.md` and `CHANGELOG.md` are the central product contracts.
 
 Legacy Python MVP artifacts were archived outside the active repository during OPS-01 and are not required by the current browser application.
@@ -97,7 +176,7 @@ Do not commit:
 - confidential commercial data
 - personal data
 
-Use only anonymized fixtures in `data/`. Private pilot files must remain outside GitHub or in ignored local folders such as `data/private/`.
+Use only explicitly classified synthetic fixtures in the package. Private pilot files must remain outside the repository payload. The package policy rejects private, upload, download, export, credential and secret paths even if a file is accidentally added locally.
 
 ## Git Workflow
 
@@ -130,11 +209,13 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - Slow / Dead Recovery Case Workbench is visible and consumes the derived Slow / Dead Runtime
 - Slow / Dead Inventory/Action navigation uses temporary reveal state instead of persistent analytical filter mutation
 - Slow / Dead export is available for current Recovery Cases
-- Slow / Dead thresholds are not yet pilot-calibrated
+- Slow / Dead thresholds have synthetic OFAT sensitivity evidence but are not human pilot-calibrated or recommended for change
 - no final Slow / Dead Action recommendation or workflow approval exists
+- Blocked / Quality is a limited exposure and evidence model, not a complete Recovery Engine; release, rework, supplier-return, approval and success-probability evidence is not available
 - no financial Recognition, Execution Workflow, Expected Recovery Value or realized cash/P&L effect exists
 - no Snapshot History
 - no Purchase Order optimization
+- no standalone Purchase Orders Package import; PO evidence can only come from fields already present on the current Inventory Case
 - no predictive analytics
 - synchronous 50,000-row historical metric calculation may still occupy the main browser thread during the controlled build
 

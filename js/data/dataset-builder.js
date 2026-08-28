@@ -21,10 +21,12 @@
     protectedImportFieldKeys
   } = canonical;
   const {
-    magnitudeFactor,
+    inferNumericLocaleProfile,
     isMissingInputValue,
-    normalizeLocalizedNumber,
-    toNumber
+    parseLocalizedNumericValue,
+    toNumber,
+    strictNonNegativeFinancialValue,
+    deriveNonNegativeFinancialProduct
   } = valueUtils;
   const {
     DEFAULT_MAPPING_POLICY,
@@ -43,6 +45,16 @@
   const recoveryInputFieldKeys = DEFAULT_MAPPING_POLICY.recoveryInputFields;
   const BUILDER_VERSION = "1";
   const PIPELINE_VERSION = "dataset-builder-v1";
+  const RECOVERY_DERIVED_FIELDS = Object.freeze([
+    "gross_recovery_potential",
+    "recovery_potential",
+    "recovery_overlap_value",
+    "recovery_available_stock_value",
+    "net_no_need_value",
+    "net_no_plan_value",
+    "net_excess_value",
+    "net_bad_stock_value"
+  ]);
 
   function hasContentValue(value) {
     return String(value ?? "").trim() !== "";
@@ -145,22 +157,17 @@
     });
   }
 
-  function numericInputLooksValid(value, key = "") {
-    if (!hasContentValue(value)) return false;
-    if (typeof value === "number") return Number.isFinite(value);
-    const factor = magnitudeFactor(value, key);
-    const text = String(value ?? "")
-      .replace(/\(([^)]+)\)/g, "-$1")
-      .replace(/[€$£]/g, "")
-      .replace(/\b(eur|euro|usd|dollar|dollars|gbp|pound|pounds|sterling|chf|pln|czk|sek|nok|dkk)\b/gi, "")
-      .replace(/([0-9])\s*(mrd\.?|mio\.?|tsd\.?|bn|mn|[kmb])(?=\s|$|[^a-z])/gi, "$1")
-      .replace(/\b(mrd\.?|mio\.?|tsd\.?|bn|mn|billion(?:en|s)?|million(?:en|s)?|milliarden|tausend|thousand)(?=\s|$|[^a-z])/gi, "")
-      .replace(/%/g, "")
-      .replace(/[\s\u00a0\u202f']/g, "")
-      .replace(/[^\d,.\-+]/g, "");
-    if (!/\d/.test(text)) return false;
-    const parsed = Number(normalizeLocalizedNumber(text));
-    return Number.isFinite(parsed * factor);
+  function parseNumericInput(value, key = "", localeProfile = {}) {
+    return parseLocalizedNumericValue({
+      rawValue: value,
+      fieldDefinition: inventoryFieldDefinitions[key] || { type: "number", fieldKey: key },
+      localeProfile
+    });
+  }
+
+  function numericInputLooksValid(value, key = "", localeProfile = {}) {
+    const parsed = parseNumericInput(value, key, localeProfile);
+    return parsed.status === "valid" && Number.isFinite(parsed.normalizedValue);
   }
 
   function addRecoveryNormalizationExample(summary, row, rowIndex, fieldKey, originalValue, reasonKey) {
@@ -170,12 +177,16 @@
       material_id: row.material_id || row.material || "",
       field: fieldKey,
       original_value: originalValue,
-      normalized_value: 0,
+      normalized_value: null,
       reasonKey
     });
   }
 
   function buildRecoveryInputNormalizationDiagnostics(rows) {
+    const localeProfiles = Object.fromEntries(recoveryInputFieldKeys.map(fieldKey => [
+      fieldKey,
+      inferNumericLocaleProfile(rows.map(row => row[fieldKey]))
+    ]));
     const summary = {
       checkedCells: 0,
       negativeValues: 0,
@@ -195,12 +206,13 @@
           summary.emptyValues += 1;
           return;
         }
-        if (!numericInputLooksValid(originalValue, fieldKey)) {
+        const parsed = parseNumericInput(originalValue, fieldKey, localeProfiles[fieldKey]);
+        if (parsed.status !== "valid" || !Number.isFinite(parsed.normalizedValue)) {
           summary.invalidValues += 1;
           addRecoveryNormalizationExample(summary, row, rowIndex, fieldKey, originalValue, "invalidRecoveryInputReason");
           return;
         }
-        if (toNumber(originalValue, fieldKey) < 0) {
+        if (parsed.normalizedValue < 0) {
           summary.negativeValues += 1;
           addRecoveryNormalizationExample(summary, row, rowIndex, fieldKey, originalValue, "negativeRecoveryInputReason");
         }
@@ -219,12 +231,57 @@
     return `${materialId}::ROW-${item.row_number}`;
   }
 
-  function enrichInventoryRow(row, index) {
-    const item = { ...row, row_number: row.__sourceRowIndex ?? index + 1, active_row_number: index + 1 };
-    const sourceStockValue = row.stock_value;
-    numericKeys.forEach(key => {
-      item[key] = toNumber(item[key], key);
+  function stockValueReasonKey(reason) {
+    return {
+      negative_input: "derivedStockValueNegativeInputReason",
+      nonfinite_input: "derivedStockValueNonfiniteInputReason",
+      derived_value_overflow: "derivedStockValueOverflowReason",
+      invalid_input: "derivedStockValueInvalidInputReason",
+      missing_value: "derivedStockValueMissingReason"
+    }[reason] || "derivedStockValueInvalidInputReason";
+  }
+
+  function appendDerivedStockValueDiagnostics(summary, rows) {
+    summary.derivedValueChecks = rows.filter(row => row.stock_value_source === "derived").length;
+    summary.derivedValueFailures = 0;
+    rows.forEach(row => {
+      if (row.stock_value_source !== "derived" || row.stock_value_availability !== "unavailable") return;
+      if (row.stock_value_derivation_reason === "missing_value") return;
+      summary.derivedValueFailures += 1;
+      if (row.stock_value_derivation_reason === "negative_input") summary.negativeValues += 1;
+      else summary.invalidValues += 1;
+      if (summary.examples.length >= 20) return;
+      summary.examples.push({
+        row_number: row.row_number,
+        material_id: row.material_id || "",
+        field: "stock_value",
+        original_value: `${String(row.stock_quantity ?? "")} × ${String(row.standard_price ?? "")}`,
+        normalized_value: null,
+        reasonKey: stockValueReasonKey(row.stock_value_derivation_reason),
+        reasonCode: row.stock_value_derivation_reason
+      });
     });
+    if (summary.invalidValues || summary.negativeValues) summary.statusKey = "warning";
+    if (summary.invalidValues > 5 || summary.negativeValues > 5) summary.statusKey = "error";
+    return summary;
+  }
+
+  function enrichInventoryRow(row, index, sourceDerivationRow = row) {
+    const item = { ...row, row_number: row.__sourceRowIndex ?? index + 1, active_row_number: index + 1 };
+    const sourceStockValue = sourceDerivationRow.stock_value;
+    const numericParseResults = row.__numericParseResults || {};
+    numericKeys.forEach(key => {
+      const parseStatus = numericParseResults[key]?.status;
+      item[key] = parseStatus && parseStatus !== "valid" ? null : toNumber(item[key], key);
+    });
+    Object.defineProperty(item, "__numericParseResults", {
+      value: numericParseResults,
+      enumerable: false,
+      configurable: true
+    });
+    item.numeric_limitation_codes = Object.entries(numericParseResults)
+      .filter(([, result]) => result.status !== "valid")
+      .map(([key, result]) => `${result.status}_numeric_value:${key}`);
 
     item.material_id = item.material_id || item.material || "";
     item.material_description = item.material_description || "";
@@ -233,16 +290,60 @@
       : String(item.profit_center || "").trim();
     item.profit_center = item.profit_center || item.plant || item.div || "";
     item.program_short = item.program_short || item.material_group || "";
-    if (isMissingInputValue(sourceStockValue)) {
-      item.stock_value = item.stock_quantity * item.standard_price;
+    const stockValueStatus = numericParseResults.stock_value?.status;
+    const deriveStockValue = stockValueStatus === "missing" || (!stockValueStatus && isMissingInputValue(sourceStockValue));
+    const stockValueEvidence = deriveStockValue
+      ? deriveNonNegativeFinancialProduct(item.stock_quantity, item.standard_price, {
+        quantityParseResult: numericParseResults.stock_quantity,
+        priceParseResult: numericParseResults.standard_price,
+        rawQuantity: sourceDerivationRow.stock_quantity,
+        rawUnitPrice: sourceDerivationRow.standard_price
+      })
+      : strictNonNegativeFinancialValue(item.stock_value, {
+        fieldKey: "stock_value",
+        parseResult: numericParseResults.stock_value,
+        rawValue: sourceStockValue
+      });
+    item.stock_value_source = deriveStockValue ? "derived" : "explicit";
+    item.stock_value_derivation_status = stockValueEvidence.status === "available"
+      ? (deriveStockValue ? "derived" : "explicit")
+      : "unavailable";
+    item.stock_value_availability = stockValueEvidence.status;
+    item.stock_value_derivation_reason = stockValueEvidence.reason;
+    item.stock_value = stockValueEvidence.status === "available" ? stockValueEvidence.value : null;
+    if (stockValueEvidence.status !== "available") {
+      item.numeric_limitation_codes = [...new Set([
+        ...item.numeric_limitation_codes,
+        `stock_value_derivation:${stockValueEvidence.reason}`
+      ])];
     }
-    item.no_need_value = calculateNoDemandValue(item);
+    const invalidRecoveryInputs = recoveryInputFieldKeys.filter(key => {
+      const status = numericParseResults[key]?.status;
+      return status && !["valid", "missing"].includes(status);
+    });
+    const invalidNoDemandInput = ["direct_no_need_value", "no_need_conso_value", "no_need_no_con_value"]
+      .some(key => invalidRecoveryInputs.includes(key));
+    item.no_need_value = invalidNoDemandInput ? null : calculateNoDemandValue(item);
     item.inventory_row_key = buildInventoryRowKey({
       material_id: item.material_id,
       profit_center: sourceProfitCenter,
       row_number: item.row_number
     });
-    Object.assign(item, calculateRecoveryBreakdown(item));
+    const recoveryEvidenceUnavailable = item.stock_value_availability !== "available" || invalidRecoveryInputs.length > 0;
+    if (recoveryEvidenceUnavailable) {
+      RECOVERY_DERIVED_FIELDS.forEach(key => {
+        item[key] = null;
+      });
+      item.recovery_is_capped = null;
+      item.recovery_calculation_status = "unavailable";
+      item.recovery_unavailable_reason = item.stock_value_derivation_reason || "invalid_recovery_input";
+      item.numeric_limitation_codes = [...new Set([
+        ...item.numeric_limitation_codes,
+        "recovery_numeric_evidence_unavailable"
+      ])];
+    } else {
+      Object.assign(item, calculateRecoveryBreakdown(item));
+    }
 
     const noNeedFlag = String(item.no_need_flag || "").trim().toLowerCase();
     item.category = "Healthy / Planned Stock";
@@ -298,7 +399,8 @@
     const normalizedRows = canonicalRows;
     const analyticalInputRows = inputNormalization.normalizedRows || normalizedRows;
     const recoveryInputNormalizationDiagnostics = buildRecoveryInputNormalizationDiagnostics(normalizedRows);
-    const analyticalRows = analyticalInputRows.map(enrichInventoryRow);
+    const analyticalRows = analyticalInputRows.map((row, index) => enrichInventoryRow(row, index, canonicalRows[index] || {}));
+    appendDerivedStockValueDiagnostics(recoveryInputNormalizationDiagnostics, analyticalRows);
     const recoveryValidationErrors = validateRecoveryDataset(analyticalRows);
     const excludedSourceRowIndexes = [...sourceResult.excludedSourceRows].sort((a, b) => a - b);
     const buildMetadata = Object.freeze({

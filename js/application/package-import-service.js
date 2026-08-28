@@ -370,6 +370,7 @@
           warningCount: (packageValidation.warnings || []).length,
           missingRequiredValueCount: Number(packageValidation.missingMaterialIdCount || 0)
             + Number(packageValidation.missingTemporalValueCount || 0)
+            + Number(packageValidation.missingQuantityCount || 0)
             + Number(packageValidation.invalidQuantityCount || 0),
           duplicateRelationshipKeyCount: packageValidation.duplicateRelationshipKeyCount || 0,
           evaluatedAt: packageValidation.evaluatedAt,

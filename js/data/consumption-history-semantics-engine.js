@@ -29,6 +29,22 @@
     return normalizeText(value).replace(/\s+/g, "").toUpperCase();
   }
 
+  function consumptionQuantityParse(row = {}) {
+    const explicitStatus = normalizeText(row.consumption_quantity_parse_status);
+    if (explicitStatus) {
+      return {
+        status: explicitStatus,
+        normalizedValue: explicitStatus === "valid" && typeof row.consumption_quantity === "number" && Number.isFinite(row.consumption_quantity)
+          ? row.consumption_quantity
+          : null
+      };
+    }
+    return valueUtils.parseLocalizedNumericValue({
+      rawValue: row.consumption_quantity,
+      fieldDefinition: { type: "number", fieldKey: "consumption_quantity" }
+    });
+  }
+
   function pad2(value) {
     return String(value).padStart(2, "0");
   }
@@ -274,7 +290,7 @@
     const packageRows = cloneData(Array.isArray(input.normalizedRows) ? input.normalizedRows : []);
     const policy = defaultSemanticPolicy(input.semanticPolicy || {});
     const analysisAsOf = resolveAnalysisAsOf(policy);
-    const unitSetsByEntity = new Map();
+    const unitContextsByEntity = new Map();
     const exactCounts = new Map();
     const eventCounts = new Map();
     const looseMovementCounts = new Map();
@@ -284,8 +300,10 @@
       exactCounts.set(exactSourceKey(source), (exactCounts.get(exactSourceKey(source)) || 0) + 1);
       const entityKey = `material:${normalizeText(row.material_id)}|plant:${normalizeText(row.plant)}`;
       const unit = normalizedUnit(row.base_unit);
-      if (!unitSetsByEntity.has(entityKey)) unitSetsByEntity.set(entityKey, new Set());
-      if (unit) unitSetsByEntity.get(entityKey).add(unit);
+      const context = unitContextsByEntity.get(entityKey) || { units: new Set(), missingCount: 0 };
+      if (unit) context.units.add(unit);
+      else context.missingCount += 1;
+      unitContextsByEntity.set(entityKey, context);
     });
 
     const semanticRows = packageRows.map((row, index) => {
@@ -322,21 +340,41 @@
       const temporalStatus = temporalParseStatus === "valid" ? "valid"
         : temporalParseStatus === "missing" || temporalParseStatus === "invalid" ? "invalid" : "review_required";
       const movement = classifyMovementType(row.movement_type);
-      const signedQuantity = Number(row.consumption_quantity);
-      const absoluteQuantity = Number.isFinite(signedQuantity) ? Math.abs(signedQuantity) : null;
-      const netQuantity = Number.isFinite(absoluteQuantity) && movement.netSign ? absoluteQuantity * movement.netSign : 0;
+      const quantityParse = consumptionQuantityParse(row);
+      const signedQuantity = quantityParse.status === "valid" && Number.isFinite(quantityParse.normalizedValue)
+        ? quantityParse.normalizedValue
+        : null;
+      const absoluteQuantity = signedQuantity === null ? null : Math.abs(signedQuantity);
+      const netQuantity = absoluteQuantity === null
+        ? null
+        : movement.netSign
+          ? absoluteQuantity * movement.netSign
+          : 0;
       const normalizedBaseUnit = normalizedUnit(row.base_unit);
       const entityKey = `material:${normalizeText(row.material_id)}|plant:${normalizeText(row.plant)}`;
-      const unitSet = unitSetsByEntity.get(entityKey) || new Set();
-      const unitStatus = normalizedBaseUnit ? (unitSet.size > 1 ? "multiple_for_entity" : "single") : "missing";
-      const rowDiagnosticCodes = [
+      const unitContext = unitContextsByEntity.get(entityKey) || { units: new Set(), missingCount: 0 };
+      const unitStatus = unitContext.units.size > 1
+        ? "multiple_for_entity"
+        : unitContext.missingCount > 0
+          ? "missing_for_entity"
+          : normalizedBaseUnit
+            ? "single"
+            : "missing";
+      const aggregationBlockerCodes = [
         ...temporalDiagnosticCodes,
         ...(movement.movementSemantic === "unknown" ? ["unknown_movement_type"] : []),
-        ...(unitStatus === "missing" ? ["missing_unit"] : []),
-        ...(unitStatus === "multiple_for_entity" ? ["multiple_units_for_entity"] : [])
+        ...(quantityParse.status === "missing" ? ["missing_consumption_quantity"] : []),
+        ...(!["valid", "missing"].includes(quantityParse.status) ? ["invalid_consumption_quantity"] : []),
+        ...(!normalizedBaseUnit ? ["missing_unit"] : []),
+        ...(unitContext.missingCount > 0 ? ["missing_unit_for_entity"] : []),
+        ...(unitContext.units.size > 1 ? ["multiple_units_for_entity"] : [])
       ];
-      const aggregationEligible = Boolean(normalizedBaseUnit
-        && unitSet.size === 1
+      const rowDiagnosticCodes = [...new Set(aggregationBlockerCodes)];
+      const aggregationEligible = Boolean(quantityParse.status === "valid"
+        && Number.isFinite(signedQuantity)
+        && normalizedBaseUnit
+        && unitContext.units.size === 1
+        && unitContext.missingCount === 0
         && temporalParseStatus === "valid"
         && temporalConsistencyStatus === "consistent"
         && !isFutureMovement
@@ -374,18 +412,23 @@
         temporal_status: temporalStatus,
         posting_date_parse_status: posting.status,
         period_parse_status: period.status,
+        consumption_quantity_parse_status: quantityParse.status,
+        consumption_quantity_limitation_codes: quantityParse.status === "valid"
+          ? []
+          : [quantityParse.status === "missing" ? "missing_consumption_quantity" : "invalid_consumption_quantity"],
         temporal_consistency_status: temporalConsistencyStatus,
         temporal_reference_key: temporalReferenceKey,
         movement_type_normalized: movement.movementType,
         movement_semantic: movement.movementSemantic,
         movement_rule_set_id: movement.ruleSetId,
         movement_rule_set_version: movement.ruleSetVersion,
-        signed_consumption_quantity: Number.isFinite(signedQuantity) ? signedQuantity : null,
+        signed_consumption_quantity: signedQuantity,
         absolute_consumption_quantity: absoluteQuantity,
         net_consumption_quantity: netQuantity,
         normalized_base_unit: normalizedBaseUnit,
         unit_status: unitStatus,
         aggregation_eligible: aggregationEligible,
+        aggregation_blocker_codes: rowDiagnosticCodes,
         entity_key: entityKey,
         event_identity_key: eventIdentityKey,
         event_identity_status: eventIdentityStatus,
@@ -410,8 +453,11 @@
       ? semanticRows.filter(row => row.normalized_posting_date && row.normalized_posting_date > analysisAsOf.date).length
       : 0;
     const postingPeriodConflictCount = semanticRows.filter(row => row.temporal_consistency_status === "conflict").length;
-    const missingUnitCount = semanticRows.filter(row => row.unit_status === "missing").length;
-    const multipleUnitEntityCount = [...unitSetsByEntity.values()].filter(set => set.size > 1).length;
+    const missingUnitCount = semanticRows.filter(row => !row.normalized_base_unit).length;
+    const missingUnitEntityCount = [...unitContextsByEntity.values()].filter(context => context.missingCount > 0).length;
+    const multipleUnitEntityCount = [...unitContextsByEntity.values()].filter(context => context.units.size > 1).length;
+    const missingQuantityCount = semanticRows.filter(row => row.consumption_quantity_parse_status === "missing").length;
+    const invalidQuantityCount = semanticRows.filter(row => !["valid", "missing"].includes(row.consumption_quantity_parse_status)).length;
     const businessDuplicateCandidateCount = semanticRows.filter(row => row.duplicate_semantic === "business_duplicate_candidate").length;
     const exactDuplicateCount = semanticRows.filter(row => row.duplicate_semantic === "exact_source_duplicate").length;
     const legitimateRepeatCount = semanticRows.filter(row => row.duplicate_semantic === "legitimate_repeat").length;
@@ -433,7 +479,10 @@
       ...(futureMovementCount ? [diagnostic("historyFutureMovements", futureMovementCount, "warning", { analysisAsOfDate: analysisAsOf.date })] : []),
       ...(movementUnknownCount ? [diagnostic("historyUnknownMovementTypes", movementUnknownCount, "warning")] : []),
       ...(missingUnitCount ? [diagnostic("historyMissingUnits", missingUnitCount, "warning")] : []),
+      ...(missingUnitEntityCount ? [diagnostic("historyMissingUnitsForEntity", missingUnitEntityCount, "warning")] : []),
       ...(multipleUnitEntityCount ? [diagnostic("historyMultipleUnitsForEntity", multipleUnitEntityCount, "warning")] : []),
+      ...(missingQuantityCount ? [diagnostic("historyMissingConsumptionQuantities", missingQuantityCount, "warning")] : []),
+      ...(invalidQuantityCount ? [diagnostic("historyInvalidConsumptionQuantities", invalidQuantityCount, "warning")] : []),
       ...(businessDuplicateCandidateCount ? [diagnostic("historyBusinessDuplicateCandidates", businessDuplicateCandidateCount, "warning")] : []),
       ...(exactDuplicateCount ? [diagnostic("historyExactSourceDuplicates", exactDuplicateCount, "warning")] : []),
       ...(legitimateRepeatCount ? [diagnostic("historyLegitimateRepeatedMovements", legitimateRepeatCount, "info")] : []),
@@ -455,6 +504,7 @@
       temporalCoverageRatio: coverageRatio(temporalValidCount),
       movementSemanticsCoverageRatio: coverageRatio(movementKnownCount),
       unitCoverageRatio: coverageRatio(unitUsableCount),
+      quantityCoverageRatio: coverageRatio(rowCount - missingQuantityCount - invalidQuantityCount),
       eventIdentityCoverageRatio: coverageRatio(eventCompleteCount),
       blockerCount: diagnostics.filter(item => item.severity === "error").length,
       limitationCount: diagnostics.filter(item => item.severity !== "error").length
@@ -476,7 +526,10 @@
         futureMovementCount,
         postingPeriodConflictCount,
         missingUnitCount,
+        missingUnitEntityCount,
         multipleUnitEntityCount,
+        missingQuantityCount,
+        invalidQuantityCount,
         businessDuplicateCandidateCount,
         exactDuplicateCount,
         legitimateRepeatCount

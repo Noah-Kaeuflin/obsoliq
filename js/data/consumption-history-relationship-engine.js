@@ -21,6 +21,20 @@
     return String(value ?? "").trim();
   }
 
+  function strictFiniteNumber(value) {
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value !== "string" || !value.trim()) return null;
+    const text = value.trim();
+    if (!/^[+\-]?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?$/.test(text)) return null;
+    const number = Number(text);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function numericInputStatus(value) {
+    if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return "missing";
+    return strictFiniteNumber(value) === null ? "invalid" : "valid";
+  }
+
   function packageIdentity(packageRecord = {}) {
     return {
       packageId: packageRecord.packageId || "",
@@ -68,7 +82,8 @@
     const materialId = normalizeId(row.material_id);
     const plant = normalizeId(row.plant);
     const rowKey = inventoryRowKey(row, index);
-    const stockQuantity = Number(row.stock_quantity);
+    const stockQuantity = strictFiniteNumber(row.stock_quantity);
+    const stockQuantityStatus = numericInputStatus(row.stock_quantity);
     const unit = normalizeId(row.base_unit || row.inventory_unit || row.stock_unit).toUpperCase();
     return {
       inventoryEntityKey: entityKey(materialId, plant),
@@ -80,8 +95,13 @@
       rowKeys: [rowKey],
       rowNumbers: [Number(row.row_number || row.__sourceRowIndex || index + 1)],
       sourceRowIndexes: [sourceRowIndex(row, index)],
-      stockQuantity: Number.isFinite(stockQuantity) ? stockQuantity : null,
+      stockQuantity: stockQuantityStatus === "valid" && unit ? stockQuantity : null,
+      stockQuantityStatus,
+      stockQuantityMissing: stockQuantityStatus === "missing",
+      stockQuantityInvalid: stockQuantityStatus === "invalid",
       inventoryUnit: unit,
+      inventoryUnitMissing: !unit,
+      inventoryUnitConflict: false,
       rows: [row]
     };
   }
@@ -92,13 +112,21 @@
     entity.rowNumbers.push(Number(row.row_number || row.__sourceRowIndex || index + 1));
     entity.sourceRowIndexes.push(sourceRowIndex(row, index));
     entity.rows.push(row);
-    const quantity = Number(row.stock_quantity);
-    if (Number.isFinite(quantity)) {
-      entity.stockQuantity = Number.isFinite(entity.stockQuantity) ? entity.stockQuantity + quantity : quantity;
-    }
+    const quantity = strictFiniteNumber(row.stock_quantity);
+    const quantityStatus = numericInputStatus(row.stock_quantity);
+    if (quantityStatus === "missing") entity.stockQuantityMissing = true;
+    if (quantityStatus === "invalid") entity.stockQuantityInvalid = true;
     const unit = normalizeId(row.base_unit || row.inventory_unit || row.stock_unit).toUpperCase();
-    if (unit && !entity.inventoryUnit) entity.inventoryUnit = unit;
+    if (!unit) entity.inventoryUnitMissing = true;
+    if (unit && !entity.inventoryUnit && !entity.inventoryUnitMissing) entity.inventoryUnit = unit;
     if (unit && entity.inventoryUnit && unit !== entity.inventoryUnit) entity.inventoryUnitConflict = true;
+    if (entity.stockQuantityMissing || entity.stockQuantityInvalid || entity.inventoryUnitMissing || entity.inventoryUnitConflict || quantityStatus !== "valid") {
+      entity.stockQuantity = null;
+      entity.stockQuantityStatus = entity.stockQuantityInvalid ? "invalid" : "missing";
+    } else {
+      entity.stockQuantity = entity.stockQuantity === null ? quantity : entity.stockQuantity + quantity;
+      entity.stockQuantityStatus = "valid";
+    }
   }
 
   function buildHistoryEntity(row, index) {

@@ -78,7 +78,10 @@
   }
 
   function finiteNumber(value) {
-    const number = Number(value);
+    if (typeof value === "number") return Number.isFinite(value) ? value : "";
+    if (typeof value !== "string" || !value.trim()) return "";
+    if (!/^[+\-]?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?$/.test(value.trim())) return "";
+    const number = Number(value.trim());
     return Number.isFinite(number) ? number : "";
   }
 

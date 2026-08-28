@@ -1,6 +1,5 @@
-const { chromium } = require("C:/Users/Noah/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
-
-const productUrl = "file:///C:/Users/Noah/Documents/Codex/2026-06-24/da-s/outputs/inventory-recovery-mvp/prototype.html";
+const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -13,24 +12,23 @@ async function main() {
   });
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
-  await page.locator('[data-process="excess-stock"]').click();
-  await page.waitForSelector("#view-excess.active .excess-table tbody tr", { timeout: 10000 });
+  const routeState = await openUnifiedExcessSegment(page);
 
   const desktop = await page.evaluate(() => {
-    const excess = document.querySelector("#excessPage");
-    const worklist = document.querySelector(".excess-worklist-panel");
-    const worklistBody = document.querySelector(".excess-table-wrap");
-    const detail = document.querySelector(".excess-detail-panel");
-    const rows = [...document.querySelectorAll(".excess-table tbody tr")];
+    const excess = document.querySelector("#inventoryRisksPage");
+    const worklist = document.querySelector(".inventory-risk-worklist");
+    const worklistBody = document.querySelector(".inventory-risk-table-wrap");
+    const detail = document.querySelector(".inventory-risk-detail");
+    const rows = [...document.querySelectorAll(".inventory-risk-table tbody tr")];
     const bodyRect = worklistBody.getBoundingClientRect();
     const visibleRows = rows.filter(row => {
       const rect = row.getBoundingClientRect();
       return rect.top >= bodyRect.top - 1 && rect.bottom <= bodyRect.bottom + 1;
     }).length;
     const widthTotal = worklist.getBoundingClientRect().width + detail.getBoundingClientRect().width;
-    const headers = [...document.querySelectorAll(".excess-table thead th")].map(cell => cell.textContent.trim());
-    const visible = id => {
-      const element = document.getElementById(id)?.closest(".field") || document.getElementById(id);
+    const headers = [...document.querySelectorAll(".inventory-risk-table thead th")].map(cell => cell.textContent.trim());
+    const visible = selector => {
+      const element = document.querySelector(selector)?.closest("label") || document.querySelector(selector);
       return Boolean(element && getComputedStyle(element).display !== "none" && element.getClientRects().length);
     };
     return {
@@ -40,15 +38,16 @@ async function main() {
       detailRatio: detail.getBoundingClientRect().width / widthTotal,
       bodyOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - innerWidth,
       filters: {
-        search: visible("searchInput"),
-        plant: visible("plantFilter"),
-        program: visible("groupFilter"),
-        owner: visible("excessOwnerFilter"),
-        priority: visible("excessPriorityFilter"),
-        category: visible("categoryFilter"),
-        rowLimit: visible("rowLimit")
+        search: visible('[data-inventory-risk-filter="search"]'),
+        plant: visible('[data-inventory-risk-filter="plant"]'),
+        program: visible('[data-inventory-risk-filter="program"]'),
+        owner: visible('[data-inventory-risk-filter="owner"]'),
+        familySubtype: visible('[data-inventory-risk-filter="familySubtype"]'),
+        priority: visible('[data-inventory-risk-filter="priority"]'),
+        evidenceStatus: visible('[data-inventory-risk-filter="evidenceStatus"]')
       },
-      summaryCards: document.querySelectorAll(".excess-summary-card").length,
+      summaryCards: document.querySelectorAll(".inventory-risk-summary-card").length,
+      financialCards: document.querySelectorAll(".inventory-risk-financial-card").length,
       headers,
       decisionCoreVisible: document.querySelector(".excess-decision-core")?.getBoundingClientRect().bottom <= detail.getBoundingClientRect().bottom,
       whyVisible: Boolean(document.querySelector(".excess-primary-decision")),
@@ -58,33 +57,32 @@ async function main() {
     };
   });
 
-  const baselineRows = await page.locator(".excess-table tbody tr").count();
-  const categoryValue = await page.locator("#categoryFilter option").nth(1).getAttribute("value");
-  if (categoryValue) {
-    await page.locator("#categoryFilter").evaluate((element, value) => {
-      element.value = value;
-      element.dispatchEvent(new Event("change", { bubbles: true }));
-    }, categoryValue);
-    await page.waitForTimeout(100);
-  }
-  const rowsAfterHiddenCategory = await page.locator(".excess-table tbody tr").count();
-
-  const ownerOptions = await page.locator("#excessOwnerFilter option").count();
-  if (ownerOptions > 1) {
-    await page.locator("#excessOwnerFilter").selectOption({ index: 1 });
-    await page.waitForTimeout(100);
-  }
-  const ownerRows = await page.locator(".excess-table tbody tr").count();
-  await page.locator("#excessResetFilters").click();
+  const rows = page.locator(".inventory-risk-table tbody tr");
+  const baselineRows = await rows.count();
+  const firstMaterialId = (await page.locator(".inventory-risk-material-id").first().textContent() || "").trim();
+  await page.locator('[data-inventory-risk-filter="search"]').fill(firstMaterialId);
   await page.waitForTimeout(100);
-  const resetRows = await page.locator(".excess-table tbody tr").count();
+  const searchRows = await rows.count();
+  await page.locator("[data-inventory-risk-reset]").click();
+  await page.waitForTimeout(100);
 
-  const secondRow = page.locator(".excess-table tbody tr").nth(1);
-  const selectedId = await secondRow.getAttribute("data-excess-case-detail");
+  const ownerFilter = page.locator('[data-inventory-risk-filter="owner"]');
+  const ownerOptions = await ownerFilter.locator("option").count();
+  if (ownerOptions > 1) {
+    await ownerFilter.selectOption({ index: 1 });
+    await page.waitForTimeout(100);
+  }
+  const ownerRows = await rows.count();
+  await page.locator("[data-inventory-risk-reset]").click();
+  await page.waitForTimeout(100);
+  const resetRows = await rows.count();
+
+  const secondRow = rows.nth(1);
+  const selectedId = await secondRow.getAttribute("data-inventory-risk-case");
   await secondRow.focus();
   await secondRow.press("Enter");
   await page.waitForTimeout(100);
-  const keyboardSelectedId = await page.locator(".excess-table tbody tr.selected").getAttribute("data-excess-case-detail");
+  const keyboardSelectedId = await page.locator(".inventory-risk-table tbody tr.selected").getAttribute("data-inventory-risk-case");
 
   if (process.env.OBSOLIQ_SMOKE_SCREENSHOT) {
     await page.screenshot({ path: process.env.OBSOLIQ_SMOKE_SCREENSHOT, fullPage: true });
@@ -119,10 +117,12 @@ async function main() {
   const result = {
     status: "passed",
     desktop,
+    routeState,
     interactions: {
       baselineRows,
-      rowsAfterHiddenCategory,
-      hiddenCategoryIgnored: rowsAfterHiddenCategory === baselineRows,
+      firstMaterialId,
+      searchRows,
+      searchFilterWorked: Boolean(firstMaterialId) && searchRows > 0 && searchRows < baselineRows,
       ownerRows,
       ownerFilterWorked: ownerOptions <= 1 || ownerRows < baselineRows,
       resetRows,
@@ -137,17 +137,17 @@ async function main() {
     consoleErrors
   };
   const failed = [];
-  if (desktop.worklistStart > 280) failed.push("worklistStart");
+  assertUnifiedExcessRoute(routeState, failed);
+  if (desktop.worklistStart > 540) failed.push("worklistStart");
   if (desktop.visibleRows < 6) failed.push("visibleRows");
-  if (desktop.worklistRatio < 0.52 || desktop.worklistRatio > 0.56) failed.push("split");
+  if (desktop.worklistRatio < 0.56 || desktop.worklistRatio > 0.59) failed.push("split");
   if (desktop.bodyOverflow > 2 || widths.some(item => item.overflow > 2)) failed.push("overflow");
-  if (desktop.filters.category || desktop.filters.rowLimit) failed.push("hiddenFilters");
-  if (![desktop.filters.search, desktop.filters.plant, desktop.filters.program, desktop.filters.owner, desktop.filters.priority].every(Boolean)) failed.push("visibleFilters");
-  if (desktop.summaryCards !== 4) failed.push("summary");
+  if (!Object.values(desktop.filters).every(Boolean)) failed.push("visibleFilters");
+  if (desktop.summaryCards !== 4 || desktop.financialCards !== 3) failed.push("summary");
   if (desktop.headers.some(label => /Match|Datenverknüpfung/.test(label)) || !desktop.headers.some(label => /Priorität|Priority/.test(label))) failed.push("worklistColumns");
   if (!desktop.decisionCoreVisible || !desktop.whyVisible || !desktop.nextStepVisible) failed.push("decisionCore");
   if (!desktop.closedDisclosures) failed.push("disclosures");
-  if (!result.interactions.hiddenCategoryIgnored || !result.interactions.ownerFilterWorked || !result.interactions.resetWorked || !result.interactions.keyboardSelectionWorked || !categoryVisibleElsewhere) failed.push("interactions");
+  if (!result.interactions.searchFilterWorked || !result.interactions.ownerFilterWorked || !result.interactions.resetWorked || !result.interactions.keyboardSelectionWorked || !categoryVisibleElsewhere) failed.push("interactions");
   if (pageErrors.length || consoleErrors.length) failed.push("browserErrors");
   result.failed = failed;
   result.status = failed.length ? "failed" : "passed";

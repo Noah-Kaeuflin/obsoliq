@@ -257,7 +257,6 @@
       },
       headerHints,
       normalizationPolicy: {
-        allowAmbiguousFallback: true,
         localeOverride: localeOverrideForPolicy(fieldPolicy),
         scaleSource: fieldPolicy.scaleSource === "auto" ? "" : fieldPolicy.scaleSource || "",
         sourceScaleFactor: fieldPolicy.sourceScaleFactor
@@ -278,7 +277,11 @@
         const parseResult = parseNumericField(rawValue, fieldKey, entry, semanticPolicy);
         item[fieldKey] = parseResult.status === "valid" && Number.isFinite(parseResult.normalizedValue)
           ? parseResult.normalizedValue
-          : rawValue;
+          : null;
+        item[`${fieldKey}_parse_status`] = parseResult.status;
+        item[`${fieldKey}_limitation_codes`] = parseResult.status === "valid"
+          ? []
+          : [parseResult.status === "missing" ? `missing_${fieldKey}` : `invalid_${fieldKey}`];
         if (parseResult.detectedCurrency && fieldKey === "consumption_value") {
           item.consumption_value_currency = parseResult.detectedCurrency;
         }
@@ -341,13 +344,16 @@
       ? normalizedPreview.filter(row => !temporalFields.some(fieldKey => normalizeText(row[fieldKey]))).length
       : sourceRows.length;
     let invalidQuantityCount = 0;
+    let missingQuantityCount = 0;
     let negativeQuantityCount = 0;
     let zeroQuantityCount = 0;
     sourceRows.forEach(row => {
       const parseResult = quantityEntry
         ? parseNumericField(sourceValue(row, quantityEntry, sourceColumnMetadata), "consumption_quantity", quantityEntry, semanticPolicy)
         : { status: "missing", normalizedValue: null };
-      if (parseResult.status !== "valid" || !Number.isFinite(parseResult.normalizedValue)) {
+      if (parseResult.status === "missing") {
+        missingQuantityCount += 1;
+      } else if (parseResult.status !== "valid" || !Number.isFinite(parseResult.normalizedValue)) {
         invalidQuantityCount += 1;
       } else if (parseResult.normalizedValue < 0) {
         negativeQuantityCount += 1;
@@ -376,6 +382,7 @@
       ...(invalidPhysicalMappings.length ? [diagnostic("materialMasterInvalidSourceIdentity", invalidPhysicalMappings.length, "error")] : []),
       ...(missingMaterialIdCount ? [diagnostic("consumptionHistoryMissingMaterialIdValues", missingMaterialIdCount, "error", { field: "material_id" })] : []),
       ...(missingTemporalValueCount ? [diagnostic("consumptionHistoryMissingTemporalValues", missingTemporalValueCount, "error", { fields: temporalFields })] : []),
+      ...(missingQuantityCount ? [diagnostic("consumptionHistoryMissingQuantityValues", missingQuantityCount, "error", { field: "consumption_quantity" })] : []),
       ...(invalidQuantityCount ? [diagnostic("consumptionHistoryInvalidQuantityValues", invalidQuantityCount, "error", { field: "consumption_quantity" })] : [])
     ];
     const warnings = [
@@ -393,7 +400,7 @@
       diagnostics: [...blockingErrors, ...warnings],
       evaluatedAt: input.evaluatedAt || null,
       rowCount: sourceRows.length,
-      validRowCount: blockingErrors.length ? Math.max(0, sourceRows.length - missingMaterialIdCount - missingTemporalValueCount - invalidQuantityCount) : sourceRows.length,
+      validRowCount: blockingErrors.length ? Math.max(0, sourceRows.length - missingMaterialIdCount - missingTemporalValueCount - missingQuantityCount - invalidQuantityCount) : sourceRows.length,
       materialIdMapped: Boolean(materialEntry),
       quantityMapped: Boolean(quantityEntry),
       postingDateMapped: temporalFields.includes("posting_date"),
@@ -404,6 +411,7 @@
       keyGranularity,
       missingMaterialIdCount,
       missingTemporalValueCount,
+      missingQuantityCount,
       invalidQuantityCount,
       negativeQuantityCount,
       zeroQuantityCount,
@@ -496,6 +504,9 @@
         keyGranularity: validation.keyGranularity,
         temporalReferenceFields: [...validation.temporalReferenceFields],
         negativeQuantityCount: validation.negativeQuantityCount,
+        missingQuantityCount: validation.missingQuantityCount,
+        invalidQuantityCount: validation.invalidQuantityCount,
+        zeroQuantityCount: validation.zeroQuantityCount,
         missingUnitCount: validation.missingUnitCount,
         multipleUnitCount: validation.multipleUnitCount,
         exactDuplicateRowCount: validation.exactDuplicateRowCount,

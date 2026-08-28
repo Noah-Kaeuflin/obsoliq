@@ -181,8 +181,8 @@ function runInventoryDataModelSelfTests() {
   console.assert(Object.is(valueUtils.toNumber("1,2 Mio."), 1200000), "Value-utils module self-test failed: Mio. parsing");
   console.assert(Object.is(valueUtils.toNumber("125 Tsd."), 125000), "Value-utils module self-test failed: Tsd. parsing");
   console.assert(Object.is(valueUtils.toNumber("-500"), -500), "Value-utils module self-test failed: negative parsing");
-  console.assert(Object.is(valueUtils.toNumber("€ 12.500"), 12500), "Value-utils module self-test failed: currency parsing");
-  console.assert(Object.is(valueUtils.toNumber(""), 0), "Value-utils module self-test failed: empty parsing");
+  console.assert(valueUtils.toNumber("€ 12.500") === null, "Value-utils module self-test failed: ambiguous currency parsing must require locale context");
+  console.assert(valueUtils.toNumber("") === null, "Value-utils module self-test failed: missing numeric input must remain null");
   console.assert(normalizeHeader("Material Number") === "material_id", "Inventory data model self-test failed: material alias");
   console.assert(normalizeHeader("Stock Value EUR") === "stock_value", "Inventory data model self-test failed: stock-value alias");
   console.assert(normalizeHeader("No Demand Value") === "direct_no_need_value", "Inventory data model self-test failed: direct no-demand alias");

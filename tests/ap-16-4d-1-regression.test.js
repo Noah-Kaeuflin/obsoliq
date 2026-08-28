@@ -74,16 +74,17 @@
     assert.ok(Boolean(slowDeadAfter.result), "Forced derived runtime rebuild should return a result");
   });
 
-  test("AP 16.4d.2 Slow / Dead navigation now opens the dedicated Recovery Case page", async assert => {
+  test("AP 16.4d.2 Slow / Dead compatibility route opens the unified Inventory Risks segment", async assert => {
     const app = await helpers.loadSampleApp();
-    const button = app.document.querySelector('[data-process="slow-dead-stock"]');
-    button.click();
-    const pageText = app.document.getElementById("slowDeadPage")?.textContent || "";
+    const state = app.__obsoliqTestBridge.switchInventoryRiskRouteForTest("slow-dead-stock");
+    const pageText = app.document.getElementById("inventoryRisksPage")?.textContent || "";
     const placeholderActive = app.document.getElementById("placeholderPage")?.classList.contains("active");
-    const slowDeadActive = app.document.getElementById("view-slow-dead")?.classList.contains("active");
+    const inventoryRisksActive = app.document.getElementById("view-inventory-risks")?.classList.contains("active");
 
-    assert.ok(/Slow-\/Dead-Recovery-Cases|Slow \/ Dead Recovery Cases/i.test(pageText), "Slow / Dead route should render the dedicated Recovery Case page");
-    assert.equal(slowDeadActive, true, "Dedicated Slow / Dead view should be active");
-    assert.equal(placeholderActive, false, "Slow / Dead route should no longer activate the generic placeholder");
+    assert.equal(state.activeProcessKey, "inventory-risks", "Compatibility route should activate the unified Inventory Risks process key");
+    assert.equal(state.pageState.segment, "slow_dead", "Compatibility route should select the Slow / Dead segment");
+    assert.ok(/Langsam \/ Totbestand|Slow \/ Dead/i.test(pageText), "Unified page should render the Slow / Dead segment");
+    assert.equal(inventoryRisksActive, true, "Unified Inventory Risks view should be active");
+    assert.equal(placeholderActive, false, "Compatibility route should not activate the generic placeholder");
   });
 })();

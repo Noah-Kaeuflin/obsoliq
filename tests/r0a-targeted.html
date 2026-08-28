@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ObsoliQ R0A Targeted Tests</title>
+</head>
+<body>
+  <button id="runTestsButton" type="button">Run tests</button>
+  <div id="summary"></div>
+  <ol id="results"></ol>
+  <iframe id="appFrame" title="ObsoliQ prototype test frame"></iframe>
+  <script src="test-runner.js"></script>
+  <script src="app-template.js"></script>
+  <script src="test-helpers.js"></script>
+  <script src="r0a-regression.test.js"></script>
+  <script>
+    document.getElementById("runTestsButton").addEventListener("click", () => window.ObsoliQTests.run());
+    window.addEventListener("load", () => window.ObsoliQTests.run());
+  </script>
+</body>
+</html>

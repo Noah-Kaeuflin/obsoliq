@@ -6,6 +6,48 @@ The canonical inventory model describes SAP-like inventory rows after source par
 
 The current MVP keeps original source columns visible in the Inventory Explorer while analytical calculations use canonical fields.
 
+## EX-UX-01.4 Excess Decision Visual Contract
+
+EX-UX-01.4 introduces no new analytical entity. The four visuals are deterministic render projections of fields already accepted by the `ExcessDecisionWorkspaceProjection` and Opportunity Score Engine.
+
+### Gross-to-Net Value Bridge
+
+The renderer consumes the existing availability objects in `valueNarrative.fields`. The only bridge equation is:
+
+```text
+grossExcessValue - overlapValue = netAddressableValue
+```
+
+`stockValue` and `remainingInventoryValue` are contextual values outside that equation. A numeric `0` is available evidence. Missing or invalid values have `available: false` and cannot be rendered as zero. `netAddressableValue` has status `identified_potential`; it is not Expected Recovery, approved value, realized value, Cash, Working-Capital Recognition or P&L impact.
+
+### Historical SVG Projection
+
+The chart input is only `historicalEvidence.monthlyBuckets[]` from the current completed exact-row Historical Runtime. Each accepted display bucket retains its canonical `month`, numeric `netQuantity` and canonical quantity `unit`. The view sorts existing bucket records chronologically and displays at most the last twelve. It may derive SVG coordinates, minimum, maximum and zero-baseline position for presentation, but may not derive a new monthly quantity.
+
+No bucket can be reconstructed from 3M, 6M, 12M, average, trend or coverage fields. Missing months are not inserted. Negative net consumption and zero remain unchanged. Unit state remains `available`, `missing` or `conflict`; conflict produces no merged chart. Existing `partial_current_period` or equivalent Runtime provenance is a display marker only. No Forecast series exists in this contract.
+
+### Opportunity Score Contribution Projection
+
+`js/excess/opportunity-score-engine.js` exposes an immutable `componentMaximums` metadata object matching the existing model:
+
+```javascript
+{
+  financial_impact: 35,
+  urgency: 20,
+  actionability: 20,
+  evidence: 15,
+  data_confidence: 12
+}
+```
+
+The visual consumes existing `opportunity_score_components` values and calculates display width as `contribution / componentMaximums[component]`, clamped only to the visual track. It does not calculate a component or total score. The visible total remains the existing `excess_opportunity_score` / `opportunity_score` out of 100 and is prioritization, not probability.
+
+### Decision Readiness Matrix Projection
+
+The Matrix consumes the existing versioned Readiness result unchanged. `existingEvidence` is presented as Available. `missingEvidence`, `decisionLimits` and `whyNotHigher` are presented as Open / limited. At most four records per column are directly visible; remaining records stay available through a native disclosure. The renderer may remove duplicate display labels but cannot create evidence, change status, change `nextCheck` or evaluate a new truth table. `whyNotHigher` is not rendered again as a separate decision block.
+
+All graphical values retain an adjacent textual value or accessible description. SVG figures require captions; score tracks expose contribution and actual maximum; CSS status marks are supplementary to text. These view contracts create no persistence, Package revision, export field or Registry mutation.
+
 ## AP 16.4a Consumption History Data Package Contract
 
 Consumption History is an optional Data Package with package type `consumption_history` and schema version `consumption-history-v1`.
@@ -223,6 +265,38 @@ Slow / Dead navigation target identity is authoritative in this priority order: 
 
 Owner Context projection uses existing Action Owner Context plus Inventory/Material-Master provenance to project `owner_function`, `owner_reference`, `owner_reference_field`, `owner_source` and `owner_assignment_confidence` into `SlowDeadRecoveryCase`. Owner Context is operational context only; it does not change Condition classification, Evidence Strength, Condition Confidence, workflow assignment or Action status. `owner_source` is limited to `inventory`, `material_master` or `none`, and missing Owner Context remains unavailable.
 
+### AP 16.4d.3a Slow / Dead Calibration Case Contract
+
+`SlowDeadCalibrationCase` is versioned as `slow-dead-calibration-case-v1`. Every Case has a unique `calibration_case_id`, fixed `reference_date` `2026-08-25`, Inventory entity identity, the productive `slow-dead-condition-policy-v1` identity, a complete Engine input snapshot, expected existing Condition/evidence outputs, required and forbidden Reason Codes, Protection Flags, Rationale Codes, Safety-Invariant coverage and Label Provenance.
+
+The Fixture schema remains v1 because no Fixture literal or Expected Condition changed. `slow-dead-calibration-numeric-boundary-v1` is the separate adapter contract for the 16 numeric fields in each Engine input snapshot. It uses productive `numericEvidence(...)` results and retains source type, explicit-zero status, normalized value, parse status and Reason Codes. Missing stays non-numeric, Invalid or Ambiguous rows are retained as excluded results, and none of those states is converted to zero.
+
+Allowed source types are `synthetic_acceptance_fixture` and future `pilot_expert_label`. Every AP 16.4d.3a Case is `synthetic_acceptance_fixture`, uses provenance basis `published_policy_contract` and has `human_expert_validated: false`. A future `pilot_expert_label` is invalid without explicit human validation, reviewer identity, UTC review timestamp and review rationale. Synthetic fixtures must not contain reviewer provenance or claim expert validation.
+
+Expected Conditions use the six existing productive values `insufficient_evidence`, `intermittent_expected`, `slow_moving_candidate`, `non_moving_candidate`, `dead_stock_candidate` and `strategic_reserve`; `no_case` is allowed only as the existing boundary-control result. Evidence Strength and Condition Confidence use only the existing Engine enums. Calibration introduces no product Condition.
+
+Stable Calibration Rationale Codes include `insufficient_history`, `low_history_completeness`, `recurring_intermittent_demand`, `explicit_strategic_reserve`, `independent_dead_signal_present`, `independent_dead_signal_missing`, `ambiguous_relationship`, `unit_conflict`, `project_or_one_time_demand`, `threshold_boundary`, `definitive_classification_prohibited` and `dead_classification_prohibited`. Existing Engine evidence codes are reused for required/forbidden output expectations instead of creating synonyms.
+
+Protection Flags cover explicit Strategic Reserve, intermittent demand, independent Dead signal, ambiguous relationship, unit conflict and project/one-time-demand context. They are assertion metadata only and never enter productive classification. Calibration Runner v2 emits one deterministic result per Case with numeric eligibility/status/evidence, expected/actual Condition where calculable, Agreement, stable disagreement code, critical-protection flag, productive Policy version, evidence comparison, action-boundary comparison and real Condition signature. Empty or wholly excluded input reports `insufficient_coverage`, `not_calculable` agreement and `not_evaluated` Safety.
+
+The Calibration Policy reference is the same frozen object as `DEFAULT_SLOW_DEAD_CONDITION_POLICY`; no duplicate threshold object and no Policy override exist. Fixtures and Runner output are deterministic and immutable. The Runner cannot mutate Inventory rows, Historical Runtime, Packages, Package revisions, Sessions, Actions, Excess or Opportunity Score.
+
+### AP 16.4d.3b Calibration Metrics And Threshold Sensitivity Contracts
+
+`SlowDeadCalibrationMetrics` is versioned as `slow-dead-calibration-metrics-v2`. It accepts only a validated Calibration Fixture set, Calibration Runner v2 Result Rows and deterministic scenario metadata. Its output contains Fixture validity and eligible/excluded counts, calculability status, Synthetic Contract Agreement when calculable, expected/actual/agreement/disagreement counts by Condition, Boundary Stability, Reason-Code coverage, twelve-invariant results, Safety status, deterministic repeatability and Policy/Fixture/Result fingerprints. It performs no classification and makes no customer, Pilot or human-expert quality claim.
+
+`SlowDeadThresholdSensitivityPlan` is versioned as `slow-dead-threshold-sensitivity-plan-v1`. It contains exactly 17 scenarios: one productive Baseline and two alternatives for each of eight parameters. Every alternative is OFAT and carries `analysisOnly: true` and `productionEligible: false`. Candidate Policies must preserve `slowMoving < nonMoving < deadCandidate`, minimum completeness not above strong completeness, valid completeness/intermittency ranges, positive integer month values and exactly one deviation from the productive Baseline.
+
+`slow-dead-threshold-sensitivity-runner-v2` executes that unchanged plan through Calibration Runner v2. Scenario Result Rows preserve numeric status and evidence, and no empty or wholly excluded scenario can report a successful Safety or agreement result.
+
+Each `SlowDeadThresholdSensitivityScenarioResult` contains the stable Scenario ID, changed parameter and values, changed/unchanged Case counts, deterministic migration buckets with unique Case IDs, boundary changes, ten Safety-Guard results, critical violation codes, Policy/Result fingerprints and explicit non-activation fields. Migration counts and Case-ID lists are one contract: each count equals the number of unique IDs in its bucket. Baseline against itself has zero migrations and zero critical violations.
+
+Safety Guards are not sensitivity parameters. They protect independent Dead evidence, explicit Strategic Reserve and its precedence, recurring intermittent demand, ambiguous relationships, unit conflicts, insufficient History, low completeness, missing-versus-zero semantics, project/one-time-demand context and the prohibition on automatic Action approval. A migration alone is not a defect; only a registered Guard violation is critical. Unsafe variants remain visible for analysis but are never recommended, activated, ranked or persisted.
+
+Fingerprints use the deterministic `slow-dead-calibration-fingerprint-fnv1a32-v1` content-identity scheme. They support reproducibility and are not security signatures. The artifacts contain synthetic fixtures only, create no productive Policy version and provide no Policy recommendation. Human Pilot Review and acceptance provenance remain exclusively in `AP 16.4d.3c`.
+
+`AP_16_4D_3A_FIXTURE_BASELINE.md` is a Synthetic Contract Agreement report. It is not Pilot Accuracy or Expert Agreement and contains no Accuracy, Precision, Recall, F1, exposure-weighted metric, threshold optimization or sensitivity conclusion. Those capabilities remain separated into `AP 16.4d.3b` and `AP 16.4d.3c`.
+
 The page filter contract includes search, Condition, plant, Evidence Strength, Condition Confidence, Recovery Case Eligibility, owner function, relationship state, required Data Package and missing-evidence filters. Sorting and pagination are deterministic presentation operations. They do not call the Slow / Dead Recovery Case Service, Historical Metrics Runtime or Registry.
 
 The export contract writes one deterministic row per supplied Recovery Case. Export columns preserve Case identity, entity identity, row-key traceability, Owner Context, Condition, evidence, limitations, hypotheses, eligibility, required Packages and Package/model provenance. Text identities such as leading-zero material IDs remain text, and the existing spreadsheet/CSV download path owns formula-injection protection. Inventory Exposure and Currency are separate columns; the export must not hard-code an `(EUR)` suffix or imply FX conversion.
@@ -331,6 +405,18 @@ It returns:
 ### NormalizationDiagnostic and Summary
 
 `NormalizationDiagnostic` stores severity, code, row number, canonical field, raw value, detected locale, scale factors, detected currency and warnings. Detailed diagnostics are retained for transformed, exceptional or unsafe values only. `NormalizationSummary` stores row count, transformed cell count, diagnostic counts, status, numeric/currency/percentage field lists and bounded transformed samples.
+
+### NUM-01 Strict Numeric Contract
+
+Numeric parsing is whole-input and fail-closed. A numeric input is `valid`, `missing`, `ambiguous`, `invalid` or an existing explicit scale-conflict status. Only `valid` produces a finite `normalizedValue`; a genuine zero is `valid` with `normalizedValue: 0`. `null`, `undefined`, an empty or whitespace-only string are `missing`. Unsupported JavaScript types, non-finite numbers and text with embedded or trailing numeric fragments are `invalid`. Ambiguous single-separator values such as `1,234` require an explicit or dominant locale profile before they become analytically usable.
+
+Allowed envelopes are an optional whole-value sign or accounting parentheses, an optional currency token, one strict localized numeric core, and optional recognized magnitude, unit or percentage suffixes. Tokens are consumed only at their defined prefix or suffix positions. Arbitrary text removal, partial `parseFloat`-style recovery, sign folding and fallback to zero are prohibited. `toNumber()` therefore returns a finite number only for `valid` input and returns `null` otherwise.
+
+Normalized analytical rows retain non-exported per-field parse metadata in `__numericParseResults`. Missing, ambiguous, invalid and double-scaled cells become `null`, while Raw Source remains unchanged. Recovery calculation is unavailable when required stock value evidence or a present Recovery input is invalid; the accepted Recovery formulas themselves are unchanged. Missing optional Recovery category inputs remain an intentional zero contribution because those independent additive categories are absent, not measured as a numeric zero. Runtime counters, sequence values and package revisions also retain their explicit structural zero defaults and are not analytical evidence.
+
+Consumption History stores `consumption_quantity_parse_status` and machine-readable quantity limitation codes. Missing or invalid quantity is never aggregation-eligible. Quantity aggregation is entity-atomic for unit evidence: multiple units, one present plus one missing unit, or all units missing block every quantity metric for the entity. No unit conversion exists. Blocked entities expose `null` for rolling consumption, average, active months, frequency, completeness and Inventory coverage, plus codes including `missing_consumption_quantity`, `invalid_consumption_quantity`, `missing_unit_for_entity`, `multiple_units_for_entity` and `numeric_evidence_unavailable`.
+
+The Slow/Dead Condition boundary treats these numeric and unit codes as critical evidence limitations. It can only return the existing non-definitive `insufficient_evidence` state and the existing evidence/review actions. Slow/Dead export writes missing or invalid numeric evidence as an empty cell and writes a genuine numeric zero as `0`; formula-injection handling remains downstream and unchanged.
 
 ### Schema Signatures and Drift
 
@@ -1062,6 +1148,216 @@ Scenario availability is explicit: `available`, `limited` or `unavailable`. A sc
 
 Opportunity Score remains a transparent prioritization score, not a probability of recovery, implementation, success or forecast outcome. Pilot calibration tests evaluate score behavior against business constraints without changing score records.
 
+## EX-UX-01.3 – Excess Decision Workspace Presentation Contract
+
+### ExcessDecisionWorkspaceProjection
+
+`js/excess/excess-decision-workspace-model.js` owns the read-only, deterministic and presentation-only Excess Decision Workspace projection. The current contract is Workspace Projection version `3`. It consumes one existing accepted Excess Case plus current presentation context and returns the selected Case contract used by `app.js`. Version 3 reflects the Availability-object output for Opportunity Score, Gross, overlap and Net plus the explicit `overlapValue` projection. It is not persistent, is not an analytical dataset, does not mutate its input, does not create a second Recommendation Engine and does not change Recovery, Gross-to-Net, Opportunity Score, Scenario, Action, Pilot Review or Historical formulas.
+
+Source-of-truth inputs are existing Case identity and Action-decoration fields, existing Excess values and explanation, existing Owner Context, existing Evidence Records and structured Scenarios, the current completed Historical Runtime result for the exact Inventory row key and relationship issue keys. Purchase Order evidence can come only from concrete fields already present on the current Case's `source_row`; the current MVP has no standalone Purchase Orders import capability.
+
+The projection output contains `projectionVersion`, Case identity and navigation targets, Category, Action status, Priority, Opportunity Score, Net and Gross values, Owner summary, `whyPrioritized`, `whyNotHigher`, next step, decision type, `causeHypothesis`, `decisionReadiness`, `actionOptions`, `decisionLimits`, `historicalEvidence`, `valueNarrative`, `workContext` and `technicalRelationshipState`. Optional arrays normalize to empty arrays. Optional text normalizes to an empty string. Missing or invalid projected numeric evidence uses explicit availability objects and is never coerced to zero.
+
+### ExcessCauseHypothesis
+
+The actual Cause projection is:
+
+```javascript
+{
+  cause,
+  hypothesis,
+  available,
+  supportingSignals,
+  classification: "rule_based_hypothesis",
+  classificationKey,
+  provenance: {
+    sourceField,
+    source,
+    supportingSignalSources
+  }
+}
+```
+
+`cause` and the backward-compatible `hypothesis` contain the existing `root_cause` unchanged. Supporting signals can originate only from existing `whyPrioritized`, supported Evidence Records or exact Historical Evidence. The Cause is a rule-based hypothesis requiring business confirmation. It is neither a probability nor confirmed causality. When `root_cause` is absent, `available` is `false`, Cause text is empty and the UI renders a neutral state.
+
+### ExcessDecisionReadiness
+
+Decision Readiness is versioned as `excess-decision-readiness-v2` because missing, invalid, currency-inconsistent or unreconciled Gross-to-Net evidence now prevents a positive Readiness status:
+
+```javascript
+{
+  version: "excess-decision-readiness-v2",
+  status: "ready" | "limited" | "review" | "not_decidable",
+  existingEvidence,
+  missingEvidence,
+  decisionLimits,
+  whyNotHigher,
+  nextCheck,
+  truthTable
+}
+```
+
+The deterministic, non-weighted Truth Table is evaluated in this order:
+
+| Status | Implemented condition |
+| --- | --- |
+| `not_decidable` | Valid Case identity, valid Gross-to-Net value basis or authoritative Recommendation is missing. |
+| `review` | The central basis exists, but Cause, complete Owner assignment, exact Material/Plant relationship or primary-option checkability is missing. |
+| `limited` | The primary path is checkable, but Historical state is not fully available, `whyNotHigher`, Case limitations or another non-critical evidence gap remains. |
+| `ready` | Identity, value basis, Cause, Recommendation, next step, Owner, exact relationship, available History and primary checkability are present with no open limit. |
+
+Decision Readiness is not a score, success probability, approval or workflow state.
+
+### ExcessActionOption
+
+Each Action Option has the actual contract:
+
+```javascript
+{
+  optionCode,
+  labelKey,
+  labelText,
+  status: "checkable" | "review_required" | "not_checkable" | "not_recommended",
+  isPrimary,
+  evidence,
+  missingEvidence,
+  nextCheck,
+  provenance
+}
+```
+
+The authoritative `recommended_action` remains one whole primary option and is not split heuristically. Additional options require an existing structured Scenario or another explicit structured result. `checkable` means that an evidence-backed review path exists; it does not mean approved, optimal or executable. Missing evidence is an unavailable state and is not negative evidence.
+
+Purchase Order Action Option evidence states are `concrete`, `insufficient` and `no_case_evidence`. Concrete or insufficient evidence identifies `inventory_row_fields` as its actual source. The `purchase_orders` Package definition remains `contract_only`, has no `importSupported: true`, no Builder and no upload selector. A Registry fixture or test injection is not a productive import path and cannot make the option checkable. The UI exposes no Purchase Orders import CTA.
+
+### ExcessHistoricalEvidencePresentation
+
+Historical presentation contains `status`, differentiated `state`, `exact`, the immutable Runtime `metric`, `limitations`, canonical `monthlyBuckets`, `unitContext` and `runtimeReason`. States are `package_missing`, `loaded_no_exact_relationship`, `not_calculated`, `limited`, `insufficient`, `available` and `runtime_error`. Only `package_missing` permits the existing Consumption History import CTA.
+
+Historical evidence is read only from the current completed Historical Runtime for the exact current `inventory_row_key`. Quantities such as 3M, 12M and average monthly consumption come from that Runtime. Monthly charts use only existing canonical Runtime buckets; no values are reconstructed, interpolated or forecast.
+
+The Unit Context contract is:
+
+```javascript
+{
+  state: "available" | "missing" | "conflict",
+  unit,
+  source,
+  provenance: {
+    unitStatus,
+    historyUnit,
+    inventoryUnit,
+    monthlyBucketUnits
+  }
+}
+```
+
+Canonical sources are `metric.unit`, `metric.provenance.historyUnit` or one unambiguous canonical `monthly_buckets[].unit`. Units are not guessed, converted or replaced by currency. Contradictory units produce `conflict` and no chart projection. Missing units remain visible as unavailable Unit Context. A calculated quantity `0` remains available and is shown with its canonical unit. Inventory coverage remains a time metric and does not receive a quantity unit.
+
+### ExcessValueNarrative
+
+`ExcessValueNarrative` contains explicit availability objects for Inventory Value, Gross Excess, overlap/deductions, Net Addressable and remaining Inventory, plus `validBasis`, `valueStatus: "identified_potential"`, boundary keys and the existing explanation reason key. A finite numeric `0` is available; missing, empty, non-finite or invalid values are unavailable and remain distinct.
+
+CH-EX-01A versions this projection as `gross-net-reconciliation-v1`. Every monetary field uses the canonical shape:
+
+```javascript
+{
+  available: boolean,
+  value: number | null,
+  reason: "" | "missing" | "invalid",
+  currencyUnit: string
+}
+```
+
+The Gross-to-Net basis is valid only when Gross Excess, overlap/deductions and Net Addressable are all available, finite, non-negative and expressed in the same normalized currency unit, and when this equation holds:
+
+```text
+grossExcessValue - overlapValue = netAddressableValue
+```
+
+The central reconciliation tolerance is `GROSS_NET_RECONCILIATION_EPSILON = 0.01`. A difference whose absolute value is at most `0.01` is valid. The rule is evaluated only in `validateGrossNetValueBasis()`; renderers consume `validBasis` and `reconciliation` and never repeat the equation. When no explicit source currency is present, the three analytical values share `NORMALIZED_BASE_CURRENCY`; this is an analytical unit marker, not an FX conversion.
+
+The reconciliation result contains `valid`, `status`, `reasonCode`, `limitationCodes`, `epsilon`, `difference`, `currencyUnit`, `currencyUnits`, `missingFields` and `invalidFields`. Stable failure codes are:
+
+- `gross_net_value_basis_missing`
+- `gross_net_value_basis_invalid`
+- `gross_net_value_basis_inconsistent`
+
+Any failure forces Decision Readiness to `not_decidable` and exposes the same reason as missing evidence and a decision limit. A real numeric `0` remains available and can satisfy the equation. `null`, `undefined`, an empty value, `NaN`, Infinity or `available: false` never become zero.
+
+The fixed Case Header consumes the same `valueNarrative.fields` objects for Gross, overlap and Net. Opportunity Score uses its own Availability projection with `available`, `value` and `reason`, plus the canonical cap metadata below. Missing values render as unavailable; genuine zeros render as zero.
+
+Net Addressable is not Expected Recovery Value, an approved value, realized Cash, Working-Capital Recognition or P&L impact.
+
+The three binding versions are independent and emitted together:
+
+```javascript
+{
+  workspaceProjection: "3",
+  decisionReadiness: "excess-decision-readiness-v2",
+  grossNetReconciliation: "gross-net-reconciliation-v1"
+}
+```
+
+`projectDecisionCore()` exposes the tuple as `contractVersions`; `ExcessValueNarrative` and its central Reconciliation result expose `gross-net-reconciliation-v1`; the Application Service forwards the identical tuple as `metadata.decisionContracts`. These are metadata only and do not create another numerical truth.
+
+### Opportunity Score Cap Metadata
+
+The existing component maxima remain `35 + 20 + 20 + 15 + 12 = 102`; weights and component formulas are unchanged. The Score Engine now emits:
+
+```javascript
+{
+  uncappedScore,
+  finalScore,
+  scoreCap: 100,
+  maxComponentTotal: 102,
+  wasCapped,
+  cappedPoints
+}
+```
+
+`finalScore` remains the visible score and never exceeds 100. `wasCapped` is true only when `uncappedScore > scoreCap`; no cap deduction is shown at or below 100. Renderers consume these metadata and do not reconstruct the cap.
+
+### ExcessWorkContext
+
+The Work Context projection contains existing Action status, Owner reference, Owner function, Owner source, Owner-assignment confidence, decision type and `sessionOnly: true`. The fixed Case header presents Action status and compact Owner context. The visible Work Context block adds only decision type, Owner source, assignment confidence and the session notice; complete fields remain in the closed technical Owner/Action disclosure.
+
+Action status comes only from the existing in-memory Action Case. Pilot Review is a separate contract and cannot derive or mutate Action status. `Implemented` is not proof of realized Recovery or Cash.
+
+## R0A Numeric, Transaction And Identity Contract
+
+Derived financial fields have a strict postcondition: accepted values are finite and non-negative. Negative inputs, non-finite inputs, overflow and invalid products produce `null` plus unavailable reason evidence. They must not be converted to zero or passed into Recovery. Explicit validated zero remains available and distinct from missing.
+
+An Inventory source with valid headers but zero data rows is not a Dataset. It is rejected with `EMPTY_DATASET_ROWS` before Mapping application, Registry activation, Dataset identity allocation or application-state commit. The previous active Dataset and all dependent state remain unchanged.
+
+Inventory Entity identity remains mandatory for every Family Case. Adapters may contain and diagnose candidates missing that identity, but may not invent a material, plant, row or entity key. Valid candidates in a mixed collection continue through portfolio composition.
+
+## Unified Inventory Risk Contract
+
+The canonical risk families are `excess_demand`, `slow_dead` and `blocked_quality`. Each accepted Family Case keeps its own stable `family_case_id`, `inventory_entity_key`, source row keys, evidence, limitations, provenance, capability and family-specific financial semantic. Portfolio composition may select a deterministic Primary Family and list Secondary Families, but it does not erase or rewrite Family Case identity.
+
+The financial fields are not interchangeable:
+
+| Family | Financial semantic | Field |
+| --- | --- | --- |
+| Excess & Demand | Net Addressable Recovery | `net_addressable_value` |
+| Slow / Dead | Inventory Exposure | `inventory_exposure` |
+| Blocked / Quality | Blocked / Quality Value | `blocked_quality_value` |
+
+No Unified total may add these heterogeneous semantics. Missing evidence in one semantic makes that semantic aggregate unavailable or incomplete; it does not become zero and does not contaminate another family amount.
+
+Portfolio Evidence is conservative across Primary and Secondary Family Cases. Unknown and empty evidence fail closed to unavailable. Evidence Readiness is:
+
+```text
+readiness-capable currently filtered Portfolio Cases
+----------------------------------------------------
+all currently filtered Portfolio Cases
+```
+
+The contract exposes ready count, total count and ratio. If the denominator is empty, the ratio is `null`/unavailable.
+
+Blocked / Quality currently accepts only defensible blocked or quality-inspection signals and exposes a limited capability. It is not a complete Recovery Engine because release, rework, supplier-return, approval and success-probability data is missing. It therefore cannot assert recoverable quantity, recoverable value, approval or expected outcome.
+
 ## Current Supported And Unsupported Capabilities
 
 Supported:
@@ -1069,6 +1365,10 @@ Supported:
 - local inventory snapshot registration
 - active Inventory to active Material Master matching
 - Material Master context enrichment for approved missing Inventory fields
+- active Inventory to semantically accepted Consumption History relationship
+- derived Historical Metrics for exact or safely resolved Inventory-to-History entities
+- Unified Inventory Risk Portfolio and Family Case presentation with exact family identity
+- limited Blocked / Quality exposure and Evidence presentation
 - Inventory-owned duplicate-candidate detection that is deterministic across Material Master import order
 - Remediation Preview isolation for relationship state, enrichment diagnostics, provenance and Registry revisions
 - multiple package records per browser session
@@ -1080,7 +1380,13 @@ Supported:
 
 Not supported:
 
-- cross-package joins beyond Inventory to Material Master context enrichment
+- arbitrary cross-package joins beyond the explicit Inventory-to-Material-Master and Inventory-to-Consumption-History pipelines
+- standalone Purchase Orders import or Purchase Order optimization
+- Demand Forecast integration
+- Quality Package integration
+- full Blocked / Quality Recovery, release, rework, supplier-return or approval workflow
+- Finance Recognition relationships
+- Action Outcome learning
 - multi-dataset UI
 - Snapshot History
 - Delta Detection

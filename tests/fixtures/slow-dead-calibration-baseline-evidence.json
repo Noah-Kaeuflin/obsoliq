@@ -1,0 +1,61 @@
+{
+  "schema_version": "ap-16-4d-3a-fixture-baseline-evidence-v1",
+  "evidence_date": "2026-08-26",
+  "git": {
+    "branch": "fix/ex-ux-01-3-excess-decision-narrative",
+    "head": "aae61092d3fc6a9ba7f1018d711fd387ab99ad5e",
+    "working_tree": "Dirty before and after this block because accepted, uncommitted work already existed; AP 16.4d.3a changes remain uncommitted."
+  },
+  "pre_change_baseline": {
+    "structured_suite": {
+      "total": 293,
+      "passed": 293,
+      "failed": 0,
+      "skipped": 0,
+      "page_errors": 0,
+      "unexpected_console_errors": 0,
+      "expected_console_diagnostics": 1
+    }
+  },
+  "final_validation": {
+    "status": "PASS",
+    "static_contract": {
+      "passed": 71,
+      "failed": 0
+    },
+    "structured_suite": {
+      "total": 299,
+      "passed": 299,
+      "failed": 0,
+      "skipped": 0,
+      "page_errors": 0,
+      "unexpected_console_errors": 0,
+      "expected_console_diagnostics": 1
+    },
+    "syntax": {
+      "passed": 140,
+      "failed": 0
+    },
+    "product_smokes": {
+      "passed": 4,
+      "failed": 0
+    },
+    "diff_check": {
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "contract_gaps": [],
+  "exact_test_commands": [
+    "$node tests/ap-16-4d-3a-static-contract.cjs",
+    "$node tests/run-browser-suite.cjs",
+    "$node tests/ap-16-4d-3a-product-smoke.cjs",
+    "$node tests/icon-01-product-smoke.cjs",
+    "$node tests/ch-ex-01a-product-smoke.cjs",
+    "$node tests/ex-ux-01-6-product-smoke.cjs",
+    "Get-ChildItem -Recurse -File -Include *.js,*.cjs | Where-Object FullName -notmatch '\\\\artifacts\\\\' | ForEach-Object { & $node --check $_.FullName }",
+    "$node tests/generate-slow-dead-calibration-baseline.cjs --check",
+    "git diff --check",
+    "git status --short"
+  ]
+}

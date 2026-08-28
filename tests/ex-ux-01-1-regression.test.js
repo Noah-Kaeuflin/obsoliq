@@ -57,13 +57,13 @@
     assert.ok(header, "Excess page header should render");
     assert.equal(header.querySelector(".dataset-context"), null, "Excess header should not render local dataset context");
     assert.equal(header.querySelectorAll("[data-export-excess]").length, 1, "Excess header should expose one main export action");
-    assert.equal(header.querySelector("[data-export-excess]").textContent.trim(), "Exportieren", "German main export label should be compact");
+    assert.equal(header.querySelector("[data-export-excess]").textContent.trim(), "Fälle exportieren", "German main export label should describe the exported business objects");
     assert.equal(header.querySelector("[data-export-pilot-reviews]"), null, "Pilot Review export should not live in the page header");
     assert.ok(app.document.querySelector(".excess-detail-disclosure [data-export-pilot-reviews]"), "Pilot Review export should remain available in Pilot Review context");
     setControl(app, "#languageSelect", "en", "change");
     bridge.switchViewForTest("excess");
     bridge.renderExcessPageForTest();
-    assert.equal(app.document.querySelector(".excess-page-header [data-export-excess]").textContent.trim(), "Export", "English main export label should be compact");
+    assert.equal(app.document.querySelector(".excess-page-header [data-export-excess]").textContent.trim(), "Export cases", "English main export label should describe the exported business objects");
     setControl(app, "#languageSelect", "de", "change");
   });
 
@@ -107,13 +107,13 @@
     assert.ok(cards[0].textContent.includes("Netto adressierbar"), "First card should be Net Addressable");
     assert.ok(cards[1].textContent.includes(String(summary.caseCount)), "Case count should remain available in summary");
     assert.ok(cards[2].textContent.includes(String(summary.averageOpportunityScore)), "Average Opportunity Score should remain available");
-    assert.ok(cards[3].textContent.includes("Adressierbarkeit"), "Gross-to-net addressability should be visible");
-    assert.ok(cards[3].textContent.includes("Überlappung"), "Overlap should remain visible in reconciliation card");
+    assert.ok(cards[3].textContent.includes("Brutto → Netto"), "Gross-to-Net reconciliation should be labelled precisely");
+    assert.ok(cards[3].textContent.includes("Abzüge"), "Deductions should remain visible in the reconciliation card");
 
     const table = app.document.querySelector(".excess-table");
     assert.ok(table, "Excess worklist table should render");
     assert.equal(table.classList.contains("wide"), false, "Excess table should not use the global wide table contract");
-    assert.equal(app.getComputedStyle(table).minWidth, "740px", "Excess table should use the scoped compact minimum width");
+    assert.equal(app.getComputedStyle(table).minWidth, "720px", "Excess table should use the final fixed-column compact minimum width");
     const headerText = [...table.querySelectorAll("thead th")].map(cell => cell.textContent.trim()).join("|");
     assert.equal(headerText.includes("Brutto-Überbestand"), false, "Separate Gross Excess column should be absent");
     assert.ok(headerText.includes("Material"), "Material column should remain");
@@ -122,7 +122,8 @@
     assert.ok(headerText.includes("Verantwortlich"), "Responsible column should remain");
     assert.equal(headerText.includes("Match-Qualität"), false, "Match column should be removed from the primary Worklist");
     assert.ok(headerText.includes("Priorität"), "Priority column should be visible");
-    assert.ok(headerText.includes("Aktion"), "Compact action affordance column should remain");
+    const openHeader = table.querySelector("thead th:last-child");
+    assert.equal(openHeader?.querySelector(".excess-visually-hidden")?.textContent.trim(), "Fall öffnen", "Compact action affordance column should retain an accessible label");
 
     const firstRow = table.querySelector("tbody tr[data-excess-case-detail]");
     assert.ok(firstRow?.dataset.excessCaseDetail, "Whole row should carry stable Case identity");
@@ -175,7 +176,7 @@
     assert.equal(detailKpiText.includes("Match-Qualität"), false, "Match Quality should not be a primary KPI");
     assert.ok(app.document.querySelector(".excess-score-list .excess-score-row"), "Score drivers should render as compact rows");
     assert.equal(app.document.querySelector(".excess-detail-disclosure[open]"), null, "Secondary disclosures should be closed by default");
-    assert.ok(app.document.querySelector(".excess-decision-core [data-next-step]"), "Next Review Step should be visible in the Decision Core");
+    assert.ok(app.document.querySelector(".excess-detail-scroll [data-next-step]"), "Next Review Step should remain visible at the start of the Detail scroll");
     const scenarioDisclosure = [...app.document.querySelectorAll(".excess-detail-disclosure")]
       .find(disclosure => disclosure.querySelector("summary")?.textContent.includes("Szenarien"));
     assert.ok(scenarioDisclosure, "Scenario disclosure should remain available");

@@ -311,6 +311,21 @@ button {
   border-radius: 9px;
 }
 
+.oq-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: currentColor;
+  pointer-events: none;
+}
+
+.oq-icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
 button.primary {
   color: #fff;
   background: var(--primary);
@@ -615,6 +630,10 @@ main {
   flex: 1 0 max-content;
   min-width: max-content;
   box-shadow: none;
+}
+
+.process-tabs button .oq-icon {
+  flex-shrink: 0;
 }
 
 .process-tabs button:hover {
@@ -3151,6 +3170,20 @@ th {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 7px;
+}
+
+.column-filter-popover-field input.invalid,
+.column-filter-popover-field input[aria-invalid="true"] {
+  border-color: var(--danger, #c93838);
+  box-shadow: 0 0 0 2px rgba(201, 56, 56, 0.1);
+}
+
+.column-filter-range-validation {
+  margin: 7px 0 0;
+  color: var(--danger, #c93838);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .column-filter-bulk-actions {
@@ -8036,26 +8069,28 @@ body.is-scrolled .main-nav {
   text-transform: uppercase;
 }
 
-.excess-case-identity > strong {
+.excess-case-identity > strong,
+.excess-case-identity > h3 {
   display: block;
-  overflow: hidden;
+  min-width: 0;
+  margin: 0;
   color: var(--text);
   font-size: 17px;
   font-weight: 850;
   line-height: 21px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .excess-case-identity > span {
   display: block;
-  overflow: hidden;
+  min-width: 0;
   margin-top: 2px;
   color: var(--muted);
   font-size: 11px;
   line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .excess-case-actions {
@@ -8104,15 +8139,19 @@ body.is-scrolled .main-nav {
 
 .excess-inline-stats strong {
   display: block;
-  overflow: hidden;
+  min-width: 0;
   margin: 2px 0 1px;
   color: var(--text);
   font-size: 13px;
   font-weight: 830;
   line-height: 17px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-variant-numeric: tabular-nums;
+}
+
+.excess-inline-stats > div:first-child strong {
+  white-space: nowrap;
 }
 
 .excess-primary-decision-grid {
@@ -8422,6 +8461,14 @@ body.is-scrolled .main-nav {
 .excess-detail-disclosure[open] > summary::after,
 .scenario-detail-disclosure[open] > summary::after {
   transform: rotate(90deg);
+}
+
+.excess-detail-disclosure > summary:focus-visible,
+.scenario-detail-disclosure > summary:focus-visible,
+.excess-quality-disclosure > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
 }
 
 .excess-disclosure-body {
@@ -8755,7 +8802,512 @@ body.is-scrolled .main-nav {
   min-height: 30px;
 }
 
-@media (max-width: 1180px) {
+#excessPage .excess-card-label {
+  display: block;
+  margin: 7px 0 3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+#excessPage .excess-empty-copy,
+#excessPage .excess-readiness-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+#excessPage .excess-signal-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#excessPage .excess-signal-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+#excessPage .excess-signal-list li span,
+#excessPage .excess-signal-list li strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-signal-list li strong {
+  color: var(--text);
+  font-weight: 800;
+  text-align: right;
+}
+
+#excessPage .excess-hypothesis-note {
+  display: block;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-card-title-row,
+#excessPage .excess-section-heading,
+#excessPage .excess-action-option-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#excessPage .excess-card-title-row h4,
+#excessPage .excess-section-heading h4,
+#excessPage .excess-action-option-head h5 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-readiness-pill,
+#excessPage .excess-option-status {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 9.5px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+#excessPage .excess-readiness-pill.ready,
+#excessPage .excess-option-status.checkable {
+  border-color: var(--success-border);
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+#excessPage .excess-readiness-pill.limited,
+#excessPage .excess-readiness-pill.review,
+#excessPage .excess-option-status.review_required {
+  border-color: var(--warning-border);
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+#excessPage .excess-readiness-pill.not_decidable,
+#excessPage .excess-option-status.not_checkable {
+  border-color: var(--danger-border);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+#excessPage .excess-option-status.not_recommended {
+  border-color: var(--border-strong);
+  color: var(--muted);
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+  margin-top: 7px;
+}
+
+#excessPage .excess-readiness-grid > div {
+  min-width: 0;
+}
+
+#excessPage .excess-readiness-grid > div > span,
+#excessPage .excess-readiness-next > span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+#excessPage .excess-readiness-grid ul {
+  margin: 0;
+  padding-left: 15px;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+#excessPage .excess-readiness-grid li,
+#excessPage .excess-readiness-next strong {
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-readiness-next {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-readiness-next strong {
+  display: block;
+  color: var(--text);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+#excessPage .excess-action-options-section,
+#excessPage .excess-value-narrative,
+#excessPage .excess-work-context {
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+#excessPage .excess-action-options-list {
+  display: grid;
+  gap: 7px;
+}
+
+#excessPage .excess-action-option {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-action-option.primary {
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+}
+
+#excessPage details.excess-action-option.secondary {
+  padding: 0;
+  overflow: hidden;
+}
+
+#excessPage details.excess-action-option.secondary > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+#excessPage details.excess-action-option.secondary > summary::-webkit-details-marker {
+  display: none;
+}
+
+#excessPage details.excess-action-option.secondary > summary::after {
+  content: "›";
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  transition: transform 0.16s ease;
+}
+
+#excessPage details.excess-action-option.secondary[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+#excessPage details.excess-action-option.secondary > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: 7px;
+}
+
+#excessPage .excess-action-option-summary-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-action-option-body {
+  padding: 0 10px 9px;
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-action-option-head > div {
+  min-width: 0;
+}
+
+#excessPage .excess-action-option-head span:first-child {
+  display: block;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+#excessPage .excess-action-option-head h5 {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 830;
+  line-height: 1.35;
+}
+
+#excessPage .excess-action-option-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+  margin: 9px 0 0;
+}
+
+#excessPage .excess-action-option-meta > div {
+  min-width: 0;
+}
+
+#excessPage .excess-action-option-meta dt,
+#excessPage .excess-work-context dt {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 750;
+}
+
+#excessPage .excess-action-option-meta dd,
+#excessPage .excess-work-context dd {
+  margin: 2px 0 0;
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+#excessPage .excess-section-heading {
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+#excessPage .excess-section-heading h4 {
+  margin-bottom: 0;
+}
+
+#excessPage .excess-section-heading > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+#excessPage .excess-section-heading > span strong {
+  color: var(--text);
+}
+
+#excessPage .excess-value-flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+#excessPage .excess-value-step {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-value-step.primary {
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+}
+
+#excessPage .excess-value-step span {
+  display: block;
+  min-height: 25px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-value-step strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-value-unavailable {
+  color: var(--muted) !important;
+  font-weight: 700 !important;
+}
+
+#excessPage .excess-value-boundary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+#excessPage .excess-value-boundary > strong {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+#excessPage .excess-value-boundary ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 15px;
+  margin: 0;
+  padding-left: 15px;
+}
+
+#excessPage .excess-history-heading > div {
+  min-width: 0;
+}
+
+#excessPage .excess-history-heading small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-history-unit-context {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--surface-subtle);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-history-unit-context.available {
+  color: var(--text);
+}
+
+#excessPage .excess-history-unit-context.conflict {
+  border-color: var(--warning-border);
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+#excessPage .excess-historical-state.unavailable > div > small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+#excessPage .excess-history-chart-wrap {
+  min-width: 0;
+  padding-top: 2px;
+}
+
+#excessPage .excess-history-chart-wrap h5 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 820;
+}
+
+#excessPage .excess-history-chart {
+  display: grid;
+  gap: 4px;
+}
+
+#excessPage .excess-history-bar-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 9.5px;
+}
+
+#excessPage .excess-history-bar-row > span {
+  color: var(--muted);
+}
+
+#excessPage .excess-history-bar-row > i {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+}
+
+#excessPage .excess-history-bar-row > i > b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+#excessPage .excess-history-bar-row > strong {
+  color: var(--text);
+  text-align: right;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-history-chart-empty {
+  margin: 0;
+  padding: 8px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--surface-subtle);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+#excessPage .excess-work-context dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px 10px;
+  margin: 0;
+}
+
+#excessPage .excess-work-context dl > div {
+  min-width: 0;
+}
+
+#excessPage .excess-work-context p {
+  margin: 8px 0 0;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+@media (max-width: 1240px) {
   .excess-layout {
     grid-template-columns: 1fr;
     height: auto;
@@ -8792,6 +9344,14 @@ body.is-scrolled .main-nav {
   .excess-case-actions {
     justify-content: flex-start;
   }
+
+  #excessPage .excess-value-flow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #excessPage .excess-work-context dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -8806,12 +9366,19 @@ body.is-scrolled .main-nav {
     justify-content: flex-start;
   }
 
-  .excess-inline-stats,
   .excess-primary-decision-grid,
   .excess-decision-basis-grid,
   .excess-operational-evidence dl,
-  .excess-historical-state dl {
+  .excess-historical-state dl,
+  #excessPage .excess-readiness-grid,
+  #excessPage .excess-action-option-meta,
+  #excessPage .excess-value-flow,
+  #excessPage .excess-work-context dl {
     grid-template-columns: 1fr;
+  }
+
+  .excess-inline-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .excess-inline-stats > div,
@@ -8822,11 +9389,2309 @@ body.is-scrolled .main-nav {
     border-bottom: 1px solid var(--border);
   }
 
+  .excess-inline-stats > div:nth-child(odd) {
+    padding-right: 8px;
+    border-right: 1px solid var(--border);
+  }
+
+  .excess-inline-stats > div:nth-child(even) {
+    padding-left: 8px;
+  }
+
+  .excess-inline-stats > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+
   .excess-inline-stats > div:last-child {
     border-bottom: 0;
   }
 
   .excess-historical-state.unavailable {
     grid-template-columns: 1fr;
+  }
+
+  #excessPage .excess-value-boundary,
+  #excessPage .excess-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 420px) {
+  #excessPage .excess-action-option-head,
+  #excessPage .excess-card-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #excessPage .excess-history-bar-row {
+    grid-template-columns: 54px minmax(0, 1fr) 48px;
+    gap: 5px;
+  }
+
+  #excessPage details.excess-action-option.secondary > summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #excessPage .excess-action-option-summary-copy {
+    flex-basis: calc(100% - 24px);
+  }
+}
+
+/* EX-UX-01.4: presentation-only decision visuals */
+#excessPage .excess-value-narrative,
+#excessPage .excess-historical-state,
+#excessPage .excess-decision-basis-grid > .excess-detail-section,
+#excessPage .excess-operational-evidence {
+  box-shadow: var(--shadow-xs);
+}
+
+#excessPage .excess-value-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+#excessPage .excess-value-context > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-value-context span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+#excessPage .excess-value-context strong {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 850;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-value-bridge {
+  display: grid;
+  gap: 5px;
+}
+
+#excessPage .excess-value-bridge-row {
+  display: grid;
+  grid-template-columns: 16px minmax(118px, 168px) minmax(90px, 1fr) minmax(82px, max-content);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 31px;
+}
+
+#excessPage .excess-value-operator {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 850;
+  text-align: center;
+}
+
+#excessPage .excess-value-label {
+  min-width: 0;
+  color: var(--text);
+  font-size: 10.5px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+#excessPage .excess-value-track {
+  position: relative;
+  display: block;
+  height: 9px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+}
+
+#excessPage .excess-value-track > i {
+  display: block;
+  width: var(--bridge-fill);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+#excessPage .excess-value-bridge-row.deduction .excess-value-track > i {
+  background: var(--warning);
+}
+
+#excessPage .excess-value-bridge-row.net .excess-value-track > i {
+  background: var(--success);
+}
+
+#excessPage .excess-value-bridge-row.zero .excess-value-track::after {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 2px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  content: "";
+}
+
+#excessPage .excess-value-bridge-row.unavailable .excess-value-track {
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+}
+
+#excessPage .excess-value-bridge-row > strong {
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 850;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-value-boundary {
+  display: block;
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  background: var(--surface-subtle);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+#excessPage .excess-value-boundary > strong {
+  color: var(--text);
+  white-space: normal;
+}
+
+#excessPage .excess-history-chart-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+#excessPage .excess-history-chart-title h5 {
+  margin: 0;
+}
+
+#excessPage .excess-history-chart-title > span {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius-pill);
+  color: var(--warning);
+  background: var(--warning-soft);
+  font-size: 9px;
+  font-weight: 760;
+}
+
+#excessPage figure.excess-history-chart {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 7px 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-history-chart svg {
+  display: block;
+  width: 100%;
+  height: 126px;
+  overflow: visible;
+}
+
+#excessPage .excess-history-zero-line {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+  vector-effect: non-scaling-stroke;
+}
+
+#excessPage .excess-history-line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+#excessPage .excess-history-point {
+  fill: var(--surface);
+  stroke: var(--primary);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+#excessPage .excess-history-point.negative {
+  stroke: var(--warning);
+}
+
+#excessPage .excess-history-point.zero {
+  fill: var(--primary-soft);
+}
+
+#excessPage .excess-history-axis-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: -3px;
+  color: var(--muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-history-chart figcaption {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+#excessPage .excess-history-chart-empty strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-decision-basis-grid {
+  grid-template-columns: 1fr;
+}
+
+#excessPage .excess-score-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--primary-border);
+  border-radius: 7px;
+  background: var(--primary-soft);
+}
+
+#excessPage .excess-score-total span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+#excessPage .excess-score-total strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-score-list {
+  display: grid;
+  gap: 7px;
+}
+
+#excessPage .excess-score-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+
+#excessPage .excess-score-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#excessPage .excess-score-label-row span,
+#excessPage .excess-score-label-row strong {
+  margin: 0;
+  color: var(--text);
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+#excessPage .excess-score-label-row span {
+  font-weight: 720;
+}
+
+#excessPage .excess-score-label-row strong {
+  flex: 0 0 auto;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-score-track {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+}
+
+#excessPage .excess-score-track > i {
+  display: block;
+  width: var(--score-fill);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+#excessPage .excess-score-row.low .excess-score-track > i {
+  background: var(--warning);
+}
+
+#excessPage .excess-readiness-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#excessPage .excess-readiness-grid > div {
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-readiness-matrix-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#excessPage .excess-readiness-matrix-list li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
+  color: var(--text);
+  font-size: 10px;
+  line-height: 1.32;
+}
+
+#excessPage .excess-readiness-source-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#excessPage .excess-readiness-marker {
+  position: relative;
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-top: 1px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+#excessPage .excess-readiness-marker.available {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+#excessPage .excess-readiness-marker.available::after {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  width: 3px;
+  height: 5px;
+  border-right: 1.5px solid var(--surface);
+  border-bottom: 1.5px solid var(--surface);
+  content: "";
+  transform: rotate(42deg);
+}
+
+#excessPage .excess-readiness-marker.open {
+  border-color: var(--warning);
+}
+
+#excessPage .excess-readiness-marker.open::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--warning);
+  content: "";
+}
+
+#excessPage .excess-readiness-more {
+  margin-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-readiness-more > summary {
+  padding: 7px 0 2px;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 780;
+  cursor: pointer;
+}
+
+#excessPage .excess-readiness-more > summary span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#excessPage .excess-readiness-more > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+#excessPage .excess-readiness-more > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 6px;
+}
+
+#excessPage .excess-readiness-more h5 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  #excessPage .excess-value-context,
+  #excessPage .excess-readiness-grid,
+  #excessPage .excess-readiness-more > div {
+    grid-template-columns: 1fr;
+  }
+
+  #excessPage .excess-value-bridge-row {
+    grid-template-columns: 16px minmax(108px, 145px) minmax(70px, 1fr) minmax(76px, max-content);
+    gap: 6px;
+  }
+}
+
+@media (max-width: 420px) {
+  #excessPage .excess-value-bridge-row {
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+  }
+
+  #excessPage .excess-value-track {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+
+  #excessPage .excess-history-chart-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #excessPage .excess-history-chart svg {
+    height: 112px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #excessPage .excess-value-track > i,
+  #excessPage .excess-score-track > i,
+  #excessPage .excess-history-line,
+  #excessPage .excess-history-point {
+    transition: none;
+  }
+}
+
+/* =========================================================
+   Excess Decision Workspace
+   EX-UX-01.6 interaction, semantics and density closure
+   ========================================================= */
+.workspace[data-view="excess"] #view-excess {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#excessPage {
+  --excess-detail-nav-height: 42px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+#excessPage .excess-section-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: calc(var(--excess-detail-nav-height) + 10px);
+}
+
+#excessPage .excess-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 1241px) {
+  body:has(.workspace[data-view="excess"]) {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  body:has(.workspace[data-view="excess"]) > header,
+  body:has(.workspace[data-view="excess"]) > .main-nav {
+    flex: 0 0 auto;
+  }
+
+  body:has(.workspace[data-view="excess"]) > main {
+    flex: 1 1 auto;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
+    padding-block: 12px;
+    overflow: hidden;
+  }
+
+  body:has(.workspace[data-view="excess"]) .workspace[data-view="excess"] {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+#excessPage .excess-control-card {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 14px;
+}
+
+#excessPage .excess-page-header .control-card-top {
+  align-items: baseline;
+}
+
+#excessPage .excess-page-header .overview-heading p {
+  margin-top: 2px;
+}
+
+#excessPage .excess-page-header .field label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+#excessPage .excess-page-header input,
+#excessPage .excess-page-header select,
+#excessPage .excess-page-header .excess-reset-button {
+  height: 39px;
+}
+
+#excessPage #excessResetFilters[hidden] {
+  display: none !important;
+}
+
+#excessPage .excess-summary-grid {
+  flex: 0 0 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+#excessPage .excess-summary-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  height: 82px;
+  min-height: 82px;
+  padding: 5px 12px;
+  overflow: hidden;
+  border-radius: 10px;
+  box-shadow: none;
+  text-align: center;
+}
+
+#excessPage .excess-summary-card span {
+  order: 2;
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+#excessPage .excess-summary-card strong {
+  order: 1;
+  overflow: visible;
+  font-size: clamp(21px, 1.7vw, 24px);
+  font-weight: 700;
+  line-height: 1.08;
+  text-overflow: clip;
+}
+
+#excessPage .excess-summary-card small {
+  order: 3;
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+}
+
+#excessPage .excess-summary-card.primary {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+#excessPage .excess-summary-card.primary::before {
+  content: none;
+}
+
+#excessPage .excess-summary-card.primary strong {
+  color: var(--primary);
+}
+
+[data-theme="dark"] #excessPage .excess-summary-card.primary {
+  background: var(--surface);
+}
+
+#excessPage .excess-summary-card.reconciliation strong {
+  font-size: clamp(21px, 1.7vw, 24px);
+}
+
+#excessPage .excess-summary-context {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 2px 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+#excessPage .excess-layout {
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  height: auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+#excessPage .excess-worklist-panel,
+#excessPage .excess-detail-panel {
+  box-shadow: var(--shadow-xs);
+}
+
+#excessPage .excess-table {
+  width: 100%;
+  min-width: 720px;
+  table-layout: fixed;
+}
+
+#excessPage .excess-table col.excess-col-material { width: 26%; }
+#excessPage .excess-table col.excess-col-net { width: 20%; }
+#excessPage .excess-table col.excess-col-score { width: 9%; }
+#excessPage .excess-table col.excess-col-owner { width: 25%; }
+#excessPage .excess-table col.excess-col-priority { width: 13%; }
+#excessPage .excess-table col.excess-col-action { width: 7%; }
+
+#excessPage .excess-table tbody tr {
+  height: 58px;
+}
+
+#excessPage .excess-table th,
+#excessPage .excess-table td {
+  padding: 8px 9px;
+  vertical-align: middle;
+}
+
+#excessPage .excess-table th:nth-child(2),
+#excessPage .excess-table td:nth-child(2) {
+  text-align: right;
+}
+
+#excessPage .excess-table th:nth-child(3),
+#excessPage .excess-table th:nth-child(5),
+#excessPage .excess-table th:nth-child(6),
+#excessPage .excess-table td:nth-child(3),
+#excessPage .excess-table td:nth-child(5),
+#excessPage .excess-table td:nth-child(6) {
+  text-align: center;
+}
+
+#excessPage .excess-table th:nth-child(2) .column-filter-trigger,
+#excessPage .excess-table th:nth-child(3) .column-filter-trigger,
+#excessPage .excess-table th:nth-child(5) .column-filter-trigger {
+  justify-content: center;
+}
+
+#excessPage .excess-table th:nth-child(2) .column-filter-trigger {
+  justify-content: flex-end;
+}
+
+#excessPage .excess-table th:nth-child(3) .column-filter-header-content,
+#excessPage .excess-table th:nth-child(5) .column-filter-header-content {
+  gap: 3px;
+  padding: 6px 4px;
+}
+
+#excessPage .excess-table th:nth-child(3) .column-filter-trigger,
+#excessPage .excess-table th:nth-child(5) .column-filter-trigger {
+  flex-basis: 20px;
+  width: 20px;
+  min-width: 20px;
+  height: 24px;
+  min-height: 24px;
+}
+
+#excessPage .excess-table th:nth-child(3) .column-filter-label,
+#excessPage .excess-table th:nth-child(5) .column-filter-label {
+  overflow: visible;
+  font-size: 11px;
+  text-overflow: clip;
+}
+
+#excessPage .action-material-id,
+#excessPage .excess-table td strong {
+  font-size: 12.75px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+#excessPage .action-material-desc,
+#excessPage .excess-table td small {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+#excessPage .score-badge {
+  height: 26px;
+  min-width: 36px;
+  font-weight: 700;
+}
+
+#excessPage .excess-case-affordance,
+#excessPage .excess-case-affordance span {
+  font-weight: 700;
+}
+
+#excessPage .excess-pagination {
+  justify-content: space-between;
+  min-height: 38px;
+  padding-top: 7px;
+  font-weight: 500;
+}
+
+#excessPage .excess-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#excessPage .excess-pagination button {
+  min-height: 30px;
+  padding-inline: 9px;
+  font-size: 11px;
+}
+
+#excessPage .excess-page-number {
+  min-width: 30px;
+}
+
+#excessPage .excess-page-number.active {
+  border-color: var(--primary-border);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+#excessPage .excess-pagination-gap {
+  color: var(--muted);
+}
+
+#excessPage .excess-decision-core {
+  gap: 8px;
+  padding-bottom: 9px;
+}
+
+#excessPage .excess-case-badge,
+#excessPage .excess-case-badges .action-badge {
+  min-height: 23px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+#excessPage .excess-case-identity > h3 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 22px;
+}
+
+#excessPage .excess-case-identity > span {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+#excessPage .excess-case-actions button {
+  min-height: 33px;
+  font-size: 11px;
+}
+
+#excessPage .excess-inline-stats span,
+#excessPage .excess-inline-stats small {
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+#excessPage .excess-inline-stats strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#excessPage .excess-detail-scroll {
+  padding: 0 3px 0 0;
+}
+
+#excessPage .excess-detail-section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--excess-detail-nav-height);
+  margin: 0;
+  padding: 4px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  scrollbar-width: none;
+}
+
+#excessPage .excess-detail-section-nav::-webkit-scrollbar {
+  display: none;
+}
+
+#excessPage .excess-detail-section-nav button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+#excessPage .excess-detail-section-nav button:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+#excessPage .excess-detail-section-nav button.active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+
+#excessPage .excess-detail-card {
+  gap: 0;
+}
+
+#excessPage .excess-detail-card > [data-excess-detail-section] {
+  border-bottom: 1px solid var(--border);
+}
+
+#excessPage .excess-detail-card > [data-excess-detail-section]:last-of-type {
+  border-bottom: 0;
+}
+
+#excessPage .excess-primary-decision-grid {
+  grid-template-areas:
+    "next next"
+    "why cause"
+    "readiness readiness";
+  gap: 10px 14px;
+  padding: 14px 2px;
+}
+
+#excessPage .excess-primary-decision {
+  padding: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#excessPage .excess-primary-decision.next-step {
+  grid-area: next;
+  padding: 12px 14px;
+  border: 1px solid var(--primary-border);
+  border-radius: 9px;
+  background: var(--primary-soft);
+}
+
+#excessPage .excess-primary-decision.why-prioritized { grid-area: why; }
+#excessPage .excess-cause-hypothesis { grid-area: cause; }
+#excessPage .excess-readiness-card { grid-area: readiness; }
+
+#excessPage .excess-primary-decision h4,
+#excessPage .excess-historical-state h4,
+#excessPage .excess-detail-section h4,
+#excessPage .excess-section-heading h4 {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+#excessPage .excess-primary-decision p {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+#excessPage .excess-primary-decision ul,
+#excessPage .excess-detail-section ul {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+#excessPage .excess-primary-decision small,
+#excessPage .excess-empty-copy,
+#excessPage .excess-readiness-empty,
+#excessPage .excess-signal-list li,
+#excessPage .excess-hypothesis-note {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+#excessPage .excess-card-label,
+#excessPage .excess-readiness-grid > div > span,
+#excessPage .excess-readiness-next > span {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+#excessPage .excess-signal-list li strong {
+  font-weight: 600;
+}
+
+#excessPage .excess-hypothesis-note {
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+#excessPage .excess-readiness-card {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-readiness-pill,
+#excessPage .excess-option-status {
+  min-height: 23px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+#excessPage .excess-readiness-grid {
+  gap: 12px;
+}
+
+#excessPage .excess-readiness-grid > div {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#excessPage .excess-readiness-matrix-list li,
+#excessPage .excess-readiness-next strong,
+#excessPage .excess-readiness-more > summary {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.42;
+}
+
+#excessPage .excess-readiness-pill.not_decidable,
+#excessPage .excess-option-status.not_checkable,
+#excessPage .excess-option-status.not_recommended {
+  color: var(--muted);
+  border-color: var(--border);
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-cause-more {
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-cause-more > summary {
+  padding-top: 7px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+#excessPage .excess-cause-more > .excess-signal-list {
+  margin-top: 7px;
+}
+
+#excessPage .excess-readiness-more h5,
+#excessPage .scenario-detail-disclosure > summary,
+#excessPage .scenario-non-predictive,
+#excessPage .excess-scenario span,
+#excessPage .pilot-context-grid span,
+#excessPage .pilot-review-field span,
+#excessPage .pilot-review-checklist legend {
+  font-weight: 600;
+}
+
+#excessPage .excess-scenario strong {
+  font-weight: 700;
+}
+
+#excessPage .excess-value-narrative {
+  margin: 0;
+  padding: 14px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+#excessPage .excess-section-heading {
+  margin-bottom: 10px;
+}
+
+#excessPage .excess-section-heading > span,
+#excessPage .excess-detail-note,
+#excessPage .excess-value-boundary {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+#excessPage .excess-value-context {
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+#excessPage .excess-value-context > div {
+  padding: 5px 0 7px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#excessPage .excess-value-context span {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+#excessPage .excess-value-context strong {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#excessPage .excess-value-bridge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr) 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 8px;
+}
+
+#excessPage .excess-value-bridge-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  text-align: center;
+}
+
+#excessPage .excess-value-bridge-row > strong {
+  order: 1;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+#excessPage .excess-value-bridge-row.gross > strong { color: var(--primary); }
+#excessPage .excess-value-bridge-row.deduction > strong { color: var(--warning); }
+#excessPage .excess-value-bridge-row.net > strong { color: var(--primary-hover); }
+
+#excessPage .excess-value-bridge-row.deduction.zero > strong::before {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  content: "";
+  vertical-align: 1px;
+}
+
+#excessPage .excess-value-label {
+  order: 2;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+#excessPage .excess-value-operator {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+#excessPage .excess-value-boundary {
+  margin: 7px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#excessPage .excess-historical-state {
+  gap: 10px;
+  margin: 0;
+  padding: 14px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#excessPage .excess-historical-state.unavailable {
+  min-height: 70px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+#excessPage .excess-historical-state.unavailable h4 {
+  margin-bottom: 3px;
+}
+
+#excessPage .excess-historical-state.unavailable button {
+  min-height: 34px;
+  padding: 5px 10px;
+}
+
+#excessPage .excess-historical-state.unavailable p,
+#excessPage .excess-history-limitations,
+#excessPage .excess-history-heading small,
+#excessPage .excess-historical-state.unavailable > div > small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#excessPage .excess-history-heading span,
+#excessPage .excess-history-unit-context {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+#excessPage .excess-history-primary-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+#excessPage .excess-historical-state dt {
+  font-size: 11px;
+}
+
+#excessPage .excess-historical-state dd {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#excessPage .excess-history-chart-wrap h5,
+#excessPage .excess-history-chart-title h5 {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#excessPage figure.excess-history-chart {
+  padding: 9px 10px 8px;
+}
+
+#excessPage .excess-history-chart svg {
+  height: 168px;
+}
+
+#excessPage .excess-history-axis-labels {
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+#excessPage .excess-history-chart figcaption,
+#excessPage .excess-history-chart-empty {
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+#excessPage .excess-history-more {
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-history-more > summary {
+  padding: 8px 0 2px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+#excessPage .excess-history-more > dl {
+  margin-top: 8px;
+}
+
+#excessPage .excess-prioritization-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 14px 2px;
+}
+
+#excessPage .excess-decision-basis-grid > .excess-detail-section,
+#excessPage .excess-operational-evidence {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#excessPage .excess-score-total {
+  margin-bottom: 10px;
+  padding: 0 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#excessPage .excess-score-total span,
+#excessPage .excess-score-label-row span,
+#excessPage .excess-score-label-row strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#excessPage .excess-score-total strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+#excessPage .excess-score-track {
+  height: 6px;
+}
+
+#excessPage .excess-operational-evidence {
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+}
+
+#excessPage .excess-operational-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#excessPage .excess-operational-context b {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+#excessPage .excess-operational-context i {
+  color: var(--border-strong);
+  font-style: normal;
+}
+
+#excessPage .excess-action-options-section {
+  margin: 0;
+  padding: 14px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#excessPage .excess-action-option {
+  padding: 10px 11px;
+  box-shadow: none;
+}
+
+#excessPage .excess-action-option.primary {
+  padding: 10px 12px;
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+}
+
+#excessPage .excess-action-option-head span:first-child,
+#excessPage .excess-action-option-meta dt,
+#excessPage .excess-work-context dt {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+#excessPage .excess-action-option-head h5,
+#excessPage .excess-action-option-summary-copy {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+#excessPage .excess-action-option-meta dd,
+#excessPage .excess-action-primary-fields dd,
+#excessPage .excess-work-context dd,
+#excessPage .excess-work-context p {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+#excessPage .excess-action-primary-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 0.65fr) minmax(0, 1.35fr);
+  gap: 8px 14px;
+  margin: 9px 0 0;
+}
+
+#excessPage .excess-action-primary-fields > div {
+  min-width: 0;
+}
+
+#excessPage .excess-action-primary-fields dt,
+#excessPage .excess-action-option-meta dt {
+  margin-bottom: 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+#excessPage .excess-action-primary-fields dd,
+#excessPage .excess-action-option-meta dd {
+  margin: 0;
+  color: var(--text);
+}
+
+#excessPage .excess-action-evidence-disclosure {
+  margin-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--primary-border) 70%, var(--border));
+}
+
+#excessPage .excess-action-evidence-disclosure > summary {
+  padding-top: 7px;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+#excessPage .excess-action-evidence-disclosure > .excess-action-option-meta {
+  margin-top: 8px;
+}
+
+#excessPage .excess-work-context {
+  padding: 12px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+#excessPage .excess-detail-disclosure {
+  border-width: 0 0 1px;
+  border-radius: 0;
+  background: transparent;
+}
+
+#excessPage .excess-detail-disclosure > summary {
+  padding: 10px 2px;
+  font-size: 11.75px;
+  font-weight: 600;
+}
+
+@media (max-width: 1240px) {
+  .workspace[data-view="excess"] #view-excess {
+    height: auto;
+    overflow: visible;
+  }
+
+  #excessPage {
+    height: auto;
+    min-height: 0;
+  }
+
+  #excessPage .excess-layout {
+    flex: 0 0 auto;
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  #excessPage .excess-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #excessPage .excess-history-primary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  #excessPage .excess-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #excessPage .excess-primary-decision-grid {
+    grid-template-areas:
+      "next"
+      "why"
+      "cause"
+      "readiness";
+    grid-template-columns: 1fr;
+  }
+
+  #excessPage .excess-detail-section-nav {
+    margin-right: -3px;
+  }
+}
+
+@media (max-width: 480px) {
+  #excessPage .excess-summary-grid,
+  #excessPage .excess-history-primary-metrics,
+  #excessPage .excess-value-context {
+    grid-template-columns: 1fr;
+  }
+
+  #excessPage .excess-summary-card {
+    height: 82px;
+    min-height: 82px;
+  }
+
+  #excessPage .excess-value-bridge {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  #excessPage .excess-value-operator {
+    line-height: 1;
+  }
+
+  #excessPage .excess-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #excessPage .excess-pagination-controls {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
+/* CH-EX-01A: canonical value-basis and score-cap states */
+#excessPage .excess-header-value-basis.warning {
+  background: var(--warning-soft);
+}
+
+#excessPage .excess-value-basis-warning {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+#excessPage .excess-score-cap-note {
+  display: block;
+  margin-top: 3px;
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* IR-01: Unified Inventory Risks Cockpit */
+.workspace[data-view="inventory-risks"] > :not(.view),
+.workspace[data-view="inventory-risks"] > .view:not(#view-inventory-risks) {
+  display: none !important;
+}
+
+#view-inventory-risks {
+  min-width: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.inventory-risks-page {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.inventory-risk-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 18px;
+  padding: 18px 20px 14px;
+}
+
+.inventory-risk-header-copy {
+  min-width: 0;
+}
+
+.inventory-risk-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.inventory-risk-header h2,
+.inventory-risk-panel-head h3,
+.inventory-risk-detail h3 {
+  margin: 0;
+  color: var(--text-strong);
+  letter-spacing: 0;
+}
+
+.inventory-risk-header h2 {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.inventory-risk-header p,
+.inventory-risk-panel-head p,
+.inventory-risk-detail-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.inventory-risk-export {
+  align-self: start;
+  white-space: nowrap;
+}
+
+.inventory-risk-segments {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-top: 6px;
+  scrollbar-width: thin;
+}
+
+.inventory-risk-segments button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 34px;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inventory-risk-segments button:hover {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+}
+
+.inventory-risk-segments button.active,
+.inventory-risk-segments button[aria-selected="true"] {
+  border-color: var(--primary-border);
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.inventory-risk-segments strong {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.inventory-risk-controls {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.3fr) repeat(6, minmax(132px, 1fr)) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory-risk-controls label,
+.inventory-risk-panel-head label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.inventory-risk-controls label > span,
+.inventory-risk-panel-head label > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.inventory-risk-controls input,
+.inventory-risk-controls select,
+.inventory-risk-panel-head select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid var(--input-border, var(--border));
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--input-bg, var(--surface));
+  font: inherit;
+  font-size: 11.5px;
+}
+
+.inventory-risk-controls input {
+  padding: 0 10px;
+}
+
+.inventory-risk-reset {
+  height: 34px;
+  white-space: nowrap;
+}
+
+.inventory-risk-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-risk-summary-grid,
+.inventory-risk-financial-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-risk-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.inventory-risk-financial-summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.inventory-risk-summary-card,
+.inventory-risk-financial-card {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  min-height: 78px;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.inventory-risk-summary-card span,
+.inventory-risk-financial-card span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.inventory-risk-summary-card strong,
+.inventory-risk-financial-card strong {
+  overflow: visible;
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.inventory-risk-summary-card small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.inventory-risk-financial-card {
+  min-height: 84px;
+  border-left: 3px solid var(--primary);
+}
+
+.inventory-risk-financial-card.incomplete,
+.inventory-risk-financial-card.unavailable {
+  border-left-color: var(--muted);
+}
+
+.inventory-risk-financial-card small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-risk-financial-guard {
+  margin: 0 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.inventory-risk-workspace {
+  display: grid;
+  grid-template-columns: minmax(620px, 1.15fr) minmax(380px, 0.85fr);
+  align-items: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.inventory-risk-worklist,
+.inventory-risk-detail {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.inventory-risk-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.inventory-risk-panel-head h3 {
+  font-size: 14px;
+}
+
+.inventory-risk-panel-head label {
+  width: 78px;
+}
+
+.inventory-risk-table-wrap {
+  max-height: clamp(390px, 52vh, 620px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb, #a9b7c8) var(--scroll-track, transparent);
+}
+
+.inventory-risk-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.inventory-risk-table th {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  height: 38px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--table-head, var(--surface-subtle));
+  text-align: left;
+}
+
+.inventory-risk-table th:nth-child(1) { width: 150px; }
+.inventory-risk-table th:nth-child(2) { width: 175px; }
+.inventory-risk-table th:nth-child(3) { width: 145px; }
+.inventory-risk-table th:nth-child(4) { width: 110px; }
+.inventory-risk-table th:nth-child(5) { width: 155px; }
+.inventory-risk-table th:nth-child(6) { width: 125px; }
+.inventory-risk-table th:nth-child(7) { width: 46px; }
+
+.inventory-risk-table th button {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.inventory-risk-table td {
+  height: 58px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+  color: var(--text);
+  font-size: 11.5px;
+  vertical-align: middle;
+}
+
+.inventory-risk-table tbody tr {
+  cursor: pointer;
+}
+
+.inventory-risk-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.inventory-risk-table tbody tr.selected {
+  background: var(--primary-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.inventory-risk-table td > strong,
+.inventory-risk-table td > small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-risk-table td > small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.inventory-risk-material-id {
+  color: var(--text-strong);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.inventory-risk-family-pill,
+.inventory-risk-priority,
+.inventory-risk-evidence,
+.inventory-risk-capability {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-subtle);
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.inventory-risk-family-pill.excess_demand { border-color: var(--primary-border); color: var(--primary); background: var(--primary-soft); }
+.inventory-risk-family-pill.slow_dead { border-color: color-mix(in srgb, var(--warning) 28%, var(--border)); color: var(--warning); background: var(--warning-soft); }
+.inventory-risk-family-pill.blocked_quality { border-color: color-mix(in srgb, var(--danger) 24%, var(--border)); color: var(--danger); background: var(--danger-soft); }
+.inventory-risk-priority.critical,
+.inventory-risk-priority.high { color: var(--danger); background: var(--danger-soft); }
+.inventory-risk-priority.medium { color: var(--warning); background: var(--warning-soft); }
+.inventory-risk-priority.low { color: var(--primary); background: var(--primary-soft); }
+.inventory-risk-evidence.ready,
+.inventory-risk-evidence.available,
+.inventory-risk-evidence.complete { color: var(--success); background: var(--success-soft); }
+.inventory-risk-evidence.limited,
+.inventory-risk-evidence.incomplete { color: var(--warning); background: var(--warning-soft); }
+.inventory-risk-capability.limited { color: var(--warning); background: var(--warning-soft); }
+
+.inventory-risk-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 50px;
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.inventory-risk-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inventory-risk-detail {
+  max-height: clamp(500px, 67vh, 760px);
+  overflow: auto;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb, #a9b7c8) var(--scroll-track, transparent);
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] {
+  --excess-detail-nav-height: 42px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-detail-scroll {
+  min-height: 0;
+  max-height: none;
+  padding: 0 3px 0 0;
+  overflow-y: auto;
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-section-anchor {
+  display: block;
+  height: 0;
+  scroll-margin-top: calc(var(--excess-detail-nav-height) + 10px);
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-detail-section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--excess-detail-nav-height);
+  margin: 0;
+  padding: 4px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  scrollbar-width: none;
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-detail-section-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-detail-section-nav button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-detail-section-nav button:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.inventory-risk-detail[data-inventory-risk-detail-family="excess_demand"] .excess-detail-section-nav button.active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+  background: transparent;
+}
+
+.inventory-risk-detail > .slow-dead-detail.panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.inventory-risk-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inventory-risk-detail-head h3 {
+  margin-top: 8px;
+  font-size: 18px;
+}
+
+.inventory-risk-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.inventory-risk-detail-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.inventory-risk-detail-kpis > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.inventory-risk-detail-kpis span {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.inventory-risk-detail-kpis strong {
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-risk-detail > section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.inventory-risk-detail > section h4 {
+  margin: 0 0 7px;
+  color: var(--text-strong);
+  font-size: 11.5px;
+}
+
+.inventory-risk-detail > section p,
+.inventory-risk-detail li,
+.inventory-risk-muted,
+.inventory-risk-limited-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.inventory-risk-detail ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.inventory-risk-limited-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--warning);
+  border-radius: 0 7px 7px 0;
+  background: var(--warning-soft);
+}
+
+.inventory-risk-secondary-family-list {
+  display: grid;
+  gap: 8px;
+}
+
+.inventory-risk-secondary-family-case {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+}
+
+.inventory-risk-secondary-family-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inventory-risk-secondary-family-case dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.inventory-risk-secondary-family-case dl > div {
+  min-width: 0;
+}
+
+.inventory-risk-secondary-family-case dt,
+.inventory-risk-secondary-evidence > strong {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.inventory-risk-secondary-family-case dd {
+  margin: 3px 0 0;
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inventory-risk-secondary-evidence > strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.inventory-risk-table-wrap::-webkit-scrollbar,
+.inventory-risk-detail::-webkit-scrollbar,
+.inventory-risk-segments::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.inventory-risk-table-wrap::-webkit-scrollbar-thumb,
+.inventory-risk-detail::-webkit-scrollbar-thumb,
+.inventory-risk-segments::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scroll-thumb, #a9b7c8);
+  background-clip: padding-box;
+}
+
+@media (max-width: 1500px) {
+  .inventory-risk-controls {
+    grid-template-columns: minmax(190px, 1.4fr) repeat(3, minmax(140px, 1fr)) auto;
+  }
+
+  .inventory-risk-workspace {
+    grid-template-columns: minmax(560px, 1.1fr) minmax(360px, 0.9fr);
+  }
+}
+
+@media (max-width: 1240px) {
+  .inventory-risk-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-risk-detail {
+    max-height: 640px;
+  }
+}
+
+@media (max-width: 900px) {
+  .inventory-risk-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .inventory-risk-search {
+    grid-column: 1 / -1;
+  }
+
+  .inventory-risk-summary-grid,
+  .inventory-risk-financial-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .inventory-risk-header {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 15px;
+  }
+
+  .inventory-risk-export,
+  .inventory-risk-header-copy {
+    width: 100%;
+  }
+
+  .inventory-risk-segments {
+    grid-column: 1;
+  }
+
+  .inventory-risk-controls,
+  .inventory-risk-summary-grid,
+  .inventory-risk-financial-summary,
+  .inventory-risk-detail-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inventory-risk-search {
+    grid-column: 1;
+  }
+
+  .inventory-risk-summary-card,
+  .inventory-risk-financial-card {
+    min-height: 70px;
+  }
+
+  .inventory-risk-pagination {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

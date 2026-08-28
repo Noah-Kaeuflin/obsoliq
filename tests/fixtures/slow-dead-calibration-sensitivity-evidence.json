@@ -1,0 +1,76 @@
+{
+  "schema_version": "ap-16-4d-3b-validation-evidence-v1",
+  "evidence_date": "2026-08-26",
+  "git": {
+    "branch": "fix/ex-ux-01-3-excess-decision-narrative",
+    "initial_head": "aae61092d3fc6a9ba7f1018d711fd387ab99ad5e",
+    "final_head": "aae61092d3fc6a9ba7f1018d711fd387ab99ad5e",
+    "working_tree": "Dirty before and after AP 16.4d.3b because accepted, uncommitted work already existed; no commit or branch change was made."
+  },
+  "preflight": {
+    "status": "PASS",
+    "static_contract": {
+      "passed": 71,
+      "failed": 0
+    },
+    "baseline_report": {
+      "byte_identical": true
+    },
+    "structured_suite": {
+      "total": 299,
+      "passed": 299,
+      "failed": 0,
+      "skipped": 0,
+      "page_errors": 0,
+      "unexpected_console_errors": 0,
+      "expected_console_diagnostics": 1
+    }
+  },
+  "final_validation": {
+    "status": "PASS",
+    "structured_suite": {
+      "total": 305,
+      "passed": 305,
+      "failed": 0,
+      "skipped": 0,
+      "page_errors": 0,
+      "unexpected_console_errors": 0,
+      "expected_console_diagnostics": 1
+    },
+    "static_contract": {
+      "passed": 179,
+      "failed": 0
+    },
+    "syntax": {
+      "passed": 148,
+      "failed": 0
+    },
+    "product_smokes": {
+      "passed": 5,
+      "failed": 0
+    },
+    "artifact_reproduction": {
+      "passed": 3,
+      "failed": 0
+    },
+    "diff_check": {
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "exact_test_commands": [
+    "$node tests/ap-16-4d-3a-static-contract.cjs",
+    "$node tests/generate-slow-dead-calibration-baseline.cjs --check",
+    "$node tests/run-browser-suite.cjs",
+    "$node tests/ap-16-4d-3b-static-contract.cjs",
+    "$node tests/ap-16-4d-3b-product-smoke.cjs",
+    "$node tests/ap-16-4d-3a-product-smoke.cjs",
+    "$node tests/icon-01-product-smoke.cjs",
+    "$node tests/ch-ex-01a-product-smoke.cjs",
+    "$node tests/ex-ux-01-6-product-smoke.cjs",
+    "$node tests/generate-slow-dead-calibration-sensitivity.cjs --check",
+    "Get-ChildItem -Recurse -File -Include *.js,*.cjs | Where-Object FullName -notmatch '\\artifacts\\' | ForEach-Object { & $node --check $_.FullName }",
+    "git diff --check",
+    "git status --short"
+  ]
+}

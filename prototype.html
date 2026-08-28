@@ -31,9 +31,7 @@
       <div class="process-tabs nav-tabs">
         <button class="active" data-process="overview" type="button" data-i18n="navOverview">Overview</button>
         <button data-process="inventory-explorer" type="button" data-i18n="navInventoryExplorer">Inventory Explorer</button>
-        <button data-process="excess-stock" type="button" data-i18n="navExcessStock">Excess Stock</button>
-        <button data-process="slow-dead-stock" type="button" data-i18n="navSlowDeadStock">Slow / Dead Stock</button>
-        <button data-process="blocked-quality" type="button" data-i18n="navBlockedQuality">Blocked / Quality</button>
+        <button data-process="inventory-risks" type="button" data-i18n="navInventoryRisks">Bestandsrisiken</button>
         <button data-process="purchase-orders" type="button" data-i18n="navPurchaseOrders">Purchase Orders</button>
         <button data-process="actions" type="button" data-i18n="navActions">Actions</button>
         <button data-process="data-quality" type="button" data-i18n="navDataQuality">Data Quality</button>
@@ -210,7 +208,7 @@
               <option value="all" data-i18n="all">Alle</option>
             </select>
           </div>
-          <button id="excessResetFilters" class="secondary excess-only-filter excess-reset-button" type="button" data-i18n="resetFilters">Filter zurücksetzen</button>
+          <button id="excessResetFilters" class="secondary excess-only-filter excess-reset-button" type="button" data-i18n="resetFilters" hidden>Filter zurücksetzen</button>
         </div>
       </section>
     </div>
@@ -254,6 +252,10 @@
 
     <section id="view-slow-dead" class="view">
       <div id="slowDeadPage" class="slow-dead-page" data-view="slow-dead-stock"></div>
+    </section>
+
+    <section id="view-inventory-risks" class="view">
+      <div id="inventoryRisksPage" class="inventory-risks-page" data-view="inventory-risks"></div>
     </section>
 
     <section id="view-actions" class="view">
@@ -574,6 +576,16 @@
   <script src="js/application/excess-pilot-review-service.js"></script>
   <script src="js/application/excess-pilot-review-view.js"></script>
   <script src="js/application/excess-pilot-review-controller.js"></script>
+  <script src="js/inventory-risks/inventory-risk-case-contract.js"></script>
+  <script src="js/inventory-risks/excess-risk-adapter.js"></script>
+  <script src="js/inventory-risks/slow-dead-risk-adapter.js"></script>
+  <script src="js/inventory-risks/blocked-quality-risk-adapter.js"></script>
+  <script src="js/inventory-risks/inventory-risk-portfolio-service.js"></script>
+  <script src="js/inventory-risks/inventory-risk-page-model.js"></script>
+  <script src="js/inventory-risks/inventory-risk-export-builder.js"></script>
+  <script src="js/application/inventory-risk-page-view.js"></script>
+  <script src="js/application/inventory-risk-page-controller.js"></script>
+  <script src="js/ui/obsoliq-icon-system.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

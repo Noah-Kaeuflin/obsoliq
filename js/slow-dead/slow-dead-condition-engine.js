@@ -71,7 +71,10 @@
   }
 
   function finiteNumber(value) {
-    const number = Number(value);
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value !== "string" || !value.trim()) return null;
+    if (!/^[+\-]?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?$/.test(value.trim())) return null;
+    const number = Number(value.trim());
     return Number.isFinite(number) ? number : null;
   }
 
@@ -168,10 +171,17 @@
     return codes.some(code => [
       "unit_conflict",
       "multiple_units",
+      "multiple_units_for_entity",
       "inventory_history_unit_mismatch",
       "missing_unit",
+      "missing_unit_for_entity",
       "inventory_unit_missing",
-      "stock_quantity_missing"
+      "inventory_unit_conflict",
+      "stock_quantity_missing",
+      "stock_quantity_invalid",
+      "missing_consumption_quantity",
+      "invalid_consumption_quantity",
+      "numeric_evidence_unavailable"
     ].includes(code));
   }
 

@@ -134,6 +134,7 @@
 
     const normalizedRows = rows.map((row, rowIndex) => {
       const next = { ...(row || {}) };
+      const numericParseResults = {};
       if (Object.prototype.hasOwnProperty.call(row || {}, "__sourceProfitCenterForKey")) {
         Object.defineProperty(next, "__sourceProfitCenterForKey", {
           value: row.__sourceProfitCenterForKey,
@@ -156,6 +157,11 @@
           normalizationPolicy: policyForField(fieldKey, normalizationPolicy)
         });
         const severity = diagnosticSeverity(parseResult, fieldKey, fieldDefinitions, mappingPolicy);
+        numericParseResults[fieldKey] = {
+          status: parseResult.status,
+          normalizedValue: parseResult.status === "valid" ? parseResult.normalizedValue : null,
+          reasonCodes: [...(parseResult.warnings || [])]
+        };
         if (parseResult.detectedCurrency && currencyFieldSet.has(fieldKey)) {
           currencyByField[fieldKey] = currencyByField[fieldKey] || new Set();
           currencyByField[fieldKey].add(parseResult.detectedCurrency);
@@ -196,6 +202,12 @@
           if (severity === "error") blockedCellCount += 1;
           else if (severity === "warning") reviewCellCount += 1;
         }
+        next[fieldKey] = null;
+      });
+      Object.defineProperty(next, "__numericParseResults", {
+        value: numericParseResults,
+        enumerable: false,
+        configurable: true
       });
       return next;
     });

@@ -5,6 +5,10 @@
   const root = global.ObsoliQ = global.ObsoliQ || {};
   root.recovery = root.recovery || {};
 
+  const valueUtils = root.core?.valueUtils;
+  if (!valueUtils) throw new Error("ObsoliQ Recovery Engine requires value-utils.");
+  const { strictNonNegativeFinancialValue } = valueUtils;
+
   const RECOVERY_VALIDATION_EPSILON = 0.000001;
 
 function recoveryInputValue(value) {
@@ -19,7 +23,23 @@ function calculateNoDemandValue(item) {
 }
 
 function calculateRecoveryBreakdown(item) {
-  const stockValue = recoveryInputValue(item.stock_value);
+  const stockValueEvidence = strictNonNegativeFinancialValue(item.stock_value, { fieldKey: "stock_value" });
+  if (stockValueEvidence.status !== "available") {
+    return {
+      gross_recovery_potential: null,
+      recovery_potential: null,
+      recovery_overlap_value: null,
+      recovery_available_stock_value: null,
+      recovery_is_capped: null,
+      net_no_need_value: null,
+      net_no_plan_value: null,
+      net_excess_value: null,
+      net_bad_stock_value: null,
+      recovery_calculation_status: "unavailable",
+      recovery_unavailable_reason: stockValueEvidence.reason
+    };
+  }
+  const stockValue = stockValueEvidence.value;
   const noNeedValue = recoveryInputValue(item.no_need_value);
   const noPlanValue = recoveryInputValue(item.no_plan_value);
   const excessValue = recoveryInputValue(item.excess_value);
@@ -47,7 +67,9 @@ function calculateRecoveryBreakdown(item) {
     net_no_need_value: netNoNeedValue,
     net_no_plan_value: netNoPlanValue,
     net_excess_value: netExcessValue,
-    net_bad_stock_value: netBadStockValue
+    net_bad_stock_value: netBadStockValue,
+    recovery_calculation_status: "available",
+    recovery_unavailable_reason: ""
   };
 }
 
@@ -89,45 +111,48 @@ function validateRecoveryDataset(rows) {
   const errors = [];
   rows.forEach(row => {
     const values = recoveryValuesForValidation(row);
-    const netSum = values.netNoNeedValue + values.netNoPlanValue + values.netExcessValue + values.netBadStockValue;
-    const expectedOverlap = Math.max(0, values.grossRecoveryPotential - values.recoveryPotential);
-    const expectedAvailableStock = Math.max(0, values.stockValue - values.recoveryPotential);
-    const expectedCapped = values.grossRecoveryPotential > values.stockValue;
+    const recoveryCalculationAvailable = row.recovery_calculation_status !== "unavailable";
 
-    const rawRecoveryPotential = finiteOrZero(row.recovery_potential);
+    if (recoveryCalculationAvailable) {
+      const netSum = values.netNoNeedValue + values.netNoPlanValue + values.netExcessValue + values.netBadStockValue;
+      const expectedOverlap = Math.max(0, values.grossRecoveryPotential - values.recoveryPotential);
+      const expectedAvailableStock = Math.max(0, values.stockValue - values.recoveryPotential);
+      const expectedCapped = values.grossRecoveryPotential > values.stockValue;
+      const rawRecoveryPotential = finiteOrZero(row.recovery_potential);
 
-    if (rawRecoveryPotential < 0) {
-      errors.push(recoveryValidationError(row, "NON_NEGATIVE_RECOVERY", "recovery_potential must not be negative.", { recovery_potential: row.recovery_potential }));
-    }
-    if (values.recoveryPotential - values.stockValue > RECOVERY_VALIDATION_EPSILON) {
-      errors.push(recoveryValidationError(row, "RECOVERY_NOT_ABOVE_STOCK", "recovery_potential must not exceed stock_value.", {
-        recovery_potential: row.recovery_potential,
-        stock_value: row.stock_value
-      }));
-    }
-    if (Math.abs(netSum - values.recoveryPotential) > RECOVERY_VALIDATION_EPSILON) {
-      errors.push(recoveryValidationError(row, "NET_SUM_MATCHES_RECOVERY", "Net recovery allocation must match recovery_potential.", {
-        net_sum: netSum,
-        recovery_potential: row.recovery_potential
-      }));
-    }
-    if (Math.abs(values.recoveryOverlapValue - expectedOverlap) > RECOVERY_VALIDATION_EPSILON) {
-      errors.push(recoveryValidationError(row, "OVERLAP_MATCHES_DIFFERENCE", "recovery_overlap_value must match gross minus net recovery.", {
-        recovery_overlap_value: row.recovery_overlap_value,
-        expected_overlap: expectedOverlap
-      }));
-    }
-    if (Math.abs(values.recoveryAvailableStockValue - expectedAvailableStock) > RECOVERY_VALIDATION_EPSILON) {
-      errors.push(recoveryValidationError(row, "AVAILABLE_STOCK_MATCHES_DIFFERENCE", "recovery_available_stock_value must match stock minus recovery.", {
-        recovery_available_stock_value: row.recovery_available_stock_value,
-        expected_available_stock: expectedAvailableStock
-      }));
-    }
-    if (row.recovery_is_capped !== expectedCapped) {
-      errors.push(recoveryValidationError(row, "CAPPED_FLAG_IS_CORRECT", "recovery_is_capped must match gross recovery above stock value.", {
-        recovery_is_capped: row.recovery_is_capped,
-        expected_capped: expectedCapped
-      }));
+      if (rawRecoveryPotential < 0) {
+        errors.push(recoveryValidationError(row, "NON_NEGATIVE_RECOVERY", "recovery_potential must not be negative.", { recovery_potential: row.recovery_potential }));
+      }
+      if (values.recoveryPotential - values.stockValue > RECOVERY_VALIDATION_EPSILON) {
+        errors.push(recoveryValidationError(row, "RECOVERY_NOT_ABOVE_STOCK", "recovery_potential must not exceed stock_value.", {
+          recovery_potential: row.recovery_potential,
+          stock_value: row.stock_value
+        }));
+      }
+      if (Math.abs(netSum - values.recoveryPotential) > RECOVERY_VALIDATION_EPSILON) {
+        errors.push(recoveryValidationError(row, "NET_SUM_MATCHES_RECOVERY", "Net recovery allocation must match recovery_potential.", {
+          net_sum: netSum,
+          recovery_potential: row.recovery_potential
+        }));
+      }
+      if (Math.abs(values.recoveryOverlapValue - expectedOverlap) > RECOVERY_VALIDATION_EPSILON) {
+        errors.push(recoveryValidationError(row, "OVERLAP_MATCHES_DIFFERENCE", "recovery_overlap_value must match gross minus net recovery.", {
+          recovery_overlap_value: row.recovery_overlap_value,
+          expected_overlap: expectedOverlap
+        }));
+      }
+      if (Math.abs(values.recoveryAvailableStockValue - expectedAvailableStock) > RECOVERY_VALIDATION_EPSILON) {
+        errors.push(recoveryValidationError(row, "AVAILABLE_STOCK_MATCHES_DIFFERENCE", "recovery_available_stock_value must match stock minus recovery.", {
+          recovery_available_stock_value: row.recovery_available_stock_value,
+          expected_available_stock: expectedAvailableStock
+        }));
+      }
+      if (row.recovery_is_capped !== expectedCapped) {
+        errors.push(recoveryValidationError(row, "CAPPED_FLAG_IS_CORRECT", "recovery_is_capped must match gross recovery above stock value.", {
+          recovery_is_capped: row.recovery_is_capped,
+          expected_capped: expectedCapped
+        }));
+      }
     }
     [
       ["excess_value", values.excessValue],

@@ -1,5 +1,22 @@
 const ObsoliQModules = window.ObsoliQ || {};
 const obsoliqTestMode = window.__OBSOLIQ_TEST_MODE__ === true;
+const RUNTIME_BUILD_LOG_LIMIT = 50;
+
+function appendRuntimeBuildLog(log = [], entry = {}, options = {}) {
+  const target = Array.isArray(log) ? log : [];
+  const enabled = Object.prototype.hasOwnProperty.call(options, "enabled")
+    ? options.enabled === true
+    : obsoliqTestMode;
+  if (!enabled) return target;
+  const requestedLimit = Number(options.limit);
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+    ? Math.min(requestedLimit, RUNTIME_BUILD_LOG_LIMIT)
+    : RUNTIME_BUILD_LOG_LIMIT;
+  target.push({ ...(entry || {}) });
+  if (target.length > limit) target.splice(0, target.length - limit);
+  return target;
+}
+
 const obsoliqFaultOptionKeys = [
   "forceBuildErrorForTest",
   "forceCommitFailureForTest",
@@ -139,6 +156,18 @@ if (!ObsoliQModules.application?.excessPilotReviewView) {
 if (!ObsoliQModules.application?.excessPilotReviewController) {
   throw new Error("ObsoliQ Excess Pilot Review Controller failed to load.");
 }
+if (!ObsoliQModules.inventoryRisks?.caseContract) {
+  throw new Error("ObsoliQ Inventory Risk Case Contract failed to load.");
+}
+if (!ObsoliQModules.inventoryRisks?.excessRiskAdapter || !ObsoliQModules.inventoryRisks?.slowDeadRiskAdapter || !ObsoliQModules.inventoryRisks?.blockedQualityRiskAdapter) {
+  throw new Error("ObsoliQ Inventory Risk adapters failed to load.");
+}
+if (!ObsoliQModules.inventoryRisks?.portfolioService || !ObsoliQModules.inventoryRisks?.pageModel || !ObsoliQModules.inventoryRisks?.exportBuilder) {
+  throw new Error("ObsoliQ Inventory Risk portfolio modules failed to load.");
+}
+if (!ObsoliQModules.application?.inventoryRiskPageView || !ObsoliQModules.application?.inventoryRiskPageController) {
+  throw new Error("ObsoliQ Inventory Risk application modules failed to load.");
+}
 
 const {
   inventoryFieldDefinitions,
@@ -153,9 +182,11 @@ const {
 } = ObsoliQModules.core.canonical;
 
 const {
-  magnitudeFactor,
+  aggregateNumericValues,
   hasMagnitudeSuffix,
-  normalizeLocalizedNumber,
+  inferNumericLocaleProfile,
+  numericEvidence,
+  parseLocalizedNumericValue,
   toNumber
 } = ObsoliQModules.core.valueUtils;
 
@@ -210,6 +241,7 @@ const dataPackageRegistry = createDataPackageRegistry();
 const INVENTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.INVENTORY_SNAPSHOT;
 const MATERIAL_MASTER_PACKAGE_TYPE = DATA_PACKAGE_TYPES.MATERIAL_MASTER;
 const CONSUMPTION_HISTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.CONSUMPTION_HISTORY;
+const PURCHASE_ORDERS_IMPORT_SUPPORTED = DATA_PACKAGE_TYPE_DEFINITIONS[DATA_PACKAGE_TYPES.PURCHASE_ORDERS]?.importSupported === true;
 const MATERIAL_MASTER_MAPPING_POLICY = ObsoliQModules.data.materialMasterBuilder.MATERIAL_MASTER_MAPPING_POLICY;
 const CONSUMPTION_HISTORY_MAPPING_POLICY = ObsoliQModules.data.consumptionHistoryBuilder.CONSUMPTION_HISTORY_MAPPING_POLICY;
 const CONSUMPTION_HISTORY_FIELD_DEFINITIONS = ObsoliQModules.data.consumptionHistoryBuilder.CONSUMPTION_HISTORY_FIELD_DEFINITIONS;
@@ -226,7 +258,7 @@ let historicalMetricsRuntimeBuildLog = [];
 const historicalMetricsRuntimeCoordinator = ObsoliQModules.application.historicalMetricsRuntimeCoordinator.createHistoricalMetricsRuntimeCoordinator({
   buildRuntime: input => {
     historicalMetricsRuntimeBuildCount += 1;
-    historicalMetricsRuntimeBuildLog.push({
+    historicalMetricsRuntimeBuildLog = appendRuntimeBuildLog(historicalMetricsRuntimeBuildLog, {
       inputSignature: input?.inputSignature || "",
       requestedAt: new Date().toISOString()
     });
@@ -259,6 +291,15 @@ const excessPilotReviewModule = ObsoliQModules.application.excessPilotReviewServ
 const excessPilotReviewService = excessPilotReviewModule.createExcessPilotReviewService();
 let excessPilotReviewView = null;
 let excessPilotReviewController = null;
+const inventoryRiskCaseContract = ObsoliQModules.inventoryRisks.caseContract;
+const excessRiskAdapter = ObsoliQModules.inventoryRisks.excessRiskAdapter;
+const slowDeadRiskAdapter = ObsoliQModules.inventoryRisks.slowDeadRiskAdapter;
+const blockedQualityRiskAdapter = ObsoliQModules.inventoryRisks.blockedQualityRiskAdapter;
+const inventoryRiskPortfolioService = ObsoliQModules.inventoryRisks.portfolioService;
+const inventoryRiskPageModelModule = ObsoliQModules.inventoryRisks.pageModel;
+const inventoryRiskExportBuilder = ObsoliQModules.inventoryRisks.exportBuilder;
+let inventoryRiskPageView = null;
+let inventoryRiskPageController = null;
 const inputTrustService = ObsoliQModules.application.inputTrustService.createInputTrustService({
   canonical: ObsoliQModules.core.canonical,
   schemaProfiler: ObsoliQModules.data.schemaProfiler,
@@ -554,6 +595,7 @@ const translations = {
     navAriaLabel: "Bestandsnavigation",
     navOverview: "Übersicht",
     navInventoryExplorer: "Bestands-Explorer",
+    navInventoryRisks: "Bestandsrisiken",
     navExcessStock: "Überbestand",
     navSlowDeadStock: "Langsam- / Totbestand",
     navBlockedQuality: "Gesperrt / Qualität",
@@ -568,6 +610,97 @@ const translations = {
     navShowSections: "Bereiche anzeigen",
     navCurrentSection: "Aktueller Bereich:",
     navShowFullBar: "Navigationsleiste anzeigen",
+    inventoryRiskEyebrow: "Inventory Risk Portfolio",
+    inventoryRiskTitle: "Bestandsrisiken",
+    inventoryRiskSubtitle: "Ein gemeinsamer Arbeitsbereich für Überbestand, fehlenden Bedarf, Slow-/Dead-Stock sowie gesperrte und QI-Bestände.",
+    inventoryRiskExport: "Risk Cases exportieren",
+    inventoryRiskSegmentsAria: "Bestandsrisiko-Segmente",
+    inventoryRiskSegment_all: "Alle Risiken",
+    inventoryRiskSegment_excess_demand: "Überbestand & Bedarf",
+    inventoryRiskSegment_slow_dead: "Langsam / Totbestand",
+    inventoryRiskSegment_blocked_quality: "Gesperrt / Qualität",
+    inventoryRiskSegment_prioritized: "Priorisierte Fälle",
+    inventoryRiskFiltersAria: "Filter für Bestandsrisiken",
+    inventoryRiskOwner: "Verantwortlich",
+    inventoryRiskFamilySubtype: "Risikofamilie / Subtyp",
+    inventoryRiskEvidenceStatus: "Evidenzstatus",
+    inventoryRiskUnassigned: "Nicht zugeordnet",
+    inventoryRiskSummaryAria: "Operative Bestandsrisiko-Zusammenfassung",
+    inventoryRiskUniqueEntities: "Eindeutige Risiko-Entitäten",
+    inventoryRiskPrioritizedCases: "Priorisierte Fälle",
+    inventoryRiskOwnerCoverage: "Owner-Abdeckung",
+    inventoryRiskEvidenceReadiness: "Evidenzbereitschaft",
+    inventoryRiskEvidenceReadinessCount: "{ready} von {total} Fällen",
+    inventoryRiskEvidenceReadinessHelp: "Anteil der aktuell gefilterten Portfolio-Risikofälle, deren erforderliche Nachweise vollständig oder verfügbar sind.",
+    inventoryRiskSeparatedFinancials: "Getrennte finanzielle Semantiken",
+    inventoryRiskNetAddressable: "Netto adressierbar",
+    inventoryRiskExposure: "Slow-/Dead-Bestandsexposure",
+    inventoryRiskBlockedValue: "Gesperrter / QI-Wert",
+    inventoryRiskFinancialIncomplete: "{available} von {total} Werten verfügbar",
+    inventoryRiskFinancialSemanticNote: "Eigene Wertsemantik",
+    inventoryRiskNoCombinedTotal: "Hinweis: Die drei finanziellen Größen werden bewusst nicht zu einem Gesamt-Recovery-Wert addiert.",
+    inventoryRiskWorklistTitle: "Risiko-Entscheidungsliste",
+    inventoryRiskWorklistSubtitle: "Entity-deduplizierte Portfolio-Fälle oder Family Cases im gewählten Segment.",
+    inventoryRiskColumnRisk: "Risiko",
+    inventoryRiskColumnMaterial: "Material",
+    inventoryRiskColumnValue: "Wert / Exposure",
+    inventoryRiskOpenCase: "Case öffnen",
+    inventoryRiskResultCount: "{count} Fälle",
+    pageStatus: "Seite {page} von {pages}",
+    inventoryRiskSelectCase: "Wähle einen Case aus der Entscheidungsliste.",
+    inventoryRiskExactCaseMissing: "Angeforderter Case nicht verfügbar",
+    inventoryRiskExactCaseMissingBody: "Die übergebene Case-Identität ist im aktiven Segment nicht vorhanden. Es wurde kein anderer Case geöffnet.",
+    inventoryRiskOpenInventory: "Im Bestand öffnen",
+    inventoryRiskOpenActions: "In Maßnahmen öffnen",
+    inventoryRiskCapabilityLimited: "Fähigkeit eingeschränkt",
+    inventoryRiskCapabilityStatus: "Fähigkeitsstatus",
+    inventoryRiskCapability_available: "Verfügbar",
+    inventoryRiskCapability_limited: "Eingeschränkt",
+    inventoryRiskCapability_unavailable: "Nicht verfügbar",
+    inventoryRiskSecondaryFamilies: "Sekundäre Risikofamilien",
+    inventoryRiskSeparatedValue: "Getrennte Finanzsemantik",
+    inventoryRiskLimitations: "Einschränkungen",
+    inventoryRiskSourceStatus: "Quellstatus",
+    inventoryRiskExistingCauseContext: "Vorhandener Ursachen-Kontext",
+    inventoryRiskNextQualityStep: "Nächster Quality-Prüfschritt",
+    inventoryRiskAvailableEvidence: "Verfügbare Evidenz",
+    inventoryRiskCounterEvidence: "Gegenevidenz",
+    inventoryRiskMissingEvidence: "Fehlende Evidenz",
+    inventoryRiskMissingQualityEvidence: "Fehlende Quality-Evidenz",
+    inventoryRiskBlockedLimitedNote: "Blocked / Quality ist aktuell bewusst eingeschränkt: Es werden keine Ursachen, Freigabewahrscheinlichkeiten oder Quality-Entscheidungen erfunden.",
+    inventoryRiskEmpty_no_filter_results: "Keine Cases entsprechen den aktuellen Filtern.",
+    inventoryRiskEmpty_no_risk_cases: "Für die aktuelle Datenbasis sind keine belastbaren Risk Cases verfügbar.",
+    inventoryRiskEmpty_risk_cases_excluded_missing_identity: "Die risikobehafteten Bestandszeilen konnten wegen fehlender Materialidentität nicht in das Unified Portfolio aufgenommen werden. Bitte prüfe die Materialnummern in der Datenbasis.",
+    inventoryRiskEmpty_risk_family_unavailable: "Diese Risikofamilie ist für die aktuelle Datenbasis nicht verfügbar. Die erforderliche Evidenz oder Datenbasis fehlt.",
+    inventoryRiskIdentityContainment: "{count} risikobehaftete Bestandszeile(n) wurde(n) wegen fehlender Materialidentität aus dem Unified Portfolio ausgeschlossen. Die Zeilen bleiben in den Rohdaten und der Diagnose erhalten.",
+    inventoryRiskExportSheet: "Bestandsrisiken",
+    inventoryRiskExportReady: "Risk-Case-Export wird erstellt",
+    inventoryRiskFamily_excess_demand: "Überbestand & Bedarf",
+    inventoryRiskFamily_slow_dead: "Langsam / Totbestand",
+    inventoryRiskFamily_blocked_quality: "Gesperrt / Qualität",
+    inventoryRiskSubtype_excess: "Überbestand",
+    inventoryRiskSubtype_no_demand: "Ohne Bedarf",
+    inventoryRiskSubtype_unplanned: "Ohne Plan",
+    inventoryRiskSubtype_slow_moving: "Slow Moving",
+    inventoryRiskSubtype_non_moving: "Non Moving",
+    inventoryRiskSubtype_dead_stock_candidate: "Totbestand-Kandidat",
+    inventoryRiskSubtype_intermittent_expected: "Intermittierender Bedarf",
+    inventoryRiskSubtype_strategic_reserve: "Strategische Reserve",
+    inventoryRiskSubtype_blocked: "Gesperrt",
+    inventoryRiskSubtype_quality_inspection: "Qualitätsprüfung",
+    inventoryRiskSubtype_multiple: "Mehrere Signale",
+    inventoryRiskPriority_critical: "Kritisch",
+    inventoryRiskPriority_high: "Hoch",
+    inventoryRiskPriority_medium: "Mittel",
+    inventoryRiskPriority_low: "Niedrig",
+    inventoryRiskPriority_review_required: "Prüfung erforderlich",
+    inventoryRiskEvidence_ready: "Entscheidungsbereit",
+    inventoryRiskEvidence_available: "Verfügbar",
+    inventoryRiskEvidence_complete: "Vollständig",
+    inventoryRiskEvidence_limited: "Eingeschränkt",
+    inventoryRiskEvidence_incomplete: "Unvollständig",
+    inventoryRiskEvidence_invalid: "Ungültig",
+    inventoryRiskEvidence_unavailable: "Nicht verfügbar",
     overviewTitle: "Übersicht",
     overviewSubtitle: "Managementübersicht über Bestandswert, Recovery-Potenzial und priorisierte Bestandsrisiken.",
     summarySectionLabel: "Kernkennzahlen",
@@ -642,8 +775,6 @@ const translations = {
     slowDeadEmpty_error: "Slow-/Dead-Cases können wegen eines Runtime-Fehlers nicht angezeigt werden.",
     stockQuantity: "Bestandsmenge",
     baseUnit: "Basismengeneinheit",
-    netConsumption3m: "Nettoverbrauch 3M",
-    netConsumption6m: "Nettoverbrauch 6M",
     activeConsumptionMonths12m: "Aktive Verbrauchsmonate 12M",
     movementFrequency12m: "Bewegungsfrequenz 12M",
     historyCoverageMonths: "Historienabdeckung",
@@ -740,16 +871,16 @@ const translations = {
     excessSummaryGross: "Brutto-Überbestand",
     excessSummaryNet: "Netto adressierbar",
     excessSummaryOverlap: "Doppelzählung / Überlappung",
-    excessSummaryScore: "Ø Opportunity Score",
+    excessSummaryScore: "Ø Priorisierungsscore",
     portfolioContext: "Portfolio-Kontext",
     excessTableTitle: "Priorisierte Überbestandsfälle",
     excessTableSubtitle: "Sortiert nach Score und adressierbarem Netto-Potenzial.",
     excessDetailsTitle: "Fallentscheidung",
     excessDetailsSubtitle: "Score-Treiber, Szenarien, Evidenz und bekannte Grenzen für den ausgewählten Fall.",
-    excessNoSelection: "Wähle einen Excess-Fall aus der Liste.",
-    excessOpenActions: "In Maßnahmen öffnen",
+    excessNoSelection: "Wähle einen Überbestandsfall aus der Liste.",
+    excessOpenActions: "In Maßnahmen öffnen →",
     excessViewDetails: "Details",
-    excessExport: "Excess-Liste exportieren",
+    excessExport: "Fälle exportieren",
     excessScenarioTitle: "Szenarien",
     excessScenarioUnavailable: "Nicht verfügbar",
     excessScenarioImpact: "Geschätzter Effekt",
@@ -771,31 +902,47 @@ const translations = {
     grossNetReconciliation: "Brutto → Netto",
     grossNetFlow: "{gross} → {net}",
     grossNetOverlap: "{overlap} Überlappung",
+    excessValueBasisReview: "Wertbasis prüfen",
+    excessValueBasisInvalidDetail: "Brutto, Abzüge und Netto sind fehlend, ungültig oder nicht mathematisch abgestimmt.",
+    excessScoreCapApplied: "Rohwert {uncapped} · Cap {cap} · {capped} Punkte gedeckelt",
+    excessHeaderGross: "Brutto",
+    excessHeaderOverlap: "Abzüge",
     excessRowDetails: "Fall öffnen",
     excessOwnerFilter: "Verantwortlich",
     excessResponsible: "Verantwortlich",
-    excessPrimaryPortfolioOpportunity: "Primäre Portfoliochance",
+    excessPrimaryPortfolioOpportunity: "Identifiziertes Potenzial",
     excessCasePortfolioMeta: "{materials} Materialien · {plants} Werke",
-    excessSummaryPrioritization: "Priorisierung",
+    excessSummaryPrioritization: "Ø Priorisierungsscore",
     excessPrioritizationMeta: "Bester Fall: {maximum} · {high} hohe Prioritäten",
-    excessAddressability: "Adressierbarkeit",
-    excessFullyAddressable: "Vollständig netto adressierbar",
+    excessAddressability: "Brutto → Netto",
+    excessFullyAddressable: "Brutto und Netto entsprechen sich",
     excessAddressabilityReduced: "{overlap} durch Cap / Überlappung reduziert",
     excessAddressabilityUnavailable: "Brutto-Basis nicht verfügbar",
-    excessAddressabilityMeta: "Brutto {gross} · Überlappung {overlap}",
-    excessOpportunityScoreExplanation: "Transparente Priorisierung von 0 bis 100 – keine Erfolgswahrscheinlichkeit.",
-    excessScoreShortNote: "keine Wahrscheinlichkeit",
+    excessAddressabilityMeta: "{overlap} Abzüge",
+    excessCasesNoun: "Fälle",
+    excessPaginationRange: "{start}–{end} von {total} Fällen",
+    excessDetailNavigation: "Abschnitte der Fallentscheidung",
+    excessSectionDecision: "Entscheidung",
+    excessSectionValue: "Wertlogik",
+    excessSectionHistory: "Historie",
+    excessSectionPrioritization: "Priorisierung",
+    excessSectionActions: "Handlungswege",
+    excessHistoryMore: "Weitere historische Kennzahlen",
+    excessOpportunityScoreExplanation: "Transparente Priorisierung von 0 bis 100 – kein Erfolgsversprechen.",
+    excessScoreShortNote: "kein Erfolgsversprechen",
+    excessScoreAccessibleLabel: "Opportunity Score",
     excessCaseBadge: "Überbestand",
     excessOpenInventory: "Im Bestand öffnen",
     excessNoLinkedInventory: "Der Bestandsdatensatz dieses Überbestandsfalls konnte nicht eindeutig geöffnet werden.",
     excessNextReviewStep: "Nächster Prüfschritt",
     excessNoNextReviewStep: "Kein nächster Prüfschritt verfügbar.",
     excessDecisionRequired: "Entscheidung erforderlich",
-    excessOperationalEvidence: "Operative Evidenz",
+    excessOperationalEvidence: "Kontext",
+    excessOperationalMatchLabel: "Match",
     excessHistoricalEvidence: "Historische Evidenz",
     excessHistoricalUnavailableTitle: "Historischer Verlauf nicht verfügbar.",
     excessHistoricalUnavailableBody: "Verbrauchshistorie importieren, um letzten Verbrauch, 12-Monatsverbrauch, Trend und Reichweite zu ergänzen.",
-    excessImportHistory: "Verbrauchshistorie importieren",
+    excessImportHistory: "Importieren",
     excessScenarioAssumptions: "Szenarien & Annahmen",
     excessDataRelationship: "Daten- und Relationship-Qualität",
     excessTechnicalProvenance: "Technische Provenance",
@@ -803,24 +950,131 @@ const translations = {
     modelVersion: "Modellversion",
     whyPrioritized: "Warum priorisiert",
     whyNotHigher: "Warum nicht höher",
+    excessCauseHypothesis: "Ursachenhypothese",
+    excessLikelyCause: "Wahrscheinliche Ursache",
+    excessSupportingSignals: "Unterstützende Signale",
+    excessCauseRuleBasedNotice: "Regelbasierte Hypothese – fachliche Bestätigung erforderlich",
+    excessCauseUnavailable: "Mit der aktuellen Datenbasis ist keine belastbare Ursachenhypothese verfügbar.",
+    excessAdditionalSignals: "Weitere Signale",
+    excessDecisionReadiness: "Entscheidungsbasis",
+    excessReadinessStatus: "Status",
+    excessReadinessEvidence: "Vorhandene Evidenz",
+    excessReadinessMissing: "Fehlende Evidenz",
+    excessReadinessLimits: "Entscheidungsgrenzen",
+    excessReadinessNextCheck: "Nächster Daten- oder Prüfschritt",
+    excessReadiness_ready: "Entscheidungsbereit",
+    excessReadiness_limited: "Eingeschränkt entscheidbar",
+    excessReadiness_review: "Prüfung erforderlich",
+    excessReadiness_not_decidable: "Nicht entscheidbar",
+    excessAdditionalEvidenceStep: "Zusätzlich benötigte Evidenz",
+    excessNoMissingEvidence: "Keine offenen Evidenzlücken in der aktuellen Projektion.",
+    excessNoKnownLimitations: "Keine bekannten offenen Grenzen in der aktuellen Projektion.",
+    readinessEvidence_case_identity: "Eindeutige Fallidentität",
+    readinessEvidence_gross_net_value_basis: "Gültige Brutto-zu-Netto-Wertbasis",
+    readinessEvidence_root_cause: "Regelbasierte Ursachenhypothese",
+    readinessEvidence_recommended_action: "Autoritative Empfehlung",
+    readinessEvidence_next_step: "Konkreter nächster Prüfschritt",
+    readinessEvidence_owner_assignment: "Owner-Zuordnung",
+    readinessEvidence_exact_relationship: "Eindeutige Material-Werk-Zuordnung",
+    readinessEvidence_historical_evidence: "Historische Evidenz",
+    readinessEvidence_primary_option_checkability: "Prüfbarer primärer Handlungsweg",
+    readinessMissing_case_identity: "Eindeutige Fallidentität",
+    readinessMissing_gross_net_value_basis: "Gültige Brutto-zu-Netto-Wertbasis",
+    readinessMissing_recommended_action: "Autoritative Empfehlung",
+    readinessMissing_root_cause: "Ursachenhypothese",
+    readinessMissing_owner_reference: "Verantwortlicher",
+    readinessMissing_owner_function: "Owner-Funktion",
+    readinessMissing_exact_relationship: "Eindeutige Material-Werk-Zuordnung",
+    readinessMissing_next_step: "Nächster Prüfschritt",
+    readinessMissing_primary_option_checkability: "Prüfbarkeit der Primärempfehlung",
+    readinessMissing_historical_evidence: "Historische Evidenz",
+    excessActionOptions: "Prüfbare Handlungswege",
+    excessPrimaryRecommendation: "Prüfbare Empfehlung",
+    excessAdditionalActionOptionsUnavailable: "Weitere Handlungswege können mit der aktuellen Datenbasis nicht bewertet werden.",
+    excessActionOptionEvidence: "Evidenz",
+    excessActionOptionMissing: "Fehlende Evidenz",
+    excessActionOptionNextCheck: "Nächster Check",
+    excessActionOptionProvenance: "Herleitung",
+    excessOptionStatus_checkable: "Prüfbar",
+    excessOptionStatus_review_required: "Prüfung erforderlich",
+    excessOptionStatus_not_checkable: "Nicht prüfbar",
+    excessOptionStatus_not_recommended: "Nicht empfehlenswert",
+    excessOptionNoEvidence: "Keine konkrete Evidenz verfügbar",
+    excessActionEvidenceDisclosure: "Evidenz und Herleitung anzeigen",
+    excessOptionProvenance_recommended_action: "Bestehendes recommended_action",
+    excessOptionProvenance_decision_type: "Strukturierter Entscheidungstyp",
+    excessOptionProvenance_next_step: "Bestehender Prüfschritt",
+    excessOptionProvenance_scenario_availability: "Strukturiertes Szenario-Ergebnis",
+    excessPoState_no_case_evidence: "Keine PO-Evidenz im aktuellen Fall",
+    excessPoState_concrete: "Konkrete PO-Evidenz",
+    excessPoState_insufficient: "PO-Evidenz unzureichend",
+    excessPoSource_inventory_row_fields: "Felder der aktuellen Inventory-Zeile",
+    excessPoSource_none: "Keine Zeilenquelle",
+    excessPoPackage_unsupported: "Eigenständiges Purchase-Orders-Paket im aktuellen MVP nicht verfügbar",
+    excessPoPackage_supported: "Eigenständiger Purchase-Orders-Import unterstützt",
     grossNetExplanation: "Brutto-zu-Netto-Erklärung",
+    excessValueLogic: "Wertlogik: Brutto → Netto",
+    excessValueBridgeTitle: "Brutto-zu-Netto-Wertbrücke",
+    excessValueBridgeGross: "Brutto-Überbestand",
+    excessValueBridgeNet: "Netto adressierbar",
+    excessDeductionsOverlap: "Abzüge / Überlappung",
+    excessValueStatus: "Wertstatus",
+    excessIdentifiedPotential: "Identifiziertes Potenzial",
+    excessValueBoundarySentence: "Identifiziertes Potenzial – noch nicht genehmigt oder realisiert.",
+    excessGrossNetNoDeduction: "Brutto und Netto entsprechen sich; 0 € wurden abgezogen.",
+    excessGrossNetDeduction: "Brutto abzüglich {deduction} ergibt {net} netto adressierbares Potenzial.",
+    excessValueBoundaryTitle: "Noch kein",
+    excessValueBoundaryExpected: "erwarteter Recovery-Wert",
+    excessValueBoundaryApproved: "genehmigter Wert",
+    excessValueBoundaryRealized: "realisierter Cash-Effekt",
     ownerActionContext: "Owner- und Maßnahmenkontext",
+    excessWorkContext: "Bearbeitung",
+    excessActionStatusSessionNote: "Maßnahmenstatus nur für diese Sitzung; „Umgesetzt“ ist kein Nachweis eines Cash- oder Recovery-Erfolgs.",
+    excessHistoricalMonthly: "Monatlicher Verbrauchsverlauf",
+    excessHistoricalMonthlyLastTwelve: "Monatlicher Nettoverbrauch – letzte 12 Monate",
+    excessHistoricalMonthlyUnavailable: "Monatlicher Verlauf nicht verfügbar",
+    excessHistoricalMonthlyInsufficient: "Für einen Verlauf sind noch nicht genügend Monatswerte vorhanden.",
+    excessHistoricalChartDescription: "{count} kanonische Monatswerte von {start} bis {end}; Wertebereich {minimum} bis {maximum} {unit}.",
+    excessHistoricalPartialPeriod: "Aktuelle Teilperiode enthalten",
+    excessHistoricalUnitLabel: "Historische Mengeneinheit",
+    excessHistoricalUnitMissing: "Einheit nicht verfügbar",
+    excessHistoricalUnitConflict: "Mengenkennzahlen eingeschränkt – Einheit nicht eindeutig",
+    excessHistoryState_package_missing_title: "Historische Evidenz nicht verfügbar",
+    excessHistoryState_package_missing_body: "Verbrauchshistorie importieren, um letzten Verbrauch, Trend und Reichweite zu prüfen.",
+    excessHistoryState_loaded_no_exact_relationship_title: "Historie geladen, aber keine eindeutige Zuordnung",
+    excessHistoryState_loaded_no_exact_relationship_body: "Für den exakten Bestandszeilenschlüssel liegt keine eindeutig zugeordnete Historie vor.",
+    excessHistoryState_not_calculated_title: "Kennzahlen noch nicht berechnet",
+    excessHistoryState_not_calculated_body: "Die aktuelle Historical Runtime hat für diesen Datenstand noch keine abgeschlossenen Kennzahlen geliefert.",
+    excessHistoryState_limited_title: "Kennzahlen eingeschränkt verfügbar",
+    excessHistoryState_limited_body: "Historische Kennzahlen sind vorhanden, unterliegen jedoch den ausgewiesenen Grenzen.",
+    excessHistoryState_insufficient_title: "Kennzahlen nicht ausreichend",
+    excessHistoryState_insufficient_body: "Die zugeordnete Historie reicht für belastbare Kennzahlen nicht aus.",
+    excessHistoryState_available_title: "Kennzahlen verfügbar",
+    excessHistoryState_available_body: "Kanonische Kennzahlen für den exakten Bestandsdatensatz sind verfügbar.",
+    excessHistoryState_runtime_error_title: "Runtime-Fehler",
+    excessHistoryState_runtime_error_body: "Die Historical Runtime konnte für den aktuellen Datenstand nicht abgeschlossen werden.",
+    excessScoreContribution: "Beitrag",
+    excessScoreMaximum: "Maximalgewicht",
+    excessScoreContributionAria: "{label}: {value} von {maximum} Punkten",
+    excessReadinessAvailable: "Vorhanden",
+    excessReadinessOpenLimited: "Offen / begrenzt",
+    excessReadinessFurtherEvidence: "Weitere Evidenz",
     remainingInventory: "Restbestand",
     assumptions: "Annahmen",
     pilotReviewTitle: "Pilotbewertung",
-    pilotReviewSubtitle: "Business-Feedback zum aktuellen Excess-Fall, nur in dieser Sitzung gespeichert.",
+    pilotReviewSubtitle: "Business-Feedback zum aktuellen Überbestandsfall, nur in dieser Sitzung gespeichert.",
     pilotReviewSave: "Pilotbewertung speichern",
     pilotReviewSaved: "Pilotbewertung gespeichert",
     pilotReviewPackageRevisionMissing: "Pilotbewertung blockiert: aktive Package-Revision fehlt.",
     pilotReviewSummaryTitle: "Pilot-Review-Zusammenfassung",
-    pilotReviewSummarySubtitle: "Zählt standardmäßig nur aktuelle Bewertungen für unveränderte Excess-Fälle.",
+    pilotReviewSummarySubtitle: "Zählt standardmäßig nur aktuelle Bewertungen für unveränderte Überbestandsfälle.",
     pilotReviewExport: "Pilotbewertungen exportieren",
     pilotReviewExportAll: "Historie exportieren",
     noPilotReviewSummary: "Noch keine Pilotbewertungen im aktuellen Datensatz.",
     pilotStaleNoticeTitle: "Frühere Pilotbewertung ist veraltet",
     pilotStaleNoticeBody: "Der Fall hat sich seit der letzten Bewertung geändert. Bitte den aktuellen Stand erneut prüfen und speichern.",
     pilotOrphanNoticeTitle: "Bewertung ohne aktuellen Case",
-    pilotOrphanNoticeBody: "Der bewertete Excess-Fall existiert im aktuellen Modell nicht mehr.",
+    pilotOrphanNoticeBody: "Der bewertete Überbestandsfall existiert im aktuellen Modell nicht mehr.",
     pilotHistoricalReview: "Historische Bewertung",
     pilotCurrentHistoryTitle: "Aktuelle Bewertung vorhanden",
     pilotHistoryOne: "1 frühere Bewertung ist als Historie gespeichert.",
@@ -845,8 +1099,8 @@ const translations = {
     pilotLifecycleReason_case_metrics_changed: "Case-Werte geändert",
     pilotLifecycleReason_legacy_record_unverified: "Legacy-Bewertung nicht verifiziert",
     pilotLifecycleReason_case_no_longer_present: "Case nicht mehr vorhanden",
-    excessTargetFilterAdjusted: "Excess-Filter wurden angepasst, um den ausgewählten Fall anzuzeigen.",
-    excessTargetCaseMissing: "Verknüpfter Excess-Case ist im aktuellen Modell nicht mehr vorhanden.",
+    excessTargetFilterAdjusted: "Überbestandsfilter wurden angepasst, um den ausgewählten Fall anzuzeigen.",
+    excessTargetCaseMissing: "Der verknüpfte Überbestandsfall ist im aktuellen Modell nicht mehr vorhanden.",
     reviewDisposition: "Review-Ergebnis",
     scoreAssessment: "Score-Bewertung",
     recommendationAssessment: "Empfehlungsbewertung",
@@ -871,19 +1125,19 @@ const translations = {
     evidenceType_user_assumption: "Annahme",
     evidenceType_unavailable: "Nicht verfügbar",
     evidence_material_id: "Material",
-    evidence_net_addressable_excess_value: "Netto adressierbarer Excess",
-    evidence_gross_excess_value: "Brutto-Excess",
+    evidence_net_addressable_excess_value: "Netto adressierbarer Überbestand",
+    evidence_gross_excess_value: "Brutto-Überbestand",
     evidence_excess_overlap_value: "Überlappung / Deckelung",
     evidence_owner_reference: "Owner-Referenz",
     evidence_relationship_match_type: "Materialstamm-Match",
-    why_net_addressable_excess: "Netto adressierbares Excess-Potenzial ist vorhanden.",
+    why_net_addressable_excess: "Netto adressierbares Überbestandspotenzial ist vorhanden.",
     why_high_financial_impact: "Finanzielle Wirkung ist im Portfoliovergleich hoch.",
     why_high_priority: "Der Fall ist als hohe Priorität eingestuft.",
     why_owner_reference: "Eine operative Owner-Referenz ist sichtbar.",
     why_exact_match: "Material und Werk wurden exakt gegen den Materialstamm gematcht.",
-    why_gross_net_transparent: "Brutto-Excess und netto adressierbarer Anteil sind transparent getrennt.",
-    why_excess_case: "Der Fall erfüllt die aktuelle Excess-Definition.",
-    why_overlap_reduces_net: "Ein Teil des Brutto-Excess ist bereits in anderen Waterfall-Kategorien gebunden.",
+    why_gross_net_transparent: "Brutto-Überbestand und netto adressierbarer Anteil sind transparent getrennt.",
+    why_excess_case: "Der Fall erfüllt die aktuelle Überbestandsdefinition.",
+    why_overlap_reduces_net: "Ein Teil des Brutto-Überbestands ist bereits in anderen Waterfall-Kategorien gebunden.",
     why_missing_owner_limits_actionability: "Fehlende Owner-Referenz reduziert die Umsetzbarkeit.",
     why_non_exact_match_limits_confidence: "Kein exakter Material/Werk-Match begrenzt die Evidenzstärke.",
     missing_purchase_order_details: "Bestellpositionsdetails fehlen.",
@@ -896,7 +1150,7 @@ const translations = {
     limitation_classification_context_not_physical_reduction: "Sicherheitsbestand erklärt die Klassifikation, aber keine physische Bestandsreduktion.",
     limitation_risk_flags_are_not_forecast: "Risikoflags sind kein Verbrauchs- oder Forecast-Nachweis.",
     grossNetOverlapReason: "Netto adressierbar nutzt die deduplizierte Recovery-Allokation; Überlappungen werden nicht doppelt gezählt.",
-    grossNetNoOverlapReason: "Brutto-Excess und netto adressierbarer Excess sind in diesem Fall deckungsgleich.",
+    grossNetNoOverlapReason: "Brutto-Überbestand und netto adressierbarer Überbestand sind in diesem Fall deckungsgleich.",
     scenarioMissingEvidence: "Fehlende Evidenz",
     scenarioObservedInputs: "Beobachtete Inputs",
     reviewDisposition_validated: "Validiert",
@@ -948,14 +1202,14 @@ const translations = {
     inventoryValue: "Inventory-Wert",
     materialMasterValue: "Materialstamm-Wert",
     preservedResolution: "Erhaltene Auflösung",
-    openExcessCase: "Excess-Fall öffnen",
-    noLinkedExcessCase: "Kein passender Excess-Fall",
+    openExcessCase: "Überbestandsfall öffnen",
+    noLinkedExcessCase: "Kein passender Überbestandsfall",
     relationshipImpact_unmatched: "Ohne Materialstamm-Match fehlen zusätzliche Owner- und Planungsreferenzen.",
     relationshipImpact_ambiguous: "Mehrdeutige Kandidaten werden nicht automatisch übernommen.",
     relationshipImpact_invalid_key: "Ungültige Schlüssel verhindern einen belastbaren Match.",
     relationshipImpact_relationship_conflict: "Relationship-Konflikte werden read-only angezeigt und nicht korrigiert.",
     relationshipImpact_enrichment_conflict: "Inventory-Wert bleibt erhalten; Materialstamm-Konflikt wird nur als Evidenz gezeigt.",
-    colGrossExcess: "Brutto-Excess",
+    colGrossExcess: "Brutto-Überbestand",
     colNetExcess: "Netto adressierbar",
     colExcessOverlap: "Überlappung",
     colOpportunityScore: "Score",
@@ -983,7 +1237,7 @@ const translations = {
     scenarioSafetyStock: "Sicherheitsbestand anpassen",
     scenarioPurchaseOrder: "Bestellung prüfen",
     scenarioDemandValidation: "Bedarf validieren",
-    scenarioReducePercentNote: "25 % des netto adressierbaren Excess als konservativer Zielwert.",
+    scenarioReducePercentNote: "25 % des netto adressierbaren Überbestands als konservativer Zielwert.",
     scenarioReduceAbsoluteNote: "Absoluter Zielwert, begrenzt auf das netto adressierbare Potenzial.",
     scenarioSafetyStockNote: "Konservativer Effekt aus verfügbaren Planungsparametern.",
     scenarioSafetyStockUnavailable: "Keine belastbaren Sicherheitsbestands- oder Losgrößenfelder verfügbar.",
@@ -995,14 +1249,15 @@ const translations = {
     evidence_high_priority_case: "hohe Priorität",
     evidence_owner_reference_available: "Owner-Referenz verfügbar",
     evidence_exact_material_plant_match: "exakter Material/Werk-Match",
-    evidence_overlap_deducted_from_gross_excess: "Überlappung vom Brutto-Excess abgezogen",
+    evidence_overlap_deducted_from_gross_excess: "Überlappung vom Brutto-Überbestand abgezogen",
     limitation_material_master_match_missing: "kein Materialstamm-Match",
     limitation_relationship_not_exact_material_plant: "kein exakter Material/Werk-Match",
     limitation_owner_reference_missing: "keine Owner-Referenz",
     limitation_safety_stock_not_available: "Sicherheitsbestand nicht verfügbar",
     limitation_purchase_order_context_not_available: "Bestellkontext nicht verfügbar",
     limitation_consumption_history_not_available: "Verbrauchshistorie nicht verfügbar",
-    ownerSource_inventory: "Inventory Upload",
+    ownerSource_inventory: "Bestandsupload",
+    excessOperationalMatchMissing: "fehlt",
     ownerSource_material_master: "Materialstamm",
     ownerSource_none: "Nicht verfügbar",
     exportActions: "Sichtbare Maßnahmen exportieren",
@@ -1080,6 +1335,8 @@ const translations = {
     loadingFile: "Datei wird geladen",
     exportCreating: "Export wird erstellt",
     uploadFailed: "Fehler beim Import",
+    importError: "Fehler beim Import",
+    emptyDatasetRowsError: "Die Datei enthält keine Datenzeilen. Der bisherige Datenstand bleibt unverändert.",
     sampleLoading: "Beispieldaten werden geladen",
     sampleLoaded: "Beispieldaten geladen",
     reportDownload: "Managementbericht exportieren",
@@ -1199,7 +1456,7 @@ const translations = {
     rowsWithRecoverySignal: "Zeilen mit Recovery-Signal",
     rowsWithCalculableRecovery: "Zeilen mit berechenbarem Recovery-Potenzial",
     recoveryInputNormalization: "Recovery-Input-Normalisierung",
-    recoveryInputNormalizationSubtitle: "Zeigt negative oder ungültige Recovery-Quellwerte, die für die Berechnung als 0 behandelt wurden.",
+    recoveryInputNormalizationSubtitle: "Zeigt negative oder ungültige Recovery-Quellwerte sowie blockierte Bestandswert-Ableitungen.",
     checkedRecoveryInputCells: "Geprüfte Recovery-Zellen",
     negativeRecoveryInputs: "Negative Werte als 0 behandelt",
     invalidRecoveryInputs: "Ungültige Werte als 0 behandelt",
@@ -1210,6 +1467,11 @@ const translations = {
     reason: "Grund",
     negativeRecoveryInputReason: "Negativer Wert als 0 behandelt",
     invalidRecoveryInputReason: "Ungültiger Wert als 0 behandelt",
+    derivedStockValueNegativeInputReason: "Bestandswert-Ableitung wegen negativem Eingang blockiert",
+    derivedStockValueNonfiniteInputReason: "Bestandswert-Ableitung wegen nicht endlichem Eingang blockiert",
+    derivedStockValueOverflowReason: "Bestandswert-Ableitung wegen Zahlenüberlauf blockiert",
+    derivedStockValueInvalidInputReason: "Bestandswert-Ableitung wegen ungültigem Eingang blockiert",
+    derivedStockValueMissingReason: "Bestandswert-Ableitung wegen fehlendem Eingang nicht verfügbar",
     recoveryInputNormalizationOk: "Keine negativen oder ungültigen Recovery-Quellwerte erkannt.",
     workflowFieldsDetected: "Workflow-Felder erkannt",
     workflowAssignmentCompleteness: "Workflow-Zuordnung befüllt",
@@ -1813,6 +2075,7 @@ const translations = {
     rootCause_requires_cross_functional_review: "Cross-funktionaler Review erforderlich",
     descOverview: "Management-KPIs und Recovery-Zusammenfassung",
     descInventoryExplorer: "Vollbestand mit Filtern und Excel-Anordnung",
+    descInventoryRisks: "Gemeinsames Portfolio aus Überbestand, Slow-/Dead-Stock und gesperrten / QI-Beständen",
     descExcessStock: "Materialien mit Überbestand und Recovery-Potenzial",
     descSlowDeadStock: "Langsamdreher und Totbestandsmaterialien",
     descBlockedQuality: "Gesperrte Bestände und Qualitätsprüfungsfälle",
@@ -2093,6 +2356,7 @@ const translations = {
     navAriaLabel: "Inventory navigation",
     navOverview: "Overview",
     navInventoryExplorer: "Inventory Explorer",
+    navInventoryRisks: "Inventory Risks",
     navExcessStock: "Excess Stock",
     navSlowDeadStock: "Slow / Dead Stock",
     navBlockedQuality: "Blocked / Quality",
@@ -2107,6 +2371,97 @@ const translations = {
     navShowSections: "Show sections",
     navCurrentSection: "Current section:",
     navShowFullBar: "Show navigation bar",
+    inventoryRiskEyebrow: "Inventory Risk Portfolio",
+    inventoryRiskTitle: "Inventory Risks",
+    inventoryRiskSubtitle: "One shared workspace for excess, no-demand, slow/dead, blocked and quality-inspection inventory.",
+    inventoryRiskExport: "Export Risk Cases",
+    inventoryRiskSegmentsAria: "Inventory risk segments",
+    inventoryRiskSegment_all: "All Risks",
+    inventoryRiskSegment_excess_demand: "Excess & Demand",
+    inventoryRiskSegment_slow_dead: "Slow / Dead",
+    inventoryRiskSegment_blocked_quality: "Blocked / Quality",
+    inventoryRiskSegment_prioritized: "Prioritized Cases",
+    inventoryRiskFiltersAria: "Inventory risk filters",
+    inventoryRiskOwner: "Responsible",
+    inventoryRiskFamilySubtype: "Risk family / subtype",
+    inventoryRiskEvidenceStatus: "Evidence status",
+    inventoryRiskUnassigned: "Unassigned",
+    inventoryRiskSummaryAria: "Operational inventory risk summary",
+    inventoryRiskUniqueEntities: "Unique Risk Entities",
+    inventoryRiskPrioritizedCases: "Prioritized Cases",
+    inventoryRiskOwnerCoverage: "Owner Coverage",
+    inventoryRiskEvidenceReadiness: "Evidence Readiness",
+    inventoryRiskEvidenceReadinessCount: "{ready} of {total} cases",
+    inventoryRiskEvidenceReadinessHelp: "Share of the currently filtered portfolio risk cases whose required evidence is complete or available.",
+    inventoryRiskSeparatedFinancials: "Separated financial semantics",
+    inventoryRiskNetAddressable: "Net Addressable",
+    inventoryRiskExposure: "Slow / Dead Inventory Exposure",
+    inventoryRiskBlockedValue: "Blocked / QI Value",
+    inventoryRiskFinancialIncomplete: "{available} of {total} values available",
+    inventoryRiskFinancialSemanticNote: "Separate value semantic",
+    inventoryRiskNoCombinedTotal: "Note: These three financial measures are deliberately not added into a combined recovery total.",
+    inventoryRiskWorklistTitle: "Risk Decision List",
+    inventoryRiskWorklistSubtitle: "Entity-deduplicated Portfolio Cases or Family Cases in the selected segment.",
+    inventoryRiskColumnRisk: "Risk",
+    inventoryRiskColumnMaterial: "Material",
+    inventoryRiskColumnValue: "Value / Exposure",
+    inventoryRiskOpenCase: "Open case",
+    inventoryRiskResultCount: "{count} cases",
+    pageStatus: "Page {page} of {pages}",
+    inventoryRiskSelectCase: "Select a case from the decision list.",
+    inventoryRiskExactCaseMissing: "Requested case unavailable",
+    inventoryRiskExactCaseMissingBody: "The supplied case identity is not present in the active segment. No unrelated case was opened.",
+    inventoryRiskOpenInventory: "Open in Inventory",
+    inventoryRiskOpenActions: "Open in Actions",
+    inventoryRiskCapabilityLimited: "Capability limited",
+    inventoryRiskCapabilityStatus: "Capability status",
+    inventoryRiskCapability_available: "Available",
+    inventoryRiskCapability_limited: "Limited",
+    inventoryRiskCapability_unavailable: "Unavailable",
+    inventoryRiskSecondaryFamilies: "Secondary risk families",
+    inventoryRiskSeparatedValue: "Separated financial semantic",
+    inventoryRiskLimitations: "Limitations",
+    inventoryRiskSourceStatus: "Source status",
+    inventoryRiskExistingCauseContext: "Existing cause context",
+    inventoryRiskNextQualityStep: "Next Quality review step",
+    inventoryRiskAvailableEvidence: "Available evidence",
+    inventoryRiskCounterEvidence: "Counter evidence",
+    inventoryRiskMissingEvidence: "Missing evidence",
+    inventoryRiskMissingQualityEvidence: "Missing Quality evidence",
+    inventoryRiskBlockedLimitedNote: "Blocked / Quality is intentionally limited: no cause, release probability or Quality decision is invented.",
+    inventoryRiskEmpty_no_filter_results: "No cases match the active filters.",
+    inventoryRiskEmpty_no_risk_cases: "No defensible Risk Cases are available for the current dataset.",
+    inventoryRiskEmpty_risk_cases_excluded_missing_identity: "The risk-bearing inventory rows could not enter the Unified portfolio because their material identity is missing. Review the material numbers in the source data.",
+    inventoryRiskEmpty_risk_family_unavailable: "This risk family is unavailable for the current dataset because its required evidence or data basis is missing.",
+    inventoryRiskIdentityContainment: "{count} risk-bearing inventory row(s) were excluded from the Unified portfolio because material identity is missing. The rows remain available in raw data and diagnostics.",
+    inventoryRiskExportSheet: "Inventory Risks",
+    inventoryRiskExportReady: "Creating Risk Case export",
+    inventoryRiskFamily_excess_demand: "Excess & Demand",
+    inventoryRiskFamily_slow_dead: "Slow / Dead",
+    inventoryRiskFamily_blocked_quality: "Blocked / Quality",
+    inventoryRiskSubtype_excess: "Excess",
+    inventoryRiskSubtype_no_demand: "No Demand",
+    inventoryRiskSubtype_unplanned: "Unplanned",
+    inventoryRiskSubtype_slow_moving: "Slow Moving",
+    inventoryRiskSubtype_non_moving: "Non Moving",
+    inventoryRiskSubtype_dead_stock_candidate: "Dead Stock Candidate",
+    inventoryRiskSubtype_intermittent_expected: "Intermittent Expected",
+    inventoryRiskSubtype_strategic_reserve: "Strategic Reserve",
+    inventoryRiskSubtype_blocked: "Blocked",
+    inventoryRiskSubtype_quality_inspection: "Quality Inspection",
+    inventoryRiskSubtype_multiple: "Multiple Signals",
+    inventoryRiskPriority_critical: "Critical",
+    inventoryRiskPriority_high: "High",
+    inventoryRiskPriority_medium: "Medium",
+    inventoryRiskPriority_low: "Low",
+    inventoryRiskPriority_review_required: "Review Required",
+    inventoryRiskEvidence_ready: "Decision Ready",
+    inventoryRiskEvidence_available: "Available",
+    inventoryRiskEvidence_complete: "Complete",
+    inventoryRiskEvidence_limited: "Limited",
+    inventoryRiskEvidence_incomplete: "Incomplete",
+    inventoryRiskEvidence_invalid: "Invalid",
+    inventoryRiskEvidence_unavailable: "Unavailable",
     overviewTitle: "Overview",
     overviewSubtitle: "Management summary of inventory value, recovery potential and prioritized inventory risks.",
     summarySectionLabel: "Key Metrics",
@@ -2181,8 +2536,6 @@ const translations = {
     slowDeadEmpty_error: "Slow / Dead Cases cannot be shown because of a runtime error.",
     stockQuantity: "Stock quantity",
     baseUnit: "Base unit",
-    netConsumption3m: "Net Consumption 3M",
-    netConsumption6m: "Net Consumption 6M",
     activeConsumptionMonths12m: "Active Consumption Months 12M",
     movementFrequency12m: "Movement Frequency 12M",
     historyCoverageMonths: "History Coverage",
@@ -2287,9 +2640,9 @@ const translations = {
     excessDetailsTitle: "Case Decision",
     excessDetailsSubtitle: "Score drivers, scenarios, evidence and known limitations for the selected case.",
     excessNoSelection: "Select an excess case from the list.",
-    excessOpenActions: "Open in Actions",
+    excessOpenActions: "Open in Actions →",
     excessViewDetails: "Details",
-    excessExport: "Export excess list",
+    excessExport: "Export cases",
     excessScenarioTitle: "Scenarios",
     excessScenarioUnavailable: "Unavailable",
     excessScenarioImpact: "Estimated impact",
@@ -2311,31 +2664,47 @@ const translations = {
     grossNetReconciliation: "Gross → Net",
     grossNetFlow: "{gross} → {net}",
     grossNetOverlap: "{overlap} overlap",
+    excessValueBasisReview: "Review value basis",
+    excessValueBasisInvalidDetail: "Gross, deductions and net are missing, invalid or not mathematically reconciled.",
+    excessScoreCapApplied: "Raw score {uncapped} · cap {cap} · {capped} points capped",
+    excessHeaderGross: "Gross",
+    excessHeaderOverlap: "Deductions",
     excessRowDetails: "Open case",
     excessOwnerFilter: "Responsible",
     excessResponsible: "Responsible",
-    excessPrimaryPortfolioOpportunity: "Primary portfolio opportunity",
+    excessPrimaryPortfolioOpportunity: "Identified potential",
     excessCasePortfolioMeta: "{materials} materials · {plants} plants",
-    excessSummaryPrioritization: "Prioritization",
+    excessSummaryPrioritization: "Avg. Opportunity Score",
     excessPrioritizationMeta: "Best case: {maximum} · {high} high priorities",
-    excessAddressability: "Addressability",
-    excessFullyAddressable: "Fully net addressable",
+    excessAddressability: "Gross → Net",
+    excessFullyAddressable: "Gross and net are equal",
     excessAddressabilityReduced: "{overlap} reduced by cap / overlap",
     excessAddressabilityUnavailable: "Gross basis unavailable",
-    excessAddressabilityMeta: "Gross {gross} · overlap {overlap}",
+    excessAddressabilityMeta: "{overlap} deductions",
+    excessCasesNoun: "cases",
+    excessPaginationRange: "{start}–{end} of {total} cases",
+    excessDetailNavigation: "Case decision sections",
+    excessSectionDecision: "Decision",
+    excessSectionValue: "Value logic",
+    excessSectionHistory: "History",
+    excessSectionPrioritization: "Prioritization",
+    excessSectionActions: "Action paths",
+    excessHistoryMore: "Additional historical metrics",
     excessOpportunityScoreExplanation: "Transparent prioritization from 0 to 100 – not a probability of success.",
     excessScoreShortNote: "not a probability",
+    excessScoreAccessibleLabel: "Opportunity Score",
     excessCaseBadge: "Excess",
     excessOpenInventory: "Open in Inventory",
     excessNoLinkedInventory: "The inventory record for this excess case could not be opened unambiguously.",
     excessNextReviewStep: "Next Review Step",
     excessNoNextReviewStep: "No next review step available.",
     excessDecisionRequired: "Decision required",
-    excessOperationalEvidence: "Operational Evidence",
+    excessOperationalEvidence: "Context",
+    excessOperationalMatchLabel: "Match",
     excessHistoricalEvidence: "Historical Evidence",
     excessHistoricalUnavailableTitle: "Historical trend unavailable.",
     excessHistoricalUnavailableBody: "Import consumption history to add last consumption, 12-month consumption, trend and inventory coverage.",
-    excessImportHistory: "Import Consumption History",
+    excessImportHistory: "Import",
     excessScenarioAssumptions: "Scenarios & Assumptions",
     excessDataRelationship: "Data and Relationship Quality",
     excessTechnicalProvenance: "Technical Provenance",
@@ -2343,8 +2712,115 @@ const translations = {
     modelVersion: "Model version",
     whyPrioritized: "Why Prioritized",
     whyNotHigher: "Why Not Higher",
+    excessCauseHypothesis: "Cause Hypothesis",
+    excessLikelyCause: "Likely cause",
+    excessSupportingSignals: "Supporting signals",
+    excessCauseRuleBasedNotice: "Rule-based hypothesis – business confirmation required",
+    excessCauseUnavailable: "No supportable cause hypothesis is available with the current data basis.",
+    excessAdditionalSignals: "More signals",
+    excessDecisionReadiness: "Decision basis",
+    excessReadinessStatus: "Status",
+    excessReadinessEvidence: "Available evidence",
+    excessReadinessMissing: "Missing evidence",
+    excessReadinessLimits: "Decision limits",
+    excessReadinessNextCheck: "Next data or review step",
+    excessReadiness_ready: "Decision-ready",
+    excessReadiness_limited: "Limited decision readiness",
+    excessReadiness_review: "Review required",
+    excessReadiness_not_decidable: "Not decidable",
+    excessAdditionalEvidenceStep: "Additional evidence required",
+    excessNoMissingEvidence: "No open evidence gaps in the current projection.",
+    excessNoKnownLimitations: "No known open limits in the current projection.",
+    readinessEvidence_case_identity: "Unambiguous case identity",
+    readinessEvidence_gross_net_value_basis: "Valid gross-to-net value basis",
+    readinessEvidence_root_cause: "Rule-based cause hypothesis",
+    readinessEvidence_recommended_action: "Authoritative recommendation",
+    readinessEvidence_next_step: "Concrete next review step",
+    readinessEvidence_owner_assignment: "Owner assignment",
+    readinessEvidence_exact_relationship: "Exact material-plant relationship",
+    readinessEvidence_historical_evidence: "Historical evidence",
+    readinessEvidence_primary_option_checkability: "Checkable primary action path",
+    readinessMissing_case_identity: "Unambiguous case identity",
+    readinessMissing_gross_net_value_basis: "Valid gross-to-net value basis",
+    readinessMissing_recommended_action: "Authoritative recommendation",
+    readinessMissing_root_cause: "Cause hypothesis",
+    readinessMissing_owner_reference: "Responsible owner",
+    readinessMissing_owner_function: "Owner function",
+    readinessMissing_exact_relationship: "Exact material-plant relationship",
+    readinessMissing_next_step: "Next review step",
+    readinessMissing_primary_option_checkability: "Checkability of the primary recommendation",
+    readinessMissing_historical_evidence: "Historical evidence",
+    excessActionOptions: "Checkable Action Paths",
+    excessPrimaryRecommendation: "Checkable recommendation",
+    excessAdditionalActionOptionsUnavailable: "Additional action paths cannot be assessed with the current data basis.",
+    excessActionOptionEvidence: "Evidence",
+    excessActionOptionMissing: "Missing evidence",
+    excessActionOptionNextCheck: "Next check",
+    excessActionOptionProvenance: "Derivation",
+    excessOptionStatus_checkable: "Checkable",
+    excessOptionStatus_review_required: "Review required",
+    excessOptionStatus_not_checkable: "Not checkable",
+    excessOptionStatus_not_recommended: "Not recommended",
+    excessOptionNoEvidence: "No concrete evidence available",
+    excessActionEvidenceDisclosure: "Show evidence and derivation",
+    excessOptionProvenance_recommended_action: "Existing recommended_action",
+    excessOptionProvenance_decision_type: "Structured decision type",
+    excessOptionProvenance_next_step: "Existing review step",
+    excessOptionProvenance_scenario_availability: "Structured scenario result",
+    excessPoState_no_case_evidence: "No PO evidence in the current case",
+    excessPoState_concrete: "Concrete PO evidence",
+    excessPoState_insufficient: "Insufficient PO evidence",
+    excessPoSource_inventory_row_fields: "Fields on the current Inventory row",
+    excessPoSource_none: "No row-level source",
+    excessPoPackage_unsupported: "Standalone Purchase Orders package is not available in the current MVP",
+    excessPoPackage_supported: "Standalone Purchase Orders import supported",
     grossNetExplanation: "Gross-to-net explanation",
+    excessValueLogic: "Value Logic: Gross → Net",
+    excessValueBridgeTitle: "Gross-to-Net Value Bridge",
+    excessValueBridgeGross: "Gross excess inventory",
+    excessValueBridgeNet: "Net addressable",
+    excessDeductionsOverlap: "Deductions / overlap",
+    excessValueStatus: "Value status",
+    excessIdentifiedPotential: "Identified potential",
+    excessValueBoundarySentence: "Identified potential – not yet approved or realized.",
+    excessGrossNetNoDeduction: "Gross and net are equal; €0 was deducted.",
+    excessGrossNetDeduction: "Gross less {deduction} results in {net} net addressable potential.",
+    excessValueBoundaryTitle: "Not yet",
+    excessValueBoundaryExpected: "expected recovery value",
+    excessValueBoundaryApproved: "approved value",
+    excessValueBoundaryRealized: "realized cash effect",
     ownerActionContext: "Owner and action context",
+    excessWorkContext: "Work Context",
+    excessActionStatusSessionNote: "Action status is session-only; “Implemented” is not proof of cash or recovery realization.",
+    excessHistoricalMonthly: "Monthly consumption history",
+    excessHistoricalMonthlyLastTwelve: "Monthly net consumption – last 12 months",
+    excessHistoricalMonthlyUnavailable: "Monthly history unavailable",
+    excessHistoricalMonthlyInsufficient: "There are not yet enough monthly values to show a trend.",
+    excessHistoricalChartDescription: "{count} canonical monthly values from {start} to {end}; range {minimum} to {maximum} {unit}.",
+    excessHistoricalPartialPeriod: "Includes current partial period",
+    excessHistoricalUnitLabel: "Historical quantity unit",
+    excessHistoricalUnitMissing: "Unit unavailable",
+    excessHistoricalUnitConflict: "Quantity metrics limited – unit is ambiguous",
+    excessHistoryState_package_missing_title: "Historical evidence unavailable",
+    excessHistoryState_package_missing_body: "Import consumption history to review last consumption, trend and inventory coverage.",
+    excessHistoryState_loaded_no_exact_relationship_title: "History loaded, but no unambiguous relationship",
+    excessHistoryState_loaded_no_exact_relationship_body: "No history is unambiguously linked to the exact inventory row key.",
+    excessHistoryState_not_calculated_title: "Metrics not calculated yet",
+    excessHistoryState_not_calculated_body: "The current Historical Runtime has not delivered completed metrics for this data state.",
+    excessHistoryState_limited_title: "Metrics available with limitations",
+    excessHistoryState_limited_body: "Historical metrics are available subject to the listed limitations.",
+    excessHistoryState_insufficient_title: "Metrics are insufficient",
+    excessHistoryState_insufficient_body: "The linked history is insufficient for supportable metrics.",
+    excessHistoryState_available_title: "Metrics available",
+    excessHistoryState_available_body: "Canonical metrics are available for the exact inventory row.",
+    excessHistoryState_runtime_error_title: "Runtime error",
+    excessHistoryState_runtime_error_body: "The Historical Runtime could not complete for the current data state.",
+    excessScoreContribution: "Contribution",
+    excessScoreMaximum: "Maximum weight",
+    excessScoreContributionAria: "{label}: {value} of {maximum} points",
+    excessReadinessAvailable: "Available",
+    excessReadinessOpenLimited: "Open / limited",
+    excessReadinessFurtherEvidence: "Further evidence",
     remainingInventory: "Remaining inventory",
     assumptions: "Assumptions",
     pilotReviewTitle: "Pilot Review",
@@ -2543,6 +3019,7 @@ const translations = {
     limitation_purchase_order_context_not_available: "purchase order context not available",
     limitation_consumption_history_not_available: "consumption history not available",
     ownerSource_inventory: "Inventory upload",
+    excessOperationalMatchMissing: "missing",
     ownerSource_material_master: "Material master",
     ownerSource_none: "Not available",
     exportActions: "Export visible actions",
@@ -2620,6 +3097,8 @@ const translations = {
     loadingFile: "Loading file",
     exportCreating: "Creating export",
     uploadFailed: "Import error",
+    importError: "Import error",
+    emptyDatasetRowsError: "The file contains no data rows. The previous dataset remains unchanged.",
     sampleLoading: "Loading sample data",
     sampleLoaded: "Sample data loaded",
     reportDownload: "Download Excel report",
@@ -2739,7 +3218,7 @@ const translations = {
     rowsWithRecoverySignal: "Rows with recovery signal",
     rowsWithCalculableRecovery: "Rows with calculable recovery potential",
     recoveryInputNormalization: "Recovery Input Normalization",
-    recoveryInputNormalizationSubtitle: "Shows negative or invalid recovery source values that were treated as 0 for calculation.",
+    recoveryInputNormalizationSubtitle: "Shows negative or invalid recovery source values and blocked stock-value derivations.",
     checkedRecoveryInputCells: "Checked recovery input cells",
     negativeRecoveryInputs: "Negative values treated as 0",
     invalidRecoveryInputs: "Invalid values treated as 0",
@@ -2750,6 +3229,11 @@ const translations = {
     reason: "Reason",
     negativeRecoveryInputReason: "Negative value treated as 0",
     invalidRecoveryInputReason: "Invalid value treated as 0",
+    derivedStockValueNegativeInputReason: "Stock-value derivation blocked by a negative input",
+    derivedStockValueNonfiniteInputReason: "Stock-value derivation blocked by a non-finite input",
+    derivedStockValueOverflowReason: "Stock-value derivation blocked by numeric overflow",
+    derivedStockValueInvalidInputReason: "Stock-value derivation blocked by an invalid input",
+    derivedStockValueMissingReason: "Stock-value derivation unavailable because an input is missing",
     recoveryInputNormalizationOk: "No negative or invalid recovery source values detected.",
     workflowFieldsDetected: "Workflow fields detected",
     workflowAssignmentCompleteness: "Workflow assignment completeness",
@@ -3352,6 +3836,7 @@ const translations = {
     rootCause_requires_cross_functional_review: "Cross-functional review required",
     descOverview: "Management KPIs and recovery summary",
     descInventoryExplorer: "Full inventory view with filters",
+    descInventoryRisks: "Unified portfolio for excess, slow/dead, blocked and QI inventory",
     descExcessStock: "Materials with excess inventory and recovery potential",
     descSlowDeadStock: "Slow-moving and dead-stock materials",
     descBlockedQuality: "Blocked and quality-inspection stock cases",
@@ -3402,7 +3887,7 @@ const generatedTextLabels = {
     "No immediate action": "Keine unmittelbare Maßnahme",
     "Bad stock value reported": "Bad-Stock-Wert gemeldet",
     "Review quality, release, rework or scrap decision": "Qualität, Freigabe, Nacharbeit oder Verschrottung prüfen",
-    "Excess value reported": "Excess-Wert gemeldet",
+    "Excess value reported": "Überbestandswert gemeldet",
     "Review demand, safety stock and replenishment settings": "Bedarf, Sicherheitsbestand und Dispositionseinstellungen prüfen",
     "Stock without future plan": "Bestand ohne zukünftigen Plan",
     "Check alternative use, supplier return or scrapping": "Alternative Nutzung, Lieferantenretoure oder Verschrottung prüfen",
@@ -3422,7 +3907,7 @@ const generatedTextLabels = {
     "No immediate action required": "Keine direkte Maßnahme erforderlich",
     "Review inventory position": "Bestandsposition fachlich prüfen",
     "Planner should review demand, safety stock and open purchase orders": "Disponent soll Bedarf, Sicherheitsbestand und offene Bestellungen prüfen",
-    "Demand owner should confirm whether future demand exists": "Demand Owner soll bestätigen, ob zukünftiger Bedarf existiert",
+    "Demand owner should confirm whether future demand exists": "Bedarfsverantwortlicher soll bestätigen, ob zukünftiger Bedarf existiert",
     "Material planning should check planning reference, BOM or project assignment": "Materialplanung soll Planbezug, Stückliste oder Projektzuordnung prüfen",
     "Quality management should check block reason and release decision": "Qualitätsmanagement soll Sperrgrund und Freigabeentscheidung prüfen",
     "Supply Chain and Finance should evaluate recovery or write-down": "Supply Chain und Finance sollen Verwertung oder Abschreibung bewerten",
@@ -3812,6 +4297,14 @@ const moneyKeys = new Set([
   "estimated_impact_value"
 ]);
 
+const analyticalNumericExportKeys = new Set([
+  ...numericKeys,
+  ...moneyKeys,
+  "excess_opportunity_score",
+  "source_row_number",
+  "row_number"
+]);
+
 const NAV_COLLAPSED_STORAGE_KEY = "obsoliqNavCollapsed";
 const ADVANCED_FILTER_STORAGE_PREFIX = "obsoliqAdvancedFiltersOpen";
 const EMPTY_COLUMN_FILTER_VALUE = "__OBSOLIQ_EMPTY__";
@@ -3882,6 +4375,21 @@ let slowDeadPageState = {
   pageSize: 25,
   selectedCaseId: ""
 };
+let inventoryRiskPageState = {
+  segment: "all",
+  filters: { ...inventoryRiskPageModelModule.DEFAULT_FILTERS },
+  sort: { key: "priority", direction: "asc" },
+  page: 1,
+  pageSize: 25,
+  selectedCaseId: "",
+  requireExactSelection: false
+};
+let currentInventoryRiskPortfolio = null;
+let currentInventoryRiskPortfolioRowsRef = null;
+let currentInventoryRiskExcessModelRef = null;
+let currentInventoryRiskSlowDeadRuntimeRef = null;
+let currentInventoryRiskPageModel = null;
+let inventoryRiskPortfolioBuildCount = 0;
 let pendingDownloadType = "report";
 let pendingDownloadScope = "filtered";
 let pendingDownloadVariant = "original";
@@ -3899,17 +4407,21 @@ let activeColumnFilterTrigger = null;
 let activeColumnFilterScrollHandler = null;
 let activeSectionsPopover = null;
 let activeExcessCaseId = "";
+let excessDetailNavigationCleanup = null;
 let currentExcessViewModel = null;
 let currentExcessVisibleRows = [];
 let currentExcessPageRows = [];
 let currentActiveExcessCase = null;
 let currentExcessPortfolioRowsRef = null;
 let currentExcessPortfolioModel = null;
+let excessPortfolioModelRevision = 0;
+let currentExcessPortfolioCacheRevision = -1;
+let excessPortfolioLastInvalidationReason = "initial";
 let pilotReviewPackageIdentityOverrideForTest = null;
 let excessPageNumber = 1;
 const excessPageSize = 25;
 let excessPageModelBuildCountForTest = 0;
-const dirtyDataViews = new Set(["dashboard", "excess", "slow-dead", "actions", "inventory", "check"]);
+const dirtyDataViews = new Set(["dashboard", "inventory-risks", "excess", "slow-dead", "actions", "inventory", "check"]);
 const filterState = {
   search: "",
   profitCenter: "all",
@@ -4134,11 +4646,67 @@ let currentCurrency = currencyRates[savedSettings.currency] ? savedSettings.curr
 const $ = id => document.getElementById(id);
 const t = key => translations[currentLanguage]?.[key] ?? translations.de[key] ?? key;
 const locale = () => currentLanguage === "en" ? "en-US" : "de-DE";
-const formatCount = value => Number(value || 0).toLocaleString(locale());
 const activeCurrency = () => currencyRates[currentCurrency] || currencyRates.EUR;
-const convertMoneyValue = value => Number(value || 0) * activeCurrency().rate;
 const activeCurrencySymbol = () => currencySymbols[activeCurrency().code] || activeCurrency().code;
-const money = value => `${Math.round(convertMoneyValue(value)).toLocaleString(locale())} ${activeCurrency().code}`;
+
+function numericDefinition(key = "", fallbackType = "number") {
+  return inventoryFieldDefinitions[key] || { type: fallbackType, fieldKey: key };
+}
+
+function rowNumericParseResult(row, key) {
+  const result = row?.__numericParseResults?.[key] || null;
+  if (result?.status === "missing" && typeof row?.[key] === "number" && Number.isFinite(row[key])) {
+    return null;
+  }
+  return result;
+}
+
+function numericValueEvidence(value, key = "", options = {}) {
+  return numericEvidence(value, {
+    fieldKey: key,
+    fieldDefinition: numericDefinition(key, options.type || "number"),
+    localeProfile: options.localeProfile || {},
+    parseResult: options.parseResult || null
+  });
+}
+
+function finiteNumericValue(value, key = "", options = {}) {
+  const evidence = numericValueEvidence(value, key, options);
+  return evidence.status === "valid" ? evidence.normalizedValue : null;
+}
+
+function numericAggregate(data, key, options = {}) {
+  const rows = Array.isArray(data) ? data : [];
+  return aggregateNumericValues(rows, {
+    fieldKey: key,
+    fieldDefinition: numericDefinition(key, options.type || "number"),
+    localeProfile: options.localeProfile || numericLocaleProfileForRows(rows, key),
+    valueAccessor: row => row?.[key],
+    parseResultAccessor: row => rowNumericParseResult(row, key),
+    allowPartial: options.allowPartial === true
+  });
+}
+
+function formatNumber(value, options = {}, key = "") {
+  const normalized = finiteNumericValue(value, key);
+  return normalized === null ? t("notAvailable") : normalized.toLocaleString(locale(), options);
+}
+
+const formatCount = value => formatNumber(value);
+
+function convertMoneyValue(value, key = "", options = {}) {
+  const normalized = finiteNumericValue(value, key, { ...options, type: "currency" });
+  if (normalized === null) return null;
+  const converted = normalized * activeCurrency().rate;
+  return Number.isFinite(converted) ? (converted === 0 ? 0 : converted) : null;
+}
+
+function money(value, key = "", options = {}) {
+  const converted = convertMoneyValue(value, key, options);
+  return converted === null
+    ? t("notAvailable")
+    : `${Math.round(converted).toLocaleString(locale())} ${activeCurrency().code}`;
+}
 
 function readNavCollapsedPreference() {
   try {
@@ -4238,6 +4806,7 @@ function openSectionsPopover(trigger) {
     </div>
   `;
   document.body.appendChild(popover);
+  window.ObsoliQIcons?.enhanceShell(popover);
   activeSectionsPopover = popover;
   positionSectionsPopover(popover, trigger);
   trigger.classList.add("sections-open");
@@ -4289,6 +4858,7 @@ function setAdvancedFiltersOpen(scope, isOpen) {
 
 function formatCompactMoney(value) {
   const converted = convertMoneyValue(value);
+  if (converted === null) return t("notAvailable");
   const absolute = Math.abs(converted);
   const symbol = activeCurrencySymbol();
   const german = currentLanguage === "de";
@@ -4313,11 +4883,21 @@ function formatCompactMoney(value) {
 
 function setMoneyMetric(id, value) {
   const target = $(id);
+  if (!target) return;
   target.textContent = formatCompactMoney(value);
   target.title = money(value);
+  target.classList.toggle("metric-value-unavailable", finiteNumericValue(value) === null);
 }
-const qty = value => `${Math.round(Number(value || 0)).toLocaleString(locale())} Qty`;
-const pct = value => `${Number(value || 0).toLocaleString(locale(), { maximumFractionDigits: 1 })} %`;
+const qty = value => {
+  const normalized = finiteNumericValue(value);
+  return normalized === null ? t("notAvailable") : `${Math.round(normalized).toLocaleString(locale())} Qty`;
+};
+const pct = value => {
+  const normalized = finiteNumericValue(value);
+  return normalized === null
+    ? t("notAvailable")
+    : `${normalized.toLocaleString(locale(), { maximumFractionDigits: 1 })} %`;
+};
 const html = value => String(value ?? "")
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
@@ -4340,10 +4920,22 @@ slowDeadPageView = ObsoliQModules.application.slowDeadPageView.createSlowDeadPag
   formatMoney: money,
   formatCompactMoney,
   formatCount,
-  formatNumber: (value, options = {}) => Number(value || 0).toLocaleString(locale(), options),
+  formatNumber,
   conditionLabel: value => translatedCodeLabel(`condition_${value}`, value),
   codeLabel: (prefix, value) => translatedCodeLabel(`${prefix}_${value}`, value),
   actionCodeLabel: value => translatedCodeLabel(`slowDeadAction_${value}`, value)
+});
+inventoryRiskPageView = ObsoliQModules.application.inventoryRiskPageView.createInventoryRiskPageView({
+  html,
+  escapeHtml: html,
+  t,
+  formatMoney: money,
+  formatCompactMoney,
+  formatCount,
+  formatPercent: value => {
+    const normalized = finiteNumericValue(value);
+    return normalized === null ? t("notAvailable") : `${(normalized * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })} %`;
+  }
 });
 
 function saveSettings() {
@@ -4373,6 +4965,14 @@ function displayCategory(category) {
 
 function displayGeneratedText(value) {
   return generatedTextLabels[currentLanguage]?.[value] || value;
+}
+
+function normalizeDisplayText(value) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[.!?…]+$/u, "")
+    .toLocaleLowerCase(locale());
 }
 
 function displayActionValue(value) {
@@ -4926,6 +5526,7 @@ function setFeedback(text, type = "", options = {}) {
   target.textContent = text;
   target.classList.remove("ok", "error");
   if (type) target.classList.add(type);
+  syncHeaderFeedbackIcon();
   updateAnalysisPanel(text);
   if (options.autoReset) {
     feedbackResetTimer = window.setTimeout(() => {
@@ -4933,6 +5534,14 @@ function setFeedback(text, type = "", options = {}) {
       restoreHeaderDataStatus();
     }, options.delay ?? 1600);
   }
+}
+
+function syncHeaderFeedbackIcon() {
+  const target = $("actionFeedback");
+  if (!target) return;
+  window.ObsoliQIcons?.enhanceShell(target);
+  const icon = target.querySelector(".oq-icon[data-oq-icon='data-loaded']");
+  if (icon) icon.hidden = target.textContent.trim() !== t("dataLoaded");
 }
 
 function resetDatasetStatusUi() {
@@ -5039,6 +5648,7 @@ function restoreDatasetUiState(snapshot = {}) {
   if (feedback) {
     feedback.textContent = snapshot.feedbackText || "";
     feedback.className = snapshot.feedbackClassName || feedback.className;
+    syncHeaderFeedbackIcon();
   }
   if ($("analysisDataState")) $("analysisDataState").textContent = snapshot.analysisDataState || "";
   if ($("analysisRows")) $("analysisRows").textContent = snapshot.analysisRows || "";
@@ -5238,10 +5848,17 @@ function renderFilterChipGroup(targetId, chips) {
 
 function renderActiveFilterChips(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
+  const excessChips = excessFilterChips();
   renderFilterChipGroup("inventoryActiveFilters", [...commonFilterChips(), ...inventoryFilterChips()]);
   renderFilterChipGroup("actionsActiveFilters", [...commonFilterChips(), ...actionFilterChips()]);
-  renderFilterChipGroup("excessActiveFilters", excessFilterChips());
+  renderFilterChipGroup("excessActiveFilters", excessChips);
+  updateExcessFilterResetState(excessChips.length > 0);
   updateOverviewFilterResetState();
+}
+
+function updateExcessFilterResetState(hasFilters = excessFilterChips().length > 0) {
+  const resetButton = $("excessResetFilters");
+  if (resetButton) resetButton.hidden = !hasFilters;
 }
 
 function hasOverviewFiltersActive() {
@@ -5354,6 +5971,8 @@ function applyTranslations(options = {}) {
     setPlaceholderContent(activeProcessKey, activeProcessLabel);
   }
   if (pendingUploadContext) renderColumnMappingAssistant();
+  window.ObsoliQIcons?.enhanceShell(document);
+  syncHeaderFeedbackIcon();
   if (options.render !== false && enrichedRows.length) renderAfterPresentationChange();
 }
 
@@ -5501,13 +6120,42 @@ function rawColumnFilterValue(row, key) {
   return row[key] ?? "";
 }
 
-function rowMatchesColumnFilter(row, key, query) {
+function compileNumericRangeFilter(data, key, query = {}) {
+  const rows = Array.isArray(data) ? data : [];
+  const localeProfile = numericLocaleProfileForRows(rows, key);
+  const parseBoundary = value => {
+    if (value === "" || value === null || value === undefined) {
+      return { status: "missing", value: null };
+    }
+    const evidence = numericValueEvidence(value, key, { localeProfile });
+    return { status: evidence.status, value: evidence.normalizedValue };
+  };
+  const min = parseBoundary(query.min);
+  const max = parseBoundary(query.max);
+  const invalidBoundary = [min, max].find(boundary => !["missing", "valid"].includes(boundary.status));
+  const inverted = min.status === "valid" && max.status === "valid" && min.value > max.value;
+  return {
+    valid: !invalidBoundary && !inverted,
+    status: invalidBoundary?.status || (inverted ? "invalid" : "valid"),
+    min: min.value,
+    max: max.value,
+    minStatus: min.status,
+    maxStatus: max.status,
+    localeProfile
+  };
+}
+
+function rowMatchesColumnFilter(row, key, query, compiledRange = null) {
   if (query && typeof query === "object" && !Array.isArray(query)) {
-    const value = Number(rawColumnFilterValue(row, key) || 0);
-    const min = query.min === "" || query.min === undefined ? null : toNumber(query.min);
-    const max = query.max === "" || query.max === undefined ? null : toNumber(query.max);
-    if (min !== null && value < min) return false;
-    if (max !== null && value > max) return false;
+    const range = compiledRange || compileNumericRangeFilter([row], key, query);
+    if (!range.valid) return false;
+    const value = finiteNumericValue(rawColumnFilterValue(row, key), key, {
+      localeProfile: range.localeProfile,
+      parseResult: rowNumericParseResult(row, key)
+    });
+    if (value === null) return false;
+    if (range.min !== null && value < range.min) return false;
+    if (range.max !== null && value > range.max) return false;
     return true;
   }
   if (Array.isArray(query)) {
@@ -5529,7 +6177,15 @@ function applyColumnFilters(data, scope) {
     return String(value || "").trim();
   });
   if (!activeFilters.length) return data;
-  return data.filter(row => activeFilters.every(([key, value]) => rowMatchesColumnFilter(row, key, value)));
+  const compiledFilters = activeFilters.map(([key, value]) => ({
+    key,
+    value,
+    range: value && typeof value === "object" && !Array.isArray(value)
+      ? compileNumericRangeFilter(data, key, value)
+      : null
+  }));
+  if (compiledFilters.some(filter => filter.range && !filter.range.valid)) return [];
+  return data.filter(row => compiledFilters.every(filter => rowMatchesColumnFilter(row, filter.key, filter.value, filter.range)));
 }
 
 function applyColumnFiltersExcept(data, scope, exceptKey) {
@@ -5541,7 +6197,15 @@ function applyColumnFiltersExcept(data, scope, exceptKey) {
     return String(value || "").trim();
   });
   if (!activeFilters.length) return data;
-  return data.filter(row => activeFilters.every(([key, value]) => rowMatchesColumnFilter(row, key, value)));
+  const compiledFilters = activeFilters.map(([key, value]) => ({
+    key,
+    value,
+    range: value && typeof value === "object" && !Array.isArray(value)
+      ? compileNumericRangeFilter(data, key, value)
+      : null
+  }));
+  if (compiledFilters.some(filter => filter.range && !filter.range.valid)) return [];
+  return data.filter(row => compiledFilters.every(filter => rowMatchesColumnFilter(row, filter.key, filter.value, filter.range)));
 }
 
 function columnDataType(key) {
@@ -5562,7 +6226,7 @@ function sortMenuLabels(key) {
 function sortValue(row, key) {
   const type = columnDataType(key);
   const raw = rawColumnFilterValue(row, key);
-  if (type === "number") return Number(raw || 0);
+  if (type === "number") return toNumber(raw, key);
   if (type === "priority") return prioritySortOrder[raw] ?? 99;
   if (type === "status") return statusSortOrder[raw] ?? 99;
   if (type === "confidence") return confidenceSortOrder[raw] ?? 99;
@@ -5576,6 +6240,9 @@ function sortRowsForScope(data, scope) {
   return [...data].sort((a, b) => {
     const aValue = sortValue(a, sort.key);
     const bValue = sortValue(b, sort.key);
+    if (aValue === null && bValue === null) return 0;
+    if (aValue === null) return 1;
+    if (bValue === null) return -1;
     if (typeof aValue === "number" && typeof bValue === "number") {
       return (aValue - bValue) * multiplier;
     }
@@ -5655,7 +6322,14 @@ function visibleTopRows(data) {
 function overviewTopRows(data) {
   return topRecoveryRows(data)
     .slice()
-    .sort((a, b) => Number(b.recovery_potential || 0) - Number(a.recovery_potential || 0));
+    .sort((a, b) => {
+      const left = finiteNumericValue(a.recovery_potential, "recovery_potential", { parseResult: rowNumericParseResult(a, "recovery_potential") });
+      const right = finiteNumericValue(b.recovery_potential, "recovery_potential", { parseResult: rowNumericParseResult(b, "recovery_potential") });
+      if (left === null && right === null) return 0;
+      if (left === null) return 1;
+      if (right === null) return -1;
+      return right - left;
+    });
 }
 
 function getOverviewRows() {
@@ -5704,8 +6378,22 @@ function getInventoryRows() {
   return inventoryFilteredRows(composeHistoricalInventoryRows(applyGlobalBusinessFilters(enrichedRows)), { applyRowLimit: true });
 }
 
+function invalidateExcessPortfolioModel(reason = "input_changed") {
+  excessPortfolioModelRevision += 1;
+  currentExcessPortfolioCacheRevision = -1;
+  currentExcessPortfolioRowsRef = null;
+  currentExcessPortfolioModel = null;
+  excessPortfolioLastInvalidationReason = String(reason || "input_changed");
+  return excessPortfolioModelRevision;
+}
+
 function currentExcessPageModel(rows = applyGlobalBusinessFilters(enrichedRows)) {
-  if (rows === enrichedRows && currentExcessPortfolioRowsRef === enrichedRows && currentExcessPortfolioModel) {
+  if (
+    rows === enrichedRows
+    && currentExcessPortfolioRowsRef === enrichedRows
+    && currentExcessPortfolioCacheRevision === excessPortfolioModelRevision
+    && currentExcessPortfolioModel
+  ) {
     return currentExcessPortfolioModel;
   }
   if (obsoliqTestMode) excessPageModelBuildCountForTest += 1;
@@ -5719,6 +6407,7 @@ function currentExcessPageModel(rows = applyGlobalBusinessFilters(enrichedRows))
   if (rows === enrichedRows) {
     currentExcessPortfolioRowsRef = enrichedRows;
     currentExcessPortfolioModel = model;
+    currentExcessPortfolioCacheRevision = excessPortfolioModelRevision;
   }
   return model;
 }
@@ -5732,18 +6421,25 @@ function decorateExcessCases(cases = []) {
 
 function excessSummaryFromCases(cases = []) {
   const caseCount = cases.length;
-  const grossExcessValue = cases.reduce((total, row) => total + Number(row.gross_excess_value || 0), 0);
-  const netAddressableExcessValue = cases.reduce((total, row) => total + Number(row.net_addressable_excess_value || 0), 0);
-  const overlapValue = cases.reduce((total, row) => total + Number(row.excess_overlap_value || 0), 0);
-  const averageOpportunityScore = caseCount
-    ? Math.round(cases.reduce((total, row) => total + Number(row.excess_opportunity_score || 0), 0) / caseCount)
-    : 0;
+  const grossAggregate = numericAggregate(cases, "gross_excess_value", { type: "currency" });
+  const netAggregate = numericAggregate(cases, "net_addressable_excess_value", { type: "currency" });
+  const overlapAggregate = numericAggregate(cases, "excess_overlap_value", { type: "currency" });
+  const scoreAggregate = numericAggregate(cases, "excess_opportunity_score");
+  const averageOpportunityScore = scoreAggregate.value === null || !caseCount
+    ? null
+    : Math.round(scoreAggregate.value / caseCount);
   return {
     caseCount,
-    grossExcessValue,
-    netAddressableExcessValue,
-    overlapValue,
-    averageOpportunityScore
+    grossExcessValue: grossAggregate.value,
+    netAddressableExcessValue: netAggregate.value,
+    overlapValue: overlapAggregate.value,
+    averageOpportunityScore,
+    aggregates: {
+      grossExcessValue: grossAggregate,
+      netAddressableExcessValue: netAggregate,
+      overlapValue: overlapAggregate,
+      averageOpportunityScore: scoreAggregate
+    }
   };
 }
 
@@ -5786,25 +6482,38 @@ function getFilteredRows(scope = "overview") {
   return applyGlobalBusinessFilters(enrichedRows);
 }
 
-function sum(data, key) {
-  return data.reduce((total, row) => total + Number(row[key] || 0), 0);
+function sum(data, key, options = {}) {
+  return numericAggregate(data, key, options).value;
 }
 
 function groupSum(data, groupKey, valueKey) {
-  const grouped = {};
+  const grouped = new Map();
   data.forEach(row => {
     const name = String(row[groupKey] || t("unassigned"));
-    grouped[name] = (grouped[name] || 0) + Number(row[valueKey] || 0);
+    if (!grouped.has(name)) grouped.set(name, []);
+    grouped.get(name).push(row);
   });
-  return Object.entries(grouped)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+  return [...grouped.entries()]
+    .map(([name, rows]) => {
+      const aggregate = numericAggregate(rows, valueKey, { type: moneyKeys.has(valueKey) ? "currency" : "number" });
+      return { name, value: aggregate.value, aggregate };
+    })
+    .sort((a, b) => {
+      if (a.value === null && b.value === null) return a.name.localeCompare(b.name, locale());
+      if (a.value === null) return 1;
+      if (b.value === null) return -1;
+      return b.value - a.value;
+    });
 }
 
 function renderMetrics(data) {
-  const inventory = sum(data, "stock_value");
-  const recovery = sum(data, "recovery_potential");
-  const recoveryShare = inventory ? recovery / inventory * 100 : 0;
+  const inventoryAggregate = numericAggregate(data, "stock_value", { type: "currency" });
+  const recoveryAggregate = numericAggregate(data, "recovery_potential", { type: "currency" });
+  const inventory = inventoryAggregate.value;
+  const recovery = recoveryAggregate.value;
+  const recoveryShare = inventory !== null && recovery !== null && inventory > 0
+    ? recovery / inventory * 100
+    : null;
   setMoneyMetric("mInventory", inventory);
   $("mRows").textContent = currentLanguage === "de"
     ? `${formatCount(data.length)} Bestandspositionen`
@@ -5817,7 +6526,7 @@ function renderMetrics(data) {
   $("mShare").textContent = `${pct(recoveryShare)} ${t("recoveryAddressable")}`;
   const progressFill = $("recoveryProgressFill");
   if (progressFill) {
-    progressFill.style.width = `${Math.max(0, Math.min(recoveryShare, 100))}%`;
+    progressFill.style.width = `${recoveryShare === null ? 0 : Math.max(0, Math.min(recoveryShare, 100))}%`;
   }
 }
 
@@ -5827,16 +6536,20 @@ function renderBars(targetId, items, options = {}) {
     target.innerHTML = `<div class="empty">${html(t("noDataSelection"))}</div>`;
     return;
   }
-  const max = Math.max(...items.map(item => item.value), 1);
+  const finiteValues = items.map(item => item.value).filter(value => typeof value === "number" && Number.isFinite(value));
+  const max = Math.max(...finiteValues, 1);
   const limit = options.limit || 12;
-  target.innerHTML = items.slice(0, limit).map((item, index) => `
+  target.innerHTML = items.slice(0, limit).map((item, index) => {
+    const available = typeof item.value === "number" && Number.isFinite(item.value);
+    return `
     <div class="bar-row">
       <div class="bar-rank">${index + 1}</div>
       <div class="bar-label" title="${html(targetId === "categoryBars" ? displayCategory(item.name) : item.name)}">${html(targetId === "categoryBars" ? displayCategory(item.name) : item.name)}</div>
-      <div class="bar"><span style="width:${Math.max(2, item.value / max * 100)}%"></span></div>
-      <div class="bar-value" title="${html(money(item.value))}">${html(formatCompactMoney(item.value))}</div>
+      <div class="bar"><span style="width:${available ? Math.max(2, item.value / max * 100) : 0}%"></span></div>
+      <div class="bar-value" title="${html(available ? money(item.value) : t("notAvailable"))}">${html(available ? formatCompactMoney(item.value) : t("notAvailable"))}</div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function categoryClass(category) {
@@ -6301,6 +7014,7 @@ function renderColumnFilterPopoverContent(scope, key) {
             <input class="column-filter-popover-max" type="text" inputmode="decimal" value="${html(max)}" placeholder="${html(t("maximum"))}" />
           </label>
         </div>
+        <p class="column-filter-range-validation hidden" role="alert">${html(t("invalidManualValue"))}</p>
       </div>
       <div class="column-filter-popover-actions column-filter-footer">
         <button class="primary" type="button" data-column-filter-apply>${html(t("applyFilter"))}</button>
@@ -6473,10 +7187,27 @@ function applyColumnFilterPopover(popover) {
   const def = tableScopeSupportsColumnMenus(scope) ? actionColumnFilterDef(key) : null;
   if (!def) return;
   if (def.type === "number") {
-    setColumnFilterValue(scope, key, {
+    const nextValue = {
       min: popover.querySelector(".column-filter-popover-min")?.value || "",
       max: popover.querySelector(".column-filter-popover-max")?.value || ""
+    };
+    const validation = compileNumericRangeFilter(columnFilterSourceRows(scope, key), key, nextValue);
+    const validationMessage = popover.querySelector(".column-filter-range-validation");
+    const inputs = [...popover.querySelectorAll(".column-filter-popover-min, .column-filter-popover-max")];
+    inputs.forEach(input => {
+      const boundaryStatus = input.classList.contains("column-filter-popover-min")
+        ? validation.minStatus
+        : validation.maxStatus;
+      const invalid = !["missing", "valid"].includes(boundaryStatus) || (!validation.valid && validation.status === "invalid");
+      input.setAttribute("aria-invalid", String(invalid));
+      input.classList.toggle("invalid", invalid);
     });
+    if (!validation.valid) {
+      validationMessage?.classList.remove("hidden");
+      return false;
+    }
+    validationMessage?.classList.add("hidden");
+    setColumnFilterValue(scope, key, nextValue);
   } else {
     const optionInputs = [...popover.querySelectorAll(".column-filter-option input[type='checkbox']")];
     const draft = activeDraftForPopover(popover);
@@ -6494,6 +7225,7 @@ function applyColumnFilterPopover(popover) {
   }
   closeColumnFilterPopover();
   renderCurrentView();
+  return true;
 }
 
 function resetColumnFilterPopover(popover) {
@@ -6550,7 +7282,9 @@ function activeColumnSortDirection(scope, key) {
 function renderTableHeaderCell(key, label, options = {}) {
   const scope = options.columnFilterScope;
   const def = tableScopeSupportsColumnMenus(scope) ? actionColumnFilterDef(key) : null;
-  if (!def) return `<th class="${columnClass(key)}">${html(label)}</th>`;
+  const labelAttributes = `${options.labelTitle ? ` title="${html(options.labelTitle)}"` : ""}${options.labelAria ? ` aria-label="${html(options.labelAria)}"` : ""}`;
+  const labelMarkup = `<span class="column-filter-label"${labelAttributes}>${html(label)}</span>`;
+  if (!def) return `<th class="${columnClass(key)}">${labelMarkup}</th>`;
   const sortDirection = activeColumnSortDirection(scope, key);
   const activeClass = [
     isColumnFilterActive(scope, key) ? "filter-active" : "",
@@ -6561,7 +7295,7 @@ function renderTableHeaderCell(key, label, options = {}) {
   return `
     <th class="${columnClass(key)} column-filter-header ${activeClass}">
       <div class="column-filter-header-content">
-        <span class="column-filter-label">${html(label)}</span>
+        ${labelMarkup}
         ${sortDirection ? `<span class="column-sort-indicator" aria-hidden="true">${sortDirection === "asc" ? "↑" : "↓"}</span>` : ""}
         <button class="column-filter-trigger${buttonActiveClass}" type="button" data-filter-trigger="true" data-column-scope="${html(scope)}" data-column-key="${html(key)}" aria-label="${html(`${filterTitle}: ${label}`)}" title="${html(filterTitle)}">
           <span class="column-filter-caret" aria-hidden="true">▾</span>
@@ -6683,13 +7417,26 @@ function renderRawInventory(data, options = {}) {
 }
 
 function topRecoveryRows(data) {
-  const candidates = data.filter(row => row.recovery_potential > 0 || row.category !== "Healthy / Planned Stock");
+  const recoveryValue = row => finiteNumericValue(row.recovery_potential, "recovery_potential", {
+    parseResult: rowNumericParseResult(row, "recovery_potential")
+  });
+  const candidates = data.filter(row => {
+    const recovery = recoveryValue(row);
+    return (recovery !== null && recovery > 0) || row.category !== "Healthy / Planned Stock";
+  });
   const source = candidates.length ? candidates : data;
   const priorityRank = { High: 0, Medium: 1, Low: 2, None: 3 };
   const statusRank = { Open: 0, "In Review": 1, Assigned: 2, Deferred: 3, Implemented: 4, Rejected: 5, "Not Feasible": 6 };
   return [...source].sort((a, b) => (
     (priorityRank[a.priority] ?? 4) - (priorityRank[b.priority] ?? 4)
-    || b.recovery_potential - a.recovery_potential
+    || (() => {
+      const left = recoveryValue(a);
+      const right = recoveryValue(b);
+      if (left === null && right === null) return 0;
+      if (left === null) return 1;
+      if (right === null) return -1;
+      return right - left;
+    })()
     || (statusRank[a.status] ?? 7) - (statusRank[b.status] ?? 7)
   )).slice(0, 100);
 }
@@ -6782,18 +7529,310 @@ function renderTextList(titleKey, keys = []) {
   `;
 }
 
-function renderGrossNetExplanation(item = {}) {
-  const explanation = item.grossToNetExplanation || {};
+function renderProjectedMoney(field = {}) {
+  if (!field.available) return `<strong class="excess-value-unavailable">${html(t("notAvailable"))}</strong>`;
+  return `<strong title="${html(money(field.value))}">${html(formatCompactMoney(field.value))}</strong>`;
+}
+
+function projectedMoneyText(field = {}) {
+  return field?.available ? formatCompactMoney(field.value) : t("notAvailable");
+}
+
+function renderProjectedScore(field = {}) {
+  if (!field.available) return `<strong class="excess-value-unavailable">${html(t("notAvailable"))}</strong>`;
+  return `<strong title="${html(formatCount(field.value))}">${html(formatCount(field.value))}/100</strong>`;
+}
+
+function renderExcessSectionAnchor(key) {
+  return `<span class="excess-section-anchor" data-excess-section-anchor="${html(key)}" aria-hidden="true"></span>`;
+}
+
+function renderGrossNetExplanation(core = {}) {
+  const narrative = core.valueNarrative || { fields: {}, boundaryKeys: [] };
+  const fields = narrative.fields || {};
+  const validBasis = narrative.validBasis === true;
+  const basisReasonCode = narrative.reasonCode || narrative.reconciliation?.reasonCode || "";
+  const gross = fields.grossExcessValue;
+  const bridgeRows = [
+    { role: "gross", operator: "", label: t("excessValueBridgeGross"), field: gross },
+    { role: "deduction", operator: "−", label: t("excessDeductionsOverlap"), field: fields.overlapValue },
+    { role: "net", operator: "=", label: t("excessValueBridgeNet"), field: fields.netAddressableValue }
+  ];
+  const netValue = fields.netAddressableValue?.available
+    ? finiteNumericValue(fields.netAddressableValue.value, "net_addressable_excess_value")
+    : null;
+  const overlapValue = fields.overlapValue?.available
+    ? finiteNumericValue(fields.overlapValue.value, "excess_overlap_value")
+    : null;
+  const deductionIsZero = overlapValue === 0;
+  const reconciliationText = validBasis
+    ? deductionIsZero
+      ? t("excessGrossNetNoDeduction")
+      : t("excessGrossNetDeduction")
+        .replace("{deduction}", overlapValue !== null ? formatCompactMoney(overlapValue) : t("notAvailable"))
+        .replace("{net}", netValue !== null ? formatCompactMoney(netValue) : t("notAvailable"))
+    : t("excessValueBasisInvalidDetail");
   return `
-    <section class="excess-detail-section">
-      <h4>${html(t("grossNetExplanation"))}</h4>
-      <div class="excess-detail-kpis compact">
-        <div><span>${html(t("colGrossExcess"))}</span><strong>${html(formatCompactMoney(explanation.grossExcessValue || item.gross_excess_value))}</strong></div>
-        <div><span>${html(t("colNetExcess"))}</span><strong>${html(formatCompactMoney(explanation.netAddressableExcessValue || item.net_addressable_excess_value))}</strong></div>
-        <div><span>${html(t("colExcessOverlap"))}</span><strong>${html(formatCompactMoney(explanation.overlapValue || item.excess_overlap_value))}</strong></div>
-        <div><span>${html(t("remainingInventory"))}</span><strong>${html(formatCompactMoney(explanation.remainingInventoryValue || item.excess_remaining_inventory_value))}</strong></div>
+    <section class="excess-detail-section excess-value-narrative${validBasis ? "" : " has-value-basis-warning"}" data-excess-detail-section="value" data-value-bridge data-value-basis-valid="${validBasis ? "true" : "false"}" data-value-basis-reason="${html(basisReasonCode)}">
+      <div class="excess-section-heading">
+        <h4>${html(t("excessValueBridgeTitle"))}</h4>
+        <span>${html(t("excessValueStatus"))}: <strong>${html(t(validBasis ? "excessIdentifiedPotential" : "excessValueBasisReview"))}</strong></span>
       </div>
-      <p class="excess-detail-note">${html(t(explanation.reasonKey || "grossNetNoOverlapReason"))}</p>
+      <div class="excess-value-context" aria-label="${html(t("inventoryValue"))}">
+        <div data-value-context="stock">
+          <span>${html(t("inventoryValue"))}</span>
+          ${renderProjectedMoney(fields.stockValue)}
+        </div>
+        <div data-value-context="remaining">
+          <span>${html(t("remainingInventory"))}</span>
+          ${renderProjectedMoney(fields.remainingInventoryValue)}
+        </div>
+      </div>
+      <div class="excess-value-bridge" role="group" aria-label="${html(t("excessValueLogic"))}">
+        ${bridgeRows.map(({ role, operator, label, field }, index) => {
+          const fieldValue = field?.available ? finiteNumericValue(field.value) : null;
+          const zero = fieldValue === 0;
+          return `
+          ${index ? `<span class="excess-value-operator" aria-hidden="true">${operator}</span>` : ""}
+          <div class="excess-value-bridge-row ${html(role)}${fieldValue !== null ? "" : " unavailable"}${zero ? " zero" : ""}" data-bridge-role="${html(role)}" data-value-available="${fieldValue !== null ? "true" : "false"}"${fieldValue !== null ? ` data-bridge-value="${html(fieldValue)}"` : ""}>
+            ${renderProjectedMoney(field)}
+            <span class="excess-value-label">${html(label)}</span>
+          </div>
+        `;
+        }).join("")}
+      </div>
+      <p class="excess-detail-note${validBasis ? "" : " excess-value-basis-warning"}" data-value-reconciliation>${html(reconciliationText)}</p>
+      <p class="excess-value-boundary"><strong>${html(t("excessValueBoundarySentence"))}</strong></p>
+    </section>
+  `;
+}
+
+function projectedCodeList(codes = [], prefix = "", emptyKey = "notAvailable") {
+  const normalized = Array.isArray(codes) ? codes.filter(Boolean) : [];
+  if (!normalized.length) return `<p class="excess-empty-copy">${html(t(emptyKey))}</p>`;
+  return `<ul>${normalized.map(code => `<li>${html(translatedCodeLabel(`${prefix}${code}`, code))}</li>`).join("")}</ul>`;
+}
+
+function renderCauseSignal(signal = {}) {
+  const label = translatedCodeLabel(signal.labelKey || signal.signalCode, signal.labelKey || signal.signalCode);
+  let value = "";
+  if (signal.valueType === "money") value = formatCompactMoney(signal.value);
+  else if (signal.valueType === "quantity") value = formatHistoryQuantityWithUnit(signal.value, {
+    state: signal.unitState || "missing",
+    unit: signal.unit || ""
+  }, { includeMissingLabel: true });
+  else if (signal.value !== null && signal.value !== undefined && String(signal.value).trim() !== "") value = String(signal.value);
+  return `<li><span>${html(label)}</span>${value ? `<strong>${html(value)}</strong>` : ""}</li>`;
+}
+
+function renderExcessCauseHypothesis(core = {}, primaryReasons = []) {
+  const cause = core.causeHypothesis || { available: false, supportingSignals: [] };
+  const prioritizedLabels = new Set((primaryReasons || [])
+    .map(key => normalizeDisplayText(translatedCodeLabel(key, key)))
+    .filter(Boolean));
+  const signals = (cause.supportingSignals || []).filter(signal => {
+    const label = translatedCodeLabel(signal.labelKey || signal.signalCode, signal.labelKey || signal.signalCode);
+    return !prioritizedLabels.has(normalizeDisplayText(label));
+  });
+  const visibleSignals = signals.slice(0, 2);
+  const additionalSignals = signals.slice(2);
+  return `
+    <section class="excess-primary-decision excess-cause-hypothesis" data-cause-available="${cause.available ? "true" : "false"}">
+      <h4>${html(t("excessCauseHypothesis"))}</h4>
+      <p>${html(cause.available ? displayGeneratedText(cause.hypothesis) : t("excessCauseUnavailable"))}</p>
+      <small class="excess-hypothesis-note">${html(t(cause.classificationKey || "excessCauseRuleBasedNotice"))}</small>
+      ${visibleSignals.length ? `
+        <span class="excess-card-label">${html(t("excessSupportingSignals"))}</span>
+        <ul class="excess-signal-list">${visibleSignals.map(renderCauseSignal).join("")}</ul>
+      ` : `<p class="excess-empty-copy">${html(t("notAvailable"))}</p>`}
+      ${additionalSignals.length ? `
+        <details class="excess-cause-more">
+          <summary>${html(t("excessAdditionalSignals"))} <span>${html(formatCount(additionalSignals.length))}</span></summary>
+          <ul class="excess-signal-list">${additionalSignals.map(renderCauseSignal).join("")}</ul>
+        </details>
+      ` : ""}
+    </section>
+  `;
+}
+
+function readinessCodeList(codes = [], type = "Evidence", emptyKey = "notAvailable") {
+  const normalized = Array.isArray(codes) ? codes.filter(Boolean) : [];
+  if (!normalized.length) return `<span class="excess-readiness-empty">${html(t(emptyKey))}</span>`;
+  return `<ul>${normalized.map(code => `<li>${html(translatedCodeLabel(`readiness${type}_${code}`, code))}</li>`).join("")}</ul>`;
+}
+
+function readinessNextCheck(value = "") {
+  if (!value) return t("notAvailable");
+  const translated = translatedCodeLabel(`readinessMissing_${value}`, value);
+  return translated !== String(value).replace(/_/g, " ") ? translated : displayGeneratedText(value);
+}
+
+function readinessItemLabel(record = {}) {
+  if (record.type === "evidence") return translatedCodeLabel(`readinessEvidence_${record.code}`, record.code);
+  if (record.type === "missing") return translatedCodeLabel(`readinessMissing_${record.code}`, record.code);
+  return translatedCodeLabel(record.code, record.code);
+}
+
+function uniqueReadinessRecords(records = []) {
+  const seen = new Set();
+  return records.filter(record => {
+    if (!record?.code) return false;
+    const label = readinessItemLabel(record);
+    const key = String(label).trim().toLocaleLowerCase(locale());
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function renderReadinessMatrixList(records = [], state = "available", emptyKey = "notAvailable") {
+  if (!records.length) return `<span class="excess-readiness-empty">${html(t(emptyKey))}</span>`;
+  return `
+    <ul class="excess-readiness-matrix-list">
+      ${records.map(record => `
+        <li data-readiness-source="${html(record.source || record.type || "")}">
+          <span class="excess-readiness-marker ${html(state)}" aria-hidden="true"></span>
+          <span>${html(readinessItemLabel(record))}</span>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+}
+
+function renderExcessDecisionReadiness(core = {}, primaryStep = "") {
+  const readiness = core.decisionReadiness || {};
+  const status = readiness.status || "not_decidable";
+  const available = uniqueReadinessRecords((readiness.existingEvidence || []).map(code => ({ code, type: "evidence", source: "existingEvidence" })));
+  const open = uniqueReadinessRecords([
+    ...(readiness.missingEvidence || []).map(code => ({ code, type: "missing", source: "missingEvidence" })),
+    ...(readiness.decisionLimits || []).map(code => ({ code, type: "limit", source: "decisionLimits" })),
+    ...(readiness.whyNotHigher || []).map(code => ({ code, type: "limit", source: "whyNotHigher" }))
+  ]);
+  const visibleAvailable = available.slice(0, 4);
+  const visibleOpen = open.slice(0, 4);
+  const remainingAvailable = available.slice(4);
+  const remainingOpen = open.slice(4);
+  const remainingCount = remainingAvailable.length + remainingOpen.length;
+  const readinessStep = readiness.nextCheck ? readinessNextCheck(readiness.nextCheck) : "";
+  const showAdditionalStep = Boolean(readinessStep)
+    && normalizeDisplayText(readinessStep) !== normalizeDisplayText(primaryStep);
+  return `
+    <section class="excess-primary-decision excess-readiness-card" data-readiness-status="${html(status)}" data-readiness-version="${html(readiness.version || "")}" data-existing-evidence-count="${available.length}" data-open-evidence-count="${open.length}" data-why-not-higher-count="${(readiness.whyNotHigher || []).length}">
+      <div class="excess-card-title-row">
+        <h4>${html(t("excessDecisionReadiness"))}</h4>
+        <span class="excess-readiness-pill ${html(status)}">${html(t(`excessReadiness_${status}`))}</span>
+      </div>
+      <div class="excess-readiness-grid" role="group" aria-label="${html(t("excessDecisionReadiness"))}">
+        <div class="available">
+          <span>${html(t("excessReadinessAvailable"))} · ${html(formatCount(available.length))}</span>
+          ${renderReadinessMatrixList(visibleAvailable, "available")}
+        </div>
+        <div class="open">
+          <span>${html(t("excessReadinessOpenLimited"))} · ${html(formatCount(open.length))}</span>
+          ${renderReadinessMatrixList(visibleOpen, "open", "excessNoKnownLimitations")}
+        </div>
+      </div>
+      ${remainingCount ? `
+        <details class="excess-readiness-more">
+          <summary>${html(t("excessReadinessFurtherEvidence"))} <span>${html(formatCount(remainingCount))}</span></summary>
+          <div>
+            ${remainingAvailable.length ? `<section><h5>${html(t("excessReadinessAvailable"))}</h5>${renderReadinessMatrixList(remainingAvailable, "available")}</section>` : ""}
+            ${remainingOpen.length ? `<section><h5>${html(t("excessReadinessOpenLimited"))}</h5>${renderReadinessMatrixList(remainingOpen, "open")}</section>` : ""}
+          </div>
+        </details>
+      ` : ""}
+      ${showAdditionalStep ? `<div class="excess-readiness-next"><span>${html(t("excessAdditionalEvidenceStep"))}</span><strong>${html(readinessStep)}</strong></div>` : ""}
+    </section>
+  `;
+}
+
+function optionEvidenceValue(record = {}) {
+  if (["decision_type"].includes(record.key)) return displayDecisionType(record.value);
+  if (["next_step"].includes(record.key)) return displayGeneratedText(record.value);
+  if (/value$/i.test(record.key)) {
+    const value = finiteNumericValue(record.value, record.key);
+    return value === null ? t("notAvailable") : formatCompactMoney(value);
+  }
+  return String(record.value ?? t("notAvailable"));
+}
+
+function optionProvenanceLabel(value = "") {
+  if (value.startsWith("scenario_model:")) return `${t("modelVersion")}: ${value.slice("scenario_model:".length)}`;
+  if (value.startsWith("purchase_order_evidence:")) return t(`excessPoState_${value.slice("purchase_order_evidence:".length)}`);
+  if (value.startsWith("purchase_order_source:")) return t(`excessPoSource_${value.slice("purchase_order_source:".length)}`);
+  if (value.startsWith("purchase_orders_package:")) return t(`excessPoPackage_${value.slice("purchase_orders_package:".length)}`);
+  const key = `excessOptionProvenance_${value}`;
+  return t(key) !== key ? t(key) : value.replace(/_/g, " ");
+}
+
+function optionNextCheck(value = "") {
+  if (!value) return t("notAvailable");
+  const translated = t(value);
+  return translated !== value ? translated : displayGeneratedText(value);
+}
+
+function renderExcessActionOptionMeta(option = {}, options = {}) {
+  const evidence = Array.isArray(option.evidence) ? option.evidence : [];
+  const missing = Array.isArray(option.missingEvidence) ? option.missingEvidence : [];
+  const provenance = Array.isArray(option.provenance) ? option.provenance : [];
+  return `
+    <dl class="excess-action-option-meta">
+      <div><dt>${html(t("excessActionOptionEvidence"))}</dt><dd>${evidence.length ? evidence.map(record => `${evidenceFieldLabel(record.key)}: ${optionEvidenceValue(record)}`).map(html).join("<br>") : html(t("excessOptionNoEvidence"))}</dd></div>
+      <div><dt>${html(t("excessActionOptionMissing"))}</dt><dd>${missing.length ? missing.map(code => html(translatedCodeLabel(`missing_${code}`, code))).join("<br>") : html(t("excessNoMissingEvidence"))}</dd></div>
+      ${options.includeNextCheck === false ? "" : `<div><dt>${html(t("excessActionOptionNextCheck"))}</dt><dd>${html(optionNextCheck(option.nextCheck))}</dd></div>`}
+      <div><dt>${html(t("excessActionOptionProvenance"))}</dt><dd>${provenance.length ? provenance.map(value => html(optionProvenanceLabel(value))).join("<br>") : html(t("notAvailable"))}</dd></div>
+    </dl>
+  `;
+}
+
+function renderExcessActionOption(option = {}) {
+  const optionLabel = option.isPrimary
+    ? t("excessPrimaryRecommendation")
+    : translatedCodeLabel(option.labelKey || option.optionCode, option.labelKey || option.optionCode);
+  const status = option.status || "not_checkable";
+  if (!option.isPrimary) {
+    return `
+      <details class="excess-action-option secondary" data-action-option="${html(option.optionCode || "")}" data-option-status="${html(status)}">
+        <summary>
+          <span class="excess-action-option-summary-copy">${html(optionLabel)}</span>
+          <span class="excess-option-status ${html(status)}">${html(t(`excessOptionStatus_${status}`))}</span>
+        </summary>
+        <div class="excess-action-option-body">${renderExcessActionOptionMeta(option)}</div>
+      </details>
+    `;
+  }
+  const decisionType = (option.evidence || []).find(record => record?.key === "decision_type")?.value || "";
+  return `
+    <article class="excess-action-option primary" data-action-option="${html(option.optionCode || "")}" data-option-status="${html(status)}">
+      <div class="excess-action-option-head">
+        <div><span>${html(t("excessPrimaryRecommendation"))}</span><h5>${html(option.labelText ? displayGeneratedText(option.labelText) : optionLabel)}</h5></div>
+        <span class="excess-option-status ${html(status)}">${html(t(`excessOptionStatus_${status}`))}</span>
+      </div>
+      <dl class="excess-action-primary-fields">
+        <div><dt>${html(t("colDecisionType"))}</dt><dd>${html(decisionType ? displayDecisionType(decisionType) : t("notAvailable"))}</dd></div>
+        <div><dt>${html(t("excessActionOptionNextCheck"))}</dt><dd>${html(optionNextCheck(option.nextCheck))}</dd></div>
+      </dl>
+      <details class="excess-action-evidence-disclosure">
+        <summary>${html(t("excessActionEvidenceDisclosure"))}</summary>
+        ${renderExcessActionOptionMeta(option, { includeNextCheck: false })}
+      </details>
+    </article>
+  `;
+}
+
+function renderExcessActionOptions(core = {}) {
+  const options = Array.isArray(core.actionOptions) ? core.actionOptions : [];
+  const primary = options.filter(option => option?.isPrimary);
+  const additional = options.filter(option => !option?.isPrimary);
+  return `
+    <section class="excess-detail-section excess-action-options-section" data-excess-detail-section="actions">
+      <h4>${html(t("excessActionOptions"))}</h4>
+      <div class="excess-action-options-list">
+        ${primary.map(renderExcessActionOption).join("")}
+        ${additional.length
+          ? additional.map(renderExcessActionOption).join("")
+          : `<p class="excess-empty-copy">${html(t("excessAdditionalActionOptionsUnavailable"))}</p>`}
+      </div>
     </section>
   `;
 }
@@ -6827,9 +7866,8 @@ function renderOwnerActionContext(item = {}) {
     [t("colOwnerFunction"), displayActionValue(context.ownerFunction || item.owner_function)],
     [t("colOwnerReference"), context.ownerReference || item.owner_reference || t("notAvailable")],
     [t("colOwnerSource"), displayOwnerSource(context.ownerSource || item.owner_source)],
-    [t("colAction"), displayGeneratedText(context.recommendation || item.recommended_action)],
-    [t("colNextStep"), displayGeneratedText(context.nextStep || item.next_step)],
-    [t("colDecisionType"), displayDecisionType(context.decisionType || item.decision_type)]
+    [t("ownerReferenceField"), item.owner_reference_field || t("notAvailable")],
+    [t("colOwnerConfidence"), displayActionValue(context.ownerAssignmentConfidence || item.owner_assignment_confidence || t("notAvailable"))]
   ];
   return `
     <section class="excess-detail-section">
@@ -6981,7 +8019,7 @@ function savePilotReviewFromButton(button) {
     caseFingerprint: fingerprint.fingerprint,
     fingerprintVersion: fingerprint.fingerprintVersion,
     caseFingerprintPayload: fingerprint.payload,
-    opportunityScore: Number(item.excess_opportunity_score || 0),
+    opportunityScore: finiteNumericValue(item.excess_opportunity_score, "excess_opportunity_score"),
     opportunityScoreModelVersion: pilotReviewScoreModelVersion(item),
     reviewDisposition: container.querySelector('[data-pilot-review-field="reviewDisposition"]')?.value,
     scoreAssessment: container.querySelector('[data-pilot-review-field="scoreAssessment"]')?.value,
@@ -6993,7 +8031,8 @@ function savePilotReviewFromButton(button) {
     notes: container.querySelector('[data-pilot-review-field="notes"]')?.value || ""
   });
   setFeedback(t("pilotReviewSaved"), "ok", { autoReset: true });
-  updatePilotReviewRegions(item);
+  if (currentView === "inventory-risks") renderInventoryRiskPage();
+  else updatePilotReviewRegions(item);
 }
 
 function renderPilotReviewSummary() {
@@ -7037,61 +8076,59 @@ function exportPilotReviews(scope = "current") {
 function renderExcessSummaryCards(model) {
   const summary = model.summary || {};
   const portfolioSummary = model.portfolioSummary || summary;
-  const scopeDiffers = Number(summary.casePortfolio?.caseCount || 0) !== Number(portfolioSummary.casePortfolio?.caseCount || 0)
-    || Number(summary.netAddressable?.value || 0) !== Number(portfolioSummary.netAddressable?.value || 0);
+  const filteredNet = finiteNumericValue(summary.netAddressable?.value, "net_addressable_excess_value", { type: "currency" });
+  const portfolioNet = finiteNumericValue(portfolioSummary.netAddressable?.value, "net_addressable_excess_value", { type: "currency" });
+  const scopeDiffers = Number(summary.casePortfolio?.caseCount ?? 0) !== Number(portfolioSummary.casePortfolio?.caseCount ?? 0)
+    || filteredNet !== portfolioNet;
   const portfolioContext = scopeDiffers
     ? `<div class="excess-summary-context">${html(t("excessFilteredContext")
-      .replace("{filteredCases}", formatCount(summary.casePortfolio?.caseCount || 0))
-      .replace("{portfolioCases}", formatCount(portfolioSummary.casePortfolio?.caseCount || 0))
-      .replace("{filteredNet}", formatCompactMoney(summary.netAddressable?.value || 0))
-      .replace("{portfolioNet}", formatCompactMoney(portfolioSummary.netAddressable?.value || 0)))}</div>`
+      .replace("{filteredCases}", formatCount(summary.casePortfolio?.caseCount ?? 0))
+      .replace("{portfolioCases}", formatCount(portfolioSummary.casePortfolio?.caseCount ?? 0))
+      .replace("{filteredNet}", formatCompactMoney(filteredNet))
+      .replace("{portfolioNet}", formatCompactMoney(portfolioNet)))}</div>`
     : "";
   const addressability = summary.addressability || {};
-  const gross = formatCompactMoney(addressability.grossValue || 0);
-  const net = formatCompactMoney(summary.netAddressable?.value || 0);
-  const overlap = formatCompactMoney(addressability.overlapValue || 0);
-  const addressabilityPercent = addressability.available
-    ? `${(Number(addressability.addressabilityRatio || 0) * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })} %`
+  const net = formatCompactMoney(filteredNet);
+  const overlap = formatCompactMoney(addressability.overlapValue);
+  const addressabilityRatio = finiteNumericValue(addressability.addressabilityRatio);
+  const addressabilityPercent = addressability.available && addressabilityRatio !== null
+    ? `${(addressabilityRatio * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })} %`
     : t("notAvailable");
-  const addressabilitySub = !addressability.available
-    ? t("excessAddressabilityUnavailable")
-    : Number(addressability.overlapValue || 0) > 0
-      ? t("excessAddressabilityReduced").replace("{overlap}", overlap)
-      : t("excessFullyAddressable");
   const grossNetTitle = [
-    money(addressability.grossValue || 0),
-    money(addressability.netValue || 0),
-    money(addressability.overlapValue || 0)
+    money(addressability.grossValue),
+    money(addressability.netValue),
+    money(addressability.overlapValue)
   ].join(" | ");
   const cards = [
     {
       label: t("excessSummaryNet"),
       value: net,
       sub: t("excessPrimaryPortfolioOpportunity"),
-      title: money(summary.netAddressable?.value || 0),
+      title: money(filteredNet),
       variant: "primary"
     },
     {
       label: t("excessSummaryCases"),
-      value: formatCount(summary.casePortfolio?.caseCount || 0),
+      value: formatCount(summary.casePortfolio?.caseCount ?? 0),
       sub: t("excessCasePortfolioMeta")
-        .replace("{materials}", formatCount(summary.casePortfolio?.uniqueMaterialCount || 0))
-        .replace("{plants}", formatCount(summary.casePortfolio?.uniquePlantCount || 0)),
+        .replace("{materials}", formatCount(summary.casePortfolio?.uniqueMaterialCount ?? 0))
+        .replace("{plants}", formatCount(summary.casePortfolio?.uniquePlantCount ?? 0)),
       title: ""
     },
     {
       label: t("excessSummaryPrioritization"),
-      value: `Ø ${formatCount(summary.prioritization?.averageScore || 0)} / 100`,
+      value: summary.prioritization?.averageScore === null || summary.prioritization?.averageScore === undefined
+        ? t("notAvailable")
+        : `${formatCount(summary.prioritization.averageScore)} / 100`,
       sub: t("excessPrioritizationMeta")
-        .replace("{maximum}", formatCount(summary.prioritization?.maximumScore || 0))
-        .replace("{high}", formatCount(summary.prioritization?.highPriorityCaseCount || 0)),
+        .replace("{maximum}", formatCount(summary.prioritization?.maximumScore))
+        .replace("{high}", formatCount(summary.prioritization?.highPriorityCaseCount ?? 0)),
       title: t("excessOpportunityScoreExplanation")
     },
     {
       label: t("excessAddressability"),
       value: addressabilityPercent,
-      sub: addressabilitySub,
-      meta: t("excessAddressabilityMeta").replace("{gross}", gross).replace("{overlap}", overlap),
+      sub: t("excessAddressabilityMeta").replace("{overlap}", overlap),
       title: grossNetTitle,
       variant: "reconciliation"
     }
@@ -7113,14 +8150,54 @@ function renderExcessSummaryCards(model) {
 
 function renderExcessScoreComponents(item = {}) {
   const components = item.opportunity_score_components || {};
+  const maximums = ObsoliQModules.excess.opportunityScoreEngine.componentMaximums || {};
+  const metadata = item.opportunity_score_metadata || {};
+  const totalScore = finiteNumericValue(Object.prototype.hasOwnProperty.call(metadata, "finalScore")
+    ? metadata.finalScore
+    : item.excess_opportunity_score ?? item.opportunity_score, "excess_opportunity_score");
+  const uncappedScore = finiteNumericValue(metadata.uncappedScore, "excess_opportunity_score");
+  const scoreCap = finiteNumericValue(metadata.scoreCap, "excess_opportunity_score");
+  const cappedPoints = finiteNumericValue(metadata.cappedPoints, "excess_opportunity_score");
+  const capNote = metadata.wasCapped === true
+    && Number.isFinite(uncappedScore)
+    && Number.isFinite(scoreCap)
+    && Number.isFinite(cappedPoints)
+    ? t("excessScoreCapApplied")
+      .replace("{uncapped}", formatCount(uncappedScore))
+      .replace("{cap}", formatCount(scoreCap))
+      .replace("{capped}", formatCount(cappedPoints))
+    : "";
   return `
-    <div class="excess-score-list">
-      ${Object.entries(components).map(([key, value]) => `
-        <div class="excess-score-row">
-          <span>${html(scoreComponentLabel(key))}</span>
-          <strong>${html(formatCount(value))}</strong>
+    <div class="excess-score-total" data-score-model-version="${html(item.opportunity_score_model_version || ObsoliQModules.excess.opportunityScoreEngine.version || "")}" data-score-uncapped="${html(Number.isFinite(uncappedScore) ? uncappedScore : "")}" data-score-cap="${html(Number.isFinite(scoreCap) ? scoreCap : "")}" data-score-was-capped="${metadata.wasCapped === true ? "true" : "false"}">
+      <span>${html(t("colOpportunityScore"))}</span>
+      <strong>${html(Number.isFinite(totalScore) ? `${formatCount(totalScore)} / 100` : t("notAvailable"))}</strong>
+      ${capNote ? `<small class="excess-score-cap-note">${html(capNote)}</small>` : ""}
+    </div>
+    <div class="excess-score-list" data-score-component-maximum-source="opportunity-score-engine">
+      ${Object.entries(components).map(([key, rawValue]) => {
+        const contribution = finiteNumericValue(rawValue, "excess_opportunity_score");
+        const maximum = finiteNumericValue(maximums[key], "excess_opportunity_score");
+        const hasMaximum = maximum !== null && maximum > 0;
+        const ratio = hasMaximum && contribution !== null
+          ? Math.max(0, Math.min(1, contribution / maximum))
+          : 0;
+        const label = scoreComponentLabel(key);
+        const ariaLabel = t("excessScoreContributionAria")
+          .replace("{label}", label)
+          .replace("{value}", contribution !== null ? formatCount(contribution) : t("notAvailable"))
+          .replace("{maximum}", hasMaximum ? formatCount(maximum) : t("notAvailable"));
+        return `
+        <div class="excess-score-row${ratio < 0.5 ? " low" : ""}" data-score-component="${html(key)}" data-score-contribution="${html(contribution !== null ? contribution : "")}" data-score-maximum="${html(hasMaximum ? maximum : "")}" data-score-ratio="${html(ratio.toFixed(4))}">
+          <div class="excess-score-label-row">
+            <span>${html(label)}</span>
+            <strong>${html(contribution !== null ? formatCount(contribution) : t("notAvailable"))} / ${html(hasMaximum ? formatCount(maximum) : t("notAvailable"))}</strong>
+          </div>
+          <div class="excess-score-track" role="progressbar" aria-label="${html(ariaLabel)}" aria-valuemin="0"${hasMaximum ? ` aria-valuemax="${html(maximum)}"` : ""}${contribution !== null ? ` aria-valuenow="${html(contribution)}"` : ""}>
+            <i style="--score-fill:${(ratio * 100).toFixed(2)}%"></i>
+          </div>
         </div>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
 }
@@ -7132,7 +8209,7 @@ function renderExcessScenarios(item = {}) {
       ${scenarios.map(scenario => {
         const availability = scenario.availability || (scenario.available ? "available" : "unavailable");
         const value = availability === "available"
-          ? formatCompactMoney(scenario.estimated_impact_value || 0)
+          ? formatCompactMoney(scenario.estimated_impact_value)
           : availability === "limited" ? t("excessScenarioLimited") : t("excessScenarioUnavailable");
         return `
         <div class="excess-scenario ${html(availability)}">
@@ -7166,70 +8243,200 @@ function currentExcessRelationshipIssueRowKeys(model = currentExcessViewModel ||
 }
 
 function currentExcessDecisionCore(item = {}) {
+  const historicalRuntimeState = historicalMetricsRuntimeForPresentation();
   return excessDecisionWorkspaceModel.projectDecisionCore(item, {
-    historicalResult: historicalMetricsResultForCurrentSignature(),
+    historicalResult: historicalMetricsResultForCurrentSignature(historicalRuntimeState),
+    historicalRuntimeState,
+    historyPackageLoaded: Boolean(currentConsumptionHistoryPackage()),
+    purchaseOrderPackageImportSupported: PURCHASE_ORDERS_IMPORT_SUPPORTED,
     relationshipIssueRowKeys: currentExcessRelationshipIssueRowKeys()
   });
 }
 
 function renderExcessOperationalEvidence(item = {}) {
+  const matchType = String(item.relationship_match_type || "").trim();
+  const matchValue = matchType && !["unknown", "none", "unavailable"].includes(matchType.toLowerCase())
+    ? relationshipMatchTypeLabel(matchType)
+    : t("excessOperationalMatchMissing");
   const rows = [
-    [t("inventoryValue"), formatCompactMoney(item.stock_value || 0)],
-    [t("colNetExcess"), formatCompactMoney(item.net_addressable_excess_value || 0)],
-    [t("colGrossExcess"), formatCompactMoney(item.gross_excess_value || 0)],
-    [t("excessResponsible"), item.owner_reference || t("notAvailable")]
+    [t("categoryLabel"), item.primary_category === "excess" ? t("excessCaseBadge") : displayCategory(item.category || item.primary_category) || t("notAvailable")],
+    [t("plantLabel"), item.plant || item.profit_center || t("notAvailable")],
+    [t("groupLabel"), item.program_short || item.program || t("notAvailable")],
+    [t("excessOperationalMatchLabel"), matchValue]
   ];
   return `
     <section class="excess-detail-section excess-operational-evidence">
       <h4>${html(t("excessOperationalEvidence"))}</h4>
-      <dl>
-        ${rows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}
-      </dl>
+      <p class="excess-operational-context">
+        ${rows.map(([label, value]) => `<span><b>${html(label)}:</b> ${html(value)}</span>`).join('<i aria-hidden="true">·</i>')}
+      </p>
     </section>
   `;
 }
 
 function formatHistoryCompleteness(value) {
+  if (value === "" || value === null || value === undefined) return t("notAvailable");
   const parsed = Number(value);
   return Number.isFinite(parsed)
     ? `${(parsed * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })} %`
     : t("notAvailable");
 }
 
-function renderExcessHistoricalEvidence(core = {}) {
-  const evidence = core.historicalEvidence || { status: "unavailable" };
-  if (!evidence.exact || !evidence.metric) {
+function historyUnitContext(evidence = {}) {
+  return evidence.unitContext || { state: "missing", unit: "", source: "", provenance: {} };
+}
+
+function formatHistoryQuantityWithUnit(value, unitContext = {}, options = {}) {
+  const formatted = formatHistoryQuantity(value);
+  if (formatted === t("notAvailable")) return formatted;
+  if (unitContext.state === "conflict") return t("notAvailable");
+  if (unitContext.unit) return `${formatted} ${unitContext.unit}`;
+  return options.includeMissingLabel ? `${formatted} · ${t("excessHistoricalUnitMissing")}` : formatted;
+}
+
+function renderExcessHistoryUnitContext(evidence = {}) {
+  const context = historyUnitContext(evidence);
+  const textValue = context.state === "conflict"
+    ? t("excessHistoricalUnitConflict")
+    : context.state === "available" && context.unit
+      ? `${t("excessHistoricalUnitLabel")}: ${context.unit}`
+      : t("excessHistoricalUnitMissing");
+  return `<p class="excess-history-unit-context ${html(context.state || "missing")}" data-history-unit-state="${html(context.state || "missing")}" data-history-unit="${html(context.unit || "")}">${html(textValue)}</p>`;
+}
+
+function renderExcessHistoricalBuckets(evidence = {}) {
+  const buckets = (Array.isArray(evidence.monthlyBuckets) ? evidence.monthlyBuckets : [])
+    .filter(bucket => bucket && String(bucket.month || "").trim() && Number.isFinite(Number(bucket.netQuantity)))
+    .slice()
+    .sort((left, right) => String(left.month).localeCompare(String(right.month)))
+    .slice(-12);
+  if (!buckets.length) {
+    return `<p class="excess-history-chart-empty">${html(t("excessHistoricalMonthlyUnavailable"))}</p>`;
+  }
+  const unitContext = historyUnitContext(evidence);
+  if (buckets.length === 1) {
+    const bucket = buckets[0];
     return `
-      <section class="excess-historical-state unavailable" data-history-state="unavailable">
+      <div class="excess-history-chart-empty" data-canonical-monthly-buckets="true" data-single-monthly-bucket="true">
+        <span>${html(t("excessHistoricalMonthlyInsufficient"))}</span>
+        <strong>${html(bucket.month)} · ${html(formatHistoryQuantityWithUnit(Number(bucket.netQuantity), { ...unitContext, unit: bucket.unit || unitContext.unit }, { includeMissingLabel: true }))}</strong>
+      </div>
+    `;
+  }
+  const values = buckets.map(bucket => Number(bucket.netQuantity));
+  const actualMinimum = Math.min(...values);
+  const actualMaximum = Math.max(...values);
+  let scaleMinimum = Math.min(0, actualMinimum);
+  let scaleMaximum = Math.max(0, actualMaximum);
+  if (scaleMinimum === scaleMaximum) {
+    scaleMinimum -= 1;
+    scaleMaximum += 1;
+  }
+  const chartWidth = 640;
+  const chartHeight = 156;
+  const plotLeft = 18;
+  const plotRight = chartWidth - 18;
+  const plotTop = 12;
+  const plotBottom = chartHeight - 18;
+  const xStep = (plotRight - plotLeft) / (buckets.length - 1);
+  const yFor = value => plotTop + (scaleMaximum - value) / (scaleMaximum - scaleMinimum) * (plotBottom - plotTop);
+  const zeroY = yFor(0);
+  const points = buckets.map((bucket, index) => `${(plotLeft + index * xStep).toFixed(2)},${yFor(Number(bucket.netQuantity)).toFixed(2)}`).join(" ");
+  const unit = unitContext.unit || buckets.find(bucket => bucket.unit)?.unit || "";
+  const description = t("excessHistoricalChartDescription")
+    .replace("{count}", formatCount(buckets.length))
+    .replace("{start}", buckets[0].month)
+    .replace("{end}", buckets[buckets.length - 1].month)
+    .replace("{minimum}", formatHistoryQuantity(actualMinimum))
+    .replace("{maximum}", formatHistoryQuantity(actualMaximum))
+    .replace("{unit}", unit || t("excessHistoricalUnitMissing"));
+  return `
+    <figure class="excess-history-chart" data-canonical-monthly-buckets="true" data-bucket-count="${buckets.length}" data-chronological-months="${html(buckets.map(bucket => bucket.month).join(","))}" data-negative-values="${values.some(value => value < 0) ? "true" : "false"}" data-zero-baseline="true">
+      <svg viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="none" role="img" aria-label="${html(description)}">
+        <line class="excess-history-zero-line" x1="${plotLeft}" y1="${zeroY.toFixed(2)}" x2="${plotRight}" y2="${zeroY.toFixed(2)}"></line>
+        <polyline class="excess-history-line" points="${points}"></polyline>
+        ${buckets.map((bucket, index) => {
+          const value = Number(bucket.netQuantity);
+          const formattedValue = formatHistoryQuantityWithUnit(value, { ...unitContext, unit: bucket.unit || unitContext.unit }, { includeMissingLabel: true });
+          return `<circle class="excess-history-point${value < 0 ? " negative" : value === 0 ? " zero" : ""}" cx="${(plotLeft + index * xStep).toFixed(2)}" cy="${yFor(value).toFixed(2)}" r="4"><title>${html(bucket.month)}: ${html(formattedValue)}</title></circle>`;
+        }).join("")}
+      </svg>
+      <div class="excess-history-axis-labels" aria-hidden="true"><span>${html(buckets[0].month)}</span><span>${html(buckets[buckets.length - 1].month)}</span></div>
+      <figcaption>${html(description)}</figcaption>
+    </figure>
+  `;
+}
+
+function renderExcessHistoricalEvidence(core = {}) {
+  const evidence = core.historicalEvidence || { status: "unavailable", state: "package_missing" };
+  const state = evidence.state || "package_missing";
+  const titleKey = `excessHistoryState_${state}_title`;
+  const bodyKey = `excessHistoryState_${state}_body`;
+  if (!evidence.metric) {
+    return `
+      <section class="excess-historical-state unavailable ${html(state)}" data-excess-detail-section="history" data-history-state="unavailable" data-history-detail-state="${html(state)}">
         <div>
-          <h4>${html(t("excessHistoricalUnavailableTitle"))}</h4>
-          <p>${html(t("excessHistoricalUnavailableBody"))}</p>
+          <h4>${html(t(titleKey))}</h4>
+          <p>${html(t(bodyKey))}</p>
         </div>
-        <button class="secondary" type="button" data-data-foundation-import-consumption-history>${html(t("excessImportHistory"))}</button>
+        ${state === "package_missing" ? `<button class="secondary" type="button" data-data-foundation-import-consumption-history>${html(t("excessImportHistory"))}</button>` : ""}
       </section>
     `;
   }
   const metric = evidence.metric;
-  const rows = [
+  const unitContext = historyUnitContext(evidence);
+  const primaryRows = [
     [t("lastConsumption"), metric.last_consumption_date || metric.last_consumption_period || t("notAvailable")],
-    [t("netConsumption12m"), formatHistoryQuantity(metric.net_consumption_quantity_12m)],
+    [t("netConsumption3m"), formatHistoryQuantityWithUnit(metric.net_consumption_quantity_3m, unitContext)],
+    [t("netConsumption12m"), formatHistoryQuantityWithUnit(metric.net_consumption_quantity_12m, unitContext)],
+    [t("inventoryCoverage"), formatHistoryMonths(metric.inventory_coverage_months)]
+  ];
+  const additionalRows = [
+    [t("averageMonthlyConsumptionHistory"), formatHistoryQuantityWithUnit(metric.average_monthly_consumption_12m, unitContext)],
     [t("consumptionTrend"), displayHistoryTrend(metric.consumption_trend)],
-    [t("inventoryCoverage"), formatHistoryMonths(metric.inventory_coverage_months)],
     [t("historyCompleteness"), formatHistoryCompleteness(metric.history_completeness)]
   ];
   const limitations = evidence.limitations.length
     ? `<p class="excess-history-limitations">${html(evidence.limitations.map(code => translatedCodeLabel(`historyReason_${code}`, code)).join(" · "))}</p>`
     : "";
   return `
-    <section class="excess-historical-state ${html(evidence.status)}" data-history-state="${html(evidence.status)}">
+    <section class="excess-historical-state ${html(evidence.status)} ${html(state)}" data-excess-detail-section="history" data-history-state="${html(evidence.status)}" data-history-detail-state="${html(state)}">
       <div class="excess-history-heading">
-        <h4>${html(t("excessHistoricalEvidence"))}</h4>
+        <div><h4>${html(t("excessHistoricalEvidence"))}</h4><small>${html(t(titleKey))}</small></div>
         <span>${html(displayHistoricalMetricStatus(evidence.status))}</span>
       </div>
-      <dl>
-        ${rows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}
+      ${renderExcessHistoryUnitContext(evidence)}
+      <dl class="excess-history-primary-metrics">
+        ${primaryRows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}
       </dl>
       ${limitations}
+      <div class="excess-history-chart-wrap">
+        <div class="excess-history-chart-title">
+          <h5>${html(t("excessHistoricalMonthlyLastTwelve"))}</h5>
+          ${metric.partial_current_period || metric.provenance?.partialCurrentPeriod ? `<span>${html(t("excessHistoricalPartialPeriod"))}</span>` : ""}
+        </div>
+        ${renderExcessHistoricalBuckets(evidence)}
+      </div>
+      <details class="excess-history-more">
+        <summary>${html(t("excessHistoryMore"))}</summary>
+        <dl>${additionalRows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}</dl>
+      </details>
+    </section>
+  `;
+}
+
+function renderExcessWorkContext(core = {}) {
+  const context = core.workContext || {};
+  const rows = [
+    [t("colDecisionType"), displayDecisionType(context.decisionType || t("notAvailable"))],
+    [t("colOwnerSource"), displayOwnerSource(context.ownerSource)],
+    [t("colOwnerConfidence"), displayActionValue(context.ownerAssignmentConfidence || t("notAvailable"))]
+  ];
+  return `
+    <section class="excess-detail-section excess-work-context" data-action-status="${html(context.actionStatus || "")}">
+      <h4>${html(t("excessWorkContext"))}</h4>
+      <dl>${rows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}</dl>
+      <p>${html(t("excessActionStatusSessionNote"))}</p>
     </section>
   `;
 }
@@ -7246,38 +8453,114 @@ function renderExcessTechnicalProvenance(item = {}) {
   return `<div class="pilot-context-grid">${rows.map(([label, value]) => `<div><span>${html(label)}</span><strong>${html(value)}</strong></div>`).join("")}</div>`;
 }
 
+function renderExcessDetailNavigation() {
+  const sections = [
+    ["decision", "excessSectionDecision"],
+    ["value", "excessSectionValue"],
+    ["history", "excessSectionHistory"],
+    ["prioritization", "excessSectionPrioritization"],
+    ["actions", "excessSectionActions"]
+  ];
+  return `
+    <nav class="excess-detail-section-nav" aria-label="${html(t("excessDetailNavigation"))}">
+      ${sections.map(([key, labelKey], index) => `
+        <button type="button" data-excess-detail-target="${html(key)}"${index === 0 ? ' class="active" aria-current="location"' : ""}>${html(t(labelKey))}</button>
+      `).join("")}
+    </nav>
+  `;
+}
+
+function setExcessDetailNavigationActive(navigation, activeKey) {
+  navigation?.querySelectorAll("[data-excess-detail-target]").forEach(button => {
+    const active = button.dataset.excessDetailTarget === activeKey;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "location");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+function updateExcessDetailNavigation(scrollContainer) {
+  const navigation = scrollContainer?.querySelector(".excess-detail-section-nav");
+  if (!navigation) return;
+  const anchors = [...scrollContainer.querySelectorAll("[data-excess-section-anchor]")];
+  if (!anchors.length) return;
+  const activationLine = navigation.getBoundingClientRect().bottom + 12;
+  let activeKey = anchors[0].dataset.excessSectionAnchor;
+  anchors.forEach(anchor => {
+    if (anchor.getBoundingClientRect().top <= activationLine) activeKey = anchor.dataset.excessSectionAnchor;
+  });
+  setExcessDetailNavigationActive(navigation, activeKey);
+}
+
+function bindExcessDetailNavigation(root) {
+  if (typeof excessDetailNavigationCleanup === "function") excessDetailNavigationCleanup();
+  excessDetailNavigationCleanup = null;
+  const scrollContainer = root?.querySelector(".excess-detail-scroll");
+  const navigation = scrollContainer?.querySelector(".excess-detail-section-nav");
+  if (!scrollContainer || !navigation) return;
+  const clickBindings = [...navigation.querySelectorAll("[data-excess-detail-target]")].map(button => {
+    const handler = () => {
+      const key = button.dataset.excessDetailTarget;
+      const anchor = scrollContainer.querySelector(`[data-excess-section-anchor="${key}"]`);
+      if (!anchor) return;
+      const reduceMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      setExcessDetailNavigationActive(navigation, key);
+      anchor.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    };
+    button.addEventListener("click", handler);
+    return [button, handler];
+  });
+  let updateFrame = 0;
+  const handleScroll = () => {
+    if (updateFrame) return;
+    updateFrame = window.requestAnimationFrame(() => {
+      updateFrame = 0;
+      updateExcessDetailNavigation(scrollContainer);
+    });
+  };
+  scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+  excessDetailNavigationCleanup = () => {
+    clickBindings.forEach(([button, handler]) => button.removeEventListener("click", handler));
+    scrollContainer.removeEventListener("scroll", handleScroll);
+    if (updateFrame) window.cancelAnimationFrame(updateFrame);
+    updateFrame = 0;
+  };
+  updateExcessDetailNavigation(scrollContainer);
+}
+
 function renderExcessDetail(item) {
   if (!item) {
-    return `<div class="empty">${html(t("excessNoSelection"))}</div>`;
+    return `<div class="empty"><h3 id="excess-case-heading">${html(t("excessDetailsTitle"))}</h3><p>${html(t("excessNoSelection"))}</p></div>`;
   }
   const core = currentExcessDecisionCore(item);
-  const primaryReasons = core.whyPrioritized.slice(0, 3);
+  const valueBasisValid = core.valueNarrative?.validBasis === true;
+  const valueBasisReason = core.valueNarrative?.reasonCode || "";
+  const primaryReasons = (Array.isArray(core.whyPrioritized) ? core.whyPrioritized : []).slice(0, 3);
+  const primaryStepSource = core.nextStep || core.decisionReadiness?.nextCheck || "";
+  const primaryStepText = core.nextStep
+    ? displayGeneratedText(core.nextStep)
+    : core.decisionReadiness?.nextCheck
+      ? readinessNextCheck(core.decisionReadiness.nextCheck)
+      : "";
   const decisionBasis = `
-    <div class="excess-decision-basis-grid">
+    ${renderExcessSectionAnchor("prioritization")}
+    <section class="excess-decision-basis-grid excess-prioritization-section" data-excess-detail-section="prioritization">
       <section class="excess-detail-section">
-        <h4>${html(t("excessScoreDrivers"))}</h4>
+        <div class="excess-section-heading">
+          <h4>${html(t("excessScoreDrivers"))}</h4>
+          <span>${html(t("excessOpportunityScoreExplanation"))}</span>
+        </div>
         ${renderExcessScoreComponents(item)}
-        <p class="excess-score-explanation">${html(t("excessOpportunityScoreExplanation"))}</p>
       </section>
       ${renderExcessOperationalEvidence(item)}
-    </div>
-  `;
-  const evidenceLimitations = `
-    ${renderTextList("whyNotHigher", core.whyNotHigher)}
-    <section class="excess-detail-section">
-      <h4>${html(t("excessLimitations"))}</h4>
-      <ul>${excessTextList((item.limitations || []).map(key => `limitation_${key}`))}</ul>
     </section>
-    ${renderEvidenceRecords(item)}
-    ${renderGrossNetExplanation(item)}
   `;
   const technicalDetails = `
     <div class="pilot-context-grid">
       <div><span>${html(t("excessQualityTitle"))}</span><strong>${html(relationshipQualityLabel(currentExcessViewModel?.relationshipQuality || {}))}</strong></div>
       <div><span>${html(t("colRelationshipMatchType"))}</span><strong>${html(relationshipMatchTypeLabel(item.relationship_match_type))}</strong></div>
-      <div><span>${html(t("colOwnerSource"))}</span><strong>${html(displayOwnerSource(item.owner_source))}</strong></div>
-      <div><span>${html(t("colOwnerConfidence"))}</span><strong>${html(displayActionValue(item.owner_assignment_confidence))}</strong></div>
-      <div><span>${html(t("colExcessOverlap"))}</span><strong>${html(formatCompactMoney(item.excess_overlap_value || 0))}</strong></div>
+      <div><span>${html(t("relationshipStatus"))}</span><strong>${html(translatedCodeLabel(`relationship_${item.relationship_status || "unknown"}`, item.relationship_status || t("notAvailable")))}</strong></div>
+      <div><span>${html(t("materialMaster"))}</span><strong>${html(item.material_master_package_id || t("notAvailable"))}</strong></div>
     </div>
   `;
   const pilotReviewBody = `
@@ -7293,40 +8576,60 @@ function renderExcessDetail(item) {
         <div class="excess-case-identity">
           <div class="excess-case-badges">
             <span class="excess-case-badge">${html(t("excessCaseBadge"))}</span>
-            ${actionBadge("priority", core.priority || "None")}
+            ${actionBadge("status", core.actionStatus || "Open")}
           </div>
-          <strong>${html(core.materialId || "-")}</strong>
+          <h3 id="excess-case-heading">${html(core.materialId || "-")}</h3>
           <span>${html(core.materialDescription || t("notAvailable"))}${core.plant ? ` · ${html(core.plant)}` : ""}</span>
         </div>
         <div class="excess-case-actions">
           <button class="secondary" type="button" data-open-excess-inventory="${html(core.caseId)}">${html(t("excessOpenInventory"))}</button>
-          <button class="secondary" type="button" data-open-excess-actions="${html(core.caseId)}">${html(t("excessOpenActions"))}</button>
+          <button class="primary" type="button" data-open-excess-actions="${html(core.caseId)}">${html(t("excessOpenActions"))}</button>
         </div>
       </div>
       <div class="excess-inline-stats">
-        <div><span>${html(t("colNetExcess"))}</span><strong title="${html(money(core.netAddressableValue))}">${html(formatCompactMoney(core.netAddressableValue))}</strong><small>${html(t("colGrossExcess"))}: ${html(formatCompactMoney(core.grossExcessValue))}</small></div>
-        <div><span>${html(t("colOpportunityScore"))}</span><strong>${html(formatCount(core.opportunityScore))}/100</strong><small>${html(t("excessScoreShortNote"))}</small></div>
+        <div class="excess-header-value-basis${valueBasisValid ? "" : " warning"}" data-header-value-basis-valid="${valueBasisValid ? "true" : "false"}" data-header-value-basis-reason="${html(valueBasisReason)}">
+          <span>${html(t("colNetExcess"))}</span>
+          ${renderProjectedMoney(core.netAddressableValue)}
+          <small>${html(t("excessHeaderGross"))}: ${html(projectedMoneyText(core.grossExcessValue))}</small>
+          <small>${html(t("excessHeaderOverlap"))}: ${html(projectedMoneyText(core.overlapValue))}</small>
+          ${valueBasisValid ? "" : `<small class="excess-value-basis-warning">${html(t("excessValueBasisReview"))}</small>`}
+        </div>
+        <div data-header-opportunity-score-available="${core.opportunityScore?.available ? "true" : "false"}">
+          <span>${html(t("colOpportunityScore"))}</span>
+          ${renderProjectedScore(core.opportunityScore)}
+          <small>${html(t("excessScoreShortNote"))}</small>
+        </div>
         <div><span>${html(t("excessResponsible"))}</span><strong>${html(core.ownerReference || t("notAvailable"))}</strong><small>${html(displayActionValue(core.ownerFunction || t("notAvailable")))}</small></div>
         <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(core.priority || t("notAvailable")))}</strong></div>
       </div>
-      <div class="excess-primary-decision-grid">
-        <section class="excess-primary-decision">
-          <h4>${html(t("whyPrioritized"))}</h4>
-          <ul>${excessTextList(primaryReasons)}</ul>
-        </section>
-        <section class="excess-primary-decision next-step" data-next-step="${html(core.nextStep)}">
-          <h4>${html(t("excessNextReviewStep"))}</h4>
-          <p>${html(core.nextStep ? displayGeneratedText(core.nextStep) : t("excessNoNextReviewStep"))}</p>
-          ${core.decisionType ? `<small><span>${html(t("excessDecisionRequired"))}</span><strong>${html(displayDecisionType(core.decisionType))}</strong></small>` : ""}
-        </section>
-      </div>
     </div>
     <div class="excess-detail-scroll">
+      ${renderExcessDetailNavigation()}
       <div class="excess-detail-card">
-        ${decisionBasis}
+        ${renderExcessSectionAnchor("decision")}
+        <div class="excess-primary-decision-grid" data-decision-narrative-grid data-excess-detail-section="decision">
+          <section class="excess-primary-decision next-step" data-next-step="${html(primaryStepSource)}">
+            <h4>${html(t("excessNextReviewStep"))}</h4>
+            <p>${html(primaryStepText || t("excessNoNextReviewStep"))}</p>
+            ${core.decisionType ? `<small><span>${html(t("excessDecisionRequired"))}</span><strong>${html(displayDecisionType(core.decisionType))}</strong></small>` : ""}
+          </section>
+          <section class="excess-primary-decision why-prioritized">
+            <h4>${html(t("whyPrioritized"))}</h4>
+            <ul>${excessTextList(primaryReasons)}</ul>
+          </section>
+          ${renderExcessCauseHypothesis(core, primaryReasons)}
+          ${renderExcessDecisionReadiness(core, primaryStepText)}
+        </div>
+        ${renderExcessSectionAnchor("value")}
+        ${renderGrossNetExplanation(core)}
+        ${renderExcessSectionAnchor("history")}
         ${renderExcessHistoricalEvidence(core)}
+        ${decisionBasis}
+        ${renderExcessSectionAnchor("actions")}
+        ${renderExcessActionOptions(core)}
+        ${renderExcessWorkContext(core)}
         ${renderExcessDisclosure("excessScenarioAssumptions", renderExcessScenarios(item))}
-        ${renderExcessDisclosure("excessEvidenceLimitations", evidenceLimitations)}
+        ${renderExcessDisclosure("excessEvidence", renderEvidenceRecords(item))}
         ${renderExcessDisclosure("excessDataRelationship", technicalDetails)}
         ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
         ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
@@ -7348,11 +8651,23 @@ function renderExcessCaseTable(rows) {
   ];
   return `
     <table class="excess-table">
+      <colgroup>
+        <col class="excess-col-material">
+        <col class="excess-col-net">
+        <col class="excess-col-score">
+        <col class="excess-col-owner">
+        <col class="excess-col-priority">
+        <col class="excess-col-action">
+      </colgroup>
       <thead>
         <tr>
           ${headers.map(([key, label]) => key === "action"
-            ? `<th>${html(label)}</th>`
-            : renderTableHeaderCell(key, label, { columnFilterScope: "excess" })
+            ? `<th><span class="excess-visually-hidden">${html(t("excessRowDetails"))}</span></th>`
+            : renderTableHeaderCell(key, label, {
+              columnFilterScope: "excess",
+              labelTitle: key === "excess_opportunity_score" ? t("excessScoreAccessibleLabel") : "",
+              labelAria: key === "excess_opportunity_score" ? t("excessScoreAccessibleLabel") : ""
+            })
           ).join("")}
         </tr>
       </thead>
@@ -7398,7 +8713,7 @@ function renderRelationshipIssueWorklist(model = {}) {
           <strong>${html(t("excessQualityTitle"))}</strong>
           <small>${html(issueCountLabel)} · ${html(t("excessQualitySubtitle"))}</small>
         </div>
-        <span class="quality-pill ${html(quality.status || "unavailable")}">${html(relationshipQualityLabel(quality))} · ${html(formatCount(quality.score || 0))}/100</span>
+        <span class="quality-pill ${html(quality.status || "unavailable")}">${html(relationshipQualityLabel(quality))} · ${html(formatCount(quality.score))}/100</span>
       </summary>
       <div class="excess-disclosure-body">
         <div class="excess-quality-list">
@@ -7438,16 +8753,30 @@ function renderRelationshipIssueWorklist(model = {}) {
 
 function renderExcessPagination(totalRows, pageNumber, pageCount) {
   if (pageCount <= 1) {
-    return `<div class="excess-pagination"><span>${html(formatCount(totalRows))} ${html(t("rows"))}</span></div>`;
+    return `<div class="excess-pagination"><span>${html(formatCount(totalRows))} ${html(t("excessCasesNoun"))}</span></div>`;
   }
-  const label = t("pageOf")
-    .replace("{page}", formatCount(pageNumber))
-    .replace("{pages}", formatCount(pageCount));
+  const start = (pageNumber - 1) * excessPageSize + 1;
+  const end = Math.min(totalRows, pageNumber * excessPageSize);
+  const rangeLabel = t("excessPaginationRange")
+    .replace("{start}", formatCount(start))
+    .replace("{end}", formatCount(end))
+    .replace("{total}", formatCount(totalRows));
+  const visiblePages = [...new Set([1, pageNumber - 1, pageNumber, pageNumber + 1, pageCount]
+    .filter(value => value >= 1 && value <= pageCount))].sort((left, right) => left - right);
+  let previousPage = 0;
+  const pageButtons = visiblePages.map(value => {
+    const gap = previousPage && value - previousPage > 1 ? `<span class="excess-pagination-gap" aria-hidden="true">…</span>` : "";
+    previousPage = value;
+    return `${gap}<button class="secondary excess-page-number${value === pageNumber ? " active" : ""}" type="button" data-excess-page="${html(value)}" aria-label="${html(`${t("page")} ${formatCount(value)}`)}"${value === pageNumber ? ' aria-current="page"' : ""}>${html(formatCount(value))}</button>`;
+  }).join("");
   return `
     <div class="excess-pagination">
+      <span>${html(rangeLabel)}</span>
+      <div class="excess-pagination-controls">
       <button class="secondary" type="button" data-excess-page="${html(Math.max(1, pageNumber - 1))}" ${pageNumber <= 1 ? "disabled" : ""}>${html(t("paginationPrevious"))}</button>
-      <span>${html(label)} · ${html(formatCount(totalRows))} ${html(t("rows"))}</span>
+      ${pageButtons}
       <button class="secondary" type="button" data-excess-page="${html(Math.min(pageCount, pageNumber + 1))}" ${pageNumber >= pageCount ? "disabled" : ""}>${html(t("paginationNext"))}</button>
+      </div>
     </div>
   `;
 }
@@ -7537,9 +8866,10 @@ function openActionsForExcessCase(caseId) {
     setFeedback(t("excessNoLinkedAction"), "error", { autoReset: true });
     return { status: "missing" };
   }
-  excessActionRevealTarget = excessCaseNavigationTarget(targetCase);
+  const navigationTarget = excessCaseNavigationTarget(targetCase);
+  excessActionRevealTarget = navigationTarget;
   switchProcessTab("actions", t("navActions"));
-  return { status: "opened", target: excessActionRevealTarget };
+  return { status: "opened", target: navigationTarget };
 }
 
 function openInventoryForExcessCase(caseId) {
@@ -7581,6 +8911,8 @@ function renderExcessPage() {
   };
   const target = $("excessPage");
   if (!target) return;
+  if (typeof excessDetailNavigationCleanup === "function") excessDetailNavigationCleanup();
+  excessDetailNavigationCleanup = null;
   const toolbar = $("sharedToolbar");
   const parkingSlot = $("overviewToolbarSlot");
   if (toolbar && parkingSlot && target.contains(toolbar)) moveSharedToolbarToSlot(parkingSlot);
@@ -7607,7 +8939,7 @@ function renderExcessPage() {
           <p>${html(t("excessSubtitle"))}</p>
         </div>
         <div class="control-card-actions">
-          <button class="secondary" type="button" data-export-excess>${html(t("exportTop"))}</button>
+          <button class="secondary" type="button" data-export-excess>${html(t("excessExport"))}</button>
         </div>
       </div>
       <div id="excessToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
@@ -7625,12 +8957,13 @@ function renderExcessPage() {
         <div class="table-wrap excess-table-wrap">${renderExcessCaseTable(pageRows)}</div>
         ${renderExcessPagination(rows.length, excessPageNumber, pageCount)}
       </div>
-      <aside class="panel excess-detail-panel">
+      <aside class="panel excess-detail-panel" aria-labelledby="excess-case-heading">
         ${renderExcessDetail(activeCase)}
       </aside>
     </section>
     ${renderRelationshipIssueWorklist(viewModel)}
   `;
+  bindExcessDetailNavigation(target);
   excessPilotReviewController.bind(target);
   if (currentView === "excess") {
     placeSharedToolbar("excess");
@@ -7771,8 +9104,8 @@ function hasContentValue(value) {
 }
 
 function formatQualityPercent(value) {
-  if (value === null || value === undefined) return t("notAvailable");
-  return `${Math.round(Number(value || 0)).toLocaleString(locale())} %`;
+  const normalized = finiteNumericValue(value);
+  return normalized === null ? t("notAvailable") : `${Math.round(normalized).toLocaleString(locale())} %`;
 }
 
 function booleanQualityLabel(value) {
@@ -7780,56 +9113,61 @@ function booleanQualityLabel(value) {
 }
 
 function formatScoreComponent(value) {
-  const number = Number(value || 0);
+  const number = finiteNumericValue(value);
+  if (number === null) return t("notAvailable");
   const rounded = Math.round(number);
   return rounded > 0 ? `+${rounded}` : `${rounded}`;
 }
 
 function rowCompletenessPercent(rows, key) {
-  if (!rows.length) return 0;
+  if (!rows.length) return null;
   return rows.filter(row => hasContentValue(row[key])).length / rows.length * 100;
 }
 
 function rowAnyFieldCompletenessPercent(rows, keys) {
-  if (!rows.length) return 0;
+  if (!rows.length) return null;
   return rows.filter(row => keys.some(key => hasContentValue(row[key]))).length / rows.length * 100;
 }
 
-function numericInputLooksValid(value, key = "") {
-  if (!hasContentValue(value)) return false;
-  if (typeof value === "number") return Number.isFinite(value);
-  const factor = magnitudeFactor(value, key);
-  const text = String(value ?? "")
-    .replace(/\(([^)]+)\)/g, "-$1")
-    .replace(/[€$£]/g, "")
-    .replace(/\b(eur|euro|usd|dollar|dollars|gbp|pound|pounds|sterling|chf|pln|czk|sek|nok|dkk)\b/gi, "")
-    .replace(/([0-9])\s*(mrd\.?|mio\.?|tsd\.?|bn|mn|[kmb])(?=\s|$|[^a-z])/gi, "$1")
-    .replace(/\b(mrd\.?|mio\.?|tsd\.?|bn|mn|billion(?:en|s)?|million(?:en|s)?|milliarden|tausend|thousand)(?=\s|$|[^a-z])/gi, "")
-    .replace(/%/g, "")
-    .replace(/[\s\u00a0\u202f']/g, "")
-    .replace(/[^\d,.\-+]/g, "");
-  if (!/\d/.test(text)) return false;
-  const parsed = Number(normalizeLocalizedNumber(text));
-  return Number.isFinite(parsed * factor);
+function parseNumericInput(value, key = "", localeProfile = {}) {
+  return parseLocalizedNumericValue({
+    rawValue: value,
+    fieldDefinition: inventoryFieldDefinitions[key] || { type: "number", fieldKey: key },
+    localeProfile
+  });
+}
+
+function numericLocaleProfileForRows(rows, key) {
+  return inferNumericLocaleProfile(rows.map(row => row[key]));
+}
+
+function numericInputLooksValid(value, key = "", localeProfile = {}) {
+  const parsed = parseNumericInput(value, key, localeProfile);
+  return parsed.status === "valid" && Number.isFinite(parsed.normalizedValue);
 }
 
 function numericValidityPercent(rows, keys, options = {}) {
   let total = 0;
   let valid = 0;
   keys.forEach(key => {
+    const localeProfile = numericLocaleProfileForRows(rows, key);
     rows.forEach(row => {
       if (!hasContentValue(row[key])) return;
       total += 1;
-      if (numericInputLooksValid(row[key], key)) valid += 1;
+      if (numericInputLooksValid(row[key], key, localeProfile)) valid += 1;
     });
   });
-  if (!total) return options.emptyValue ?? 0;
+  if (!total) return options.emptyValue ?? null;
   return valid / total * 100;
 }
 
 function positiveNumericSharePercent(rows, key) {
-  if (!rows.length) return 0;
-  return rows.filter(row => toNumber(row[key], key) > 0).length / rows.length * 100;
+  if (!rows.length) return null;
+  const localeProfile = numericLocaleProfileForRows(rows, key);
+  return rows.filter(row => {
+    const parsed = parseNumericInput(row[key], key, localeProfile);
+    return parsed.status === "valid" && parsed.normalizedValue > 0;
+  }).length / rows.length * 100;
 }
 
 function dataQualityPercentStatus(value, good = 95, limited = 80) {
@@ -7852,7 +9190,8 @@ function contentQualityAdjustmentFor(contentQuality) {
     contentQuality.organizationalAssignmentCompleteness,
     contentQuality.recoveryInputNumericValidity,
     contentQuality.workflowAssignmentCompleteness
-  ].map(value => value === null || value === undefined ? 0 : value);
+  ].map(value => finiteNumericValue(value));
+  if (relevantScores.some(value => value === null)) return -10;
   const average = relevantScores.reduce((total, value) => total + value, 0) / relevantScores.length;
   if (average >= 95) return 5;
   if (average >= 85) return 0;
@@ -7866,10 +9205,11 @@ function recoveryInputCellStats(rows, keys) {
   let numericCells = 0;
 
   keys.forEach(key => {
+    const localeProfile = numericLocaleProfileForRows(rows, key);
     rows.forEach(row => {
       if (!hasContentValue(row[key])) return;
       nonEmptyCells += 1;
-      if (numericInputLooksValid(row[key], key)) numericCells += 1;
+      if (numericInputLooksValid(row[key], key, localeProfile)) numericCells += 1;
     });
   });
 
@@ -7888,7 +9228,9 @@ function buildRecoveryInputNormalizationDiagnostics(rows) {
 function buildContentQualityChecks(detectedImportable) {
   const materialCompleteness = rowCompletenessPercent(normalizedRows, "material_id");
   const stockValueCompleteness = rowCompletenessPercent(normalizedRows, "stock_value");
-  const requiredCompleteness = Math.min(materialCompleteness, stockValueCompleteness);
+  const requiredCompleteness = materialCompleteness === null || stockValueCompleteness === null
+    ? null
+    : Math.min(materialCompleteness, stockValueCompleteness);
   const stockValueNumericValidity = numericValidityPercent(normalizedRows, ["stock_value"]);
   const stockValuePositiveShare = positiveNumericSharePercent(normalizedRows, "stock_value");
   const detectedOrganizationFields = organizationContentFieldKeys.filter(key => detectedImportable.has(key));
@@ -7902,10 +9244,10 @@ function buildContentQualityChecks(detectedImportable) {
   const recoveryCellStats = recoveryInputCellStats(normalizedRows, detectedRecoveryNumericFields);
   const rowsWithRecoverySignal = enrichedRows.length
     ? enrichedRows.filter(row => recoveryInputFieldKeys.some(key => recoveryInputValue(row[key]) > 0)).length / enrichedRows.length * 100
-    : 0;
+    : null;
   const rowsWithCalculableRecovery = enrichedRows.length
     ? enrichedRows.filter(row => recoveryInputValue(row.recovery_potential) > 0).length / enrichedRows.length * 100
-    : 0;
+    : null;
   const workflowFieldsDetected = workflowAssignmentFieldKeys.filter(key => detectedImportable.has(key)).length;
   const workflowAssignmentCompleteness = rowAnyFieldCompletenessPercent(normalizedRows, workflowAssignmentFieldKeys);
 
@@ -7934,10 +9276,14 @@ function buildContentQualityChecks(detectedImportable) {
 
 function pilotReadinessFor(coverage, contentQuality, validationErrors) {
   const requiredDetected = coverage.required.detected === coverage.required.total && coverage.required.total > 0;
+  const requiredCompleteness = finiteNumericValue(contentQuality.requiredCompleteness);
+  const stockValueNumericValidity = finiteNumericValue(contentQuality.stockValueNumericValidity);
   const hardStop = !requiredDetected
     || !contentQuality.organizationIdentifierDetected
-    || contentQuality.requiredCompleteness < 80
-    || contentQuality.stockValueNumericValidity < 80;
+    || requiredCompleteness === null
+    || stockValueNumericValidity === null
+    || requiredCompleteness < 80
+    || stockValueNumericValidity < 80;
   if (hardStop) return { key: "pilotNotReady", className: "not-ready" };
   if (
     contentQuality.requiredCompleteness >= 95
@@ -7954,9 +9300,13 @@ function pilotReadinessFor(coverage, contentQuality, validationErrors) {
 
 function analysisReadinessFor(coverage, contentQuality) {
   const requiredDetected = coverage.required.detected === coverage.required.total && coverage.required.total > 0;
+  const materialCompleteness = finiteNumericValue(contentQuality.materialCompleteness);
+  const stockValueNumericValidity = finiteNumericValue(contentQuality.stockValueNumericValidity);
   const hardStop = !requiredDetected
-    || contentQuality.materialCompleteness < 80
-    || contentQuality.stockValueNumericValidity < 80;
+    || materialCompleteness === null
+    || stockValueNumericValidity === null
+    || materialCompleteness < 80
+    || stockValueNumericValidity < 80;
   if (hardStop) return { key: "analysisNotReady", className: "not-ready" };
   if (
     contentQuality.materialCompleteness >= 95
@@ -8685,8 +10035,12 @@ function commitCurrentInventoryPackageRevision({
     ...currentDatasetMeta,
     packageId: registeredPackage.packageId,
     packageType: registeredPackage.packageType,
+    revision: registeredPackage.revision,
+    packageRevision: registeredPackage.revision,
+    inventoryPackageRevision: registeredPackage.revision,
     importedAt: registeredPackage.freshness.importedAt
   };
+  invalidateExcessPortfolioModel(`${operationType || "inventory_package"}_revision`);
   dataPackageRegistry.enforceRetention(INVENTORY_PACKAGE_TYPE);
   assertActiveInventoryPackageInvariant();
   onHistoricalMetricInputsChanged({ reason: `${operationType || "inventory_package"}_revision` });
@@ -9059,12 +10413,17 @@ function resolutionMethodsForMissingIssue(issue) {
 
 function manualInputTypeForField(fieldKey) {
   const type = inventoryFieldDefinitions[fieldKey]?.type || "text";
-  if (["number", "currency", "percentage"].includes(type)) return "number";
+  if (["number", "currency", "percentage"].includes(type)) return "text";
   if (type === "date") return "date";
   return "text";
 }
 
-function validateManualCorrectionValue(fieldKey, value) {
+function manualInputModeForField(fieldKey) {
+  const type = inventoryFieldDefinitions[fieldKey]?.type || "text";
+  return ["number", "currency", "percentage"].includes(type) ? "decimal" : "text";
+}
+
+function validateManualCorrectionValue(fieldKey, value, profileRows = normalizedRows) {
   const definition = inventoryFieldDefinitions[fieldKey];
   if (!importableCanonicalField(fieldKey)) return { valid: false, message: t("protectedFieldCannotBeEdited") };
   const type = definition?.type || "text";
@@ -9073,7 +10432,11 @@ function validateManualCorrectionValue(fieldKey, value) {
     : { valid: false, message: t("invalidManualValue") };
   if (["number", "currency", "percentage"].includes(type)) {
     if (!hasContentValue(value)) return { valid: false, message: t("enterCorrectedValue") };
-    return numericInputLooksValid(value, fieldKey) ? { valid: true } : { valid: false, message: t("invalidManualValue") };
+    const localeProfile = numericLocaleProfileForRows(profileRows, fieldKey);
+    const parsed = parseNumericInput(value, fieldKey, localeProfile);
+    return parsed.status === "valid" && Number.isFinite(parsed.normalizedValue)
+      ? { valid: true, normalizedValue: parsed.normalizedValue, localeProfile }
+      : { valid: false, message: t("invalidManualValue"), status: parsed.status, localeProfile };
   }
   if (type === "date") return hasContentValue(value) ? { valid: true } : { valid: false, message: t("enterCorrectedValue") };
   return hasContentValue(value) ? { valid: true } : { valid: false, message: t("enterCorrectedValue") };
@@ -9748,10 +11111,14 @@ function correctedRawRowsForExport() {
 }
 
 function remediationMetricSnapshot(rows = enrichedRows) {
+  const stockValueAggregate = numericAggregate(rows, "stock_value", { type: "currency" });
+  const recoveryPotentialAggregate = numericAggregate(rows, "recovery_potential", { type: "currency" });
   return {
     rowCount: rows.length,
-    stockValue: sum(rows, "stock_value"),
-    recoveryPotential: sum(rows, "recovery_potential")
+    stockValue: stockValueAggregate.value,
+    recoveryPotential: recoveryPotentialAggregate.value,
+    stockValueAggregate,
+    recoveryPotentialAggregate
   };
 }
 
@@ -9789,14 +11156,18 @@ function currentDataQualityScoreSnapshot() {
     issuesEvaluated: true,
     updateLedger: false
   });
+  const stockValueAggregate = numericAggregate(enrichedRows, "stock_value", { type: "currency" });
+  const recoveryPotentialAggregate = numericAggregate(enrichedRows, "recovery_potential", { type: "currency" });
   return {
     score: model.score,
     rawScore: model.rawScore,
     issuePenalty: model.issuePenalty,
     issueMetrics: issueMetricSnapshot(finalIssues),
     rowCount: enrichedRows.length,
-    stockValue: sum(enrichedRows, "stock_value"),
-    recoveryPotential: sum(enrichedRows, "recovery_potential")
+    stockValue: stockValueAggregate.value,
+    recoveryPotential: recoveryPotentialAggregate.value,
+    stockValueAggregate,
+    recoveryPotentialAggregate
   };
 }
 
@@ -10451,8 +11822,9 @@ function detectInvalidValueIssues() {
   const issues = [];
   const numericFieldKeys = [...new Set(["stock_value", ...recoveryNumericSourceFieldKeys])];
   numericFieldKeys.forEach(fieldKey => {
+    const localeProfile = numericLocaleProfileForRows(normalizedRows, fieldKey);
     const invalidRows = normalizedRows
-      .filter(row => hasContentValue(row[fieldKey]) && !numericInputLooksValid(row[fieldKey], fieldKey))
+      .filter(row => hasContentValue(row[fieldKey]) && !numericInputLooksValid(row[fieldKey], fieldKey, localeProfile))
       .map(row => row.__sourceRowIndex);
     addGroupedIssue(issues, "invalid_numeric_value", fieldKey === "stock_value" ? "critical" : "medium", fieldKey, invalidRows, {
       titleKey: "issueInvalidNumericTitle",
@@ -10464,7 +11836,11 @@ function detectInvalidValueIssues() {
 
     if (recoveryInputFieldKeys.includes(fieldKey)) {
       const negativeRows = normalizedRows
-        .filter(row => hasContentValue(row[fieldKey]) && numericInputLooksValid(row[fieldKey], fieldKey) && toNumber(row[fieldKey], fieldKey) < 0)
+        .filter(row => {
+          if (!hasContentValue(row[fieldKey])) return false;
+          const parsed = parseNumericInput(row[fieldKey], fieldKey, localeProfile);
+          return parsed.status === "valid" && parsed.normalizedValue < 0;
+        })
         .map(row => row.__sourceRowIndex);
       addGroupedIssue(issues, "negative_recovery_input", "medium", fieldKey, negativeRows, {
         titleKey: "issueNegativeRecoveryTitle",
@@ -10876,13 +12252,17 @@ function pilotCapabilityBlockerKeys(model) {
   const blockers = [];
   if (!requiredDetected) blockers.push("pilotBlockerRequiredFields");
   if (!quality.organizationIdentifierDetected) blockers.push("pilotBlockerOrganizationIdentifier");
-  if (Number(quality.requiredCompleteness || 0) < 80) blockers.push("pilotBlockerRequiredCompletenessHard");
-  if (Number(quality.stockValueNumericValidity || 0) < 80) blockers.push("pilotBlockerStockNumericHard");
+  const requiredCompleteness = finiteNumericValue(quality.requiredCompleteness);
+  const stockValueNumericValidity = finiteNumericValue(quality.stockValueNumericValidity);
+  const organizationCompleteness = finiteNumericValue(quality.organizationalAssignmentCompleteness);
+  const recoveryFieldsDetected = finiteNumericValue(quality.recoveryFieldsDetected);
+  if (requiredCompleteness === null || requiredCompleteness < 80) blockers.push("pilotBlockerRequiredCompletenessHard");
+  if (stockValueNumericValidity === null || stockValueNumericValidity < 80) blockers.push("pilotBlockerStockNumericHard");
   if (!blockers.length && model.pilotReadiness?.key !== "pilotReady") {
-    if (Number(quality.requiredCompleteness || 0) < 95) blockers.push("pilotBlockerRequiredCompletenessTarget");
-    if (Number(quality.stockValueNumericValidity || 0) < 95) blockers.push("pilotBlockerStockNumericTarget");
-    if (Number(quality.organizationalAssignmentCompleteness || 0) < 80) blockers.push("pilotBlockerOrganizationCompleteness");
-    if (Number(quality.recoveryFieldsDetected || 0) <= 0) blockers.push("pilotBlockerRecoveryFields");
+    if (requiredCompleteness === null || requiredCompleteness < 95) blockers.push("pilotBlockerRequiredCompletenessTarget");
+    if (stockValueNumericValidity === null || stockValueNumericValidity < 95) blockers.push("pilotBlockerStockNumericTarget");
+    if (organizationCompleteness === null || organizationCompleteness < 80) blockers.push("pilotBlockerOrganizationCompleteness");
+    if (recoveryFieldsDetected === null || recoveryFieldsDetected <= 0) blockers.push("pilotBlockerRecoveryFields");
     if (validationErrors.length > 0) blockers.push("pilotBlockerValidationErrors");
   }
   return [...new Set(blockers)];
@@ -10984,7 +12364,7 @@ function buildDiagnosticMeta(model, data = []) {
   return {
     explainScore: `${formatCount(model.score)} %`,
     fieldCoverage: `${formatCount(requiredAndRecommendedDetected)} / ${formatCount(requiredAndRecommendedTotal)}`,
-    contentQualityChecks: `${formatQualityPercent(contentQuality.stockValueNumericValidity || 0)} ${t("stockValueNumericValidity")}`,
+    contentQualityChecks: `${formatQualityPercent(contentQuality.stockValueNumericValidity)} ${t("stockValueNumericValidity")}`,
     inputTrust: inputTrustMetadata
       ? `${inputTrustStatusLabel(inputTrustMetadata.trustState)} · ${formatCount(inputTrustMetadata.diagnosticCount || 0)} ${currentLanguage === "de" ? "Hinweise" : "diagnostics"}`
       : t("notAvailable"),
@@ -11898,8 +13278,10 @@ function previewDataCorrectionImpact(correctionDraft) {
 }
 
 function renderMetricDelta(labelKey, before, after, formatter = formatCount) {
-  const delta = Number(after || 0) - Number(before || 0);
-  const deltaText = delta > 0 ? `+${formatter(delta)}` : formatter(delta);
+  const beforeValue = finiteNumericValue(before);
+  const afterValue = finiteNumericValue(after);
+  const delta = beforeValue === null || afterValue === null ? null : afterValue - beforeValue;
+  const deltaText = delta === null ? t("notAvailable") : delta > 0 ? `+${formatter(delta)}` : formatter(delta);
   return `
     <div>
       <span>${html(t(labelKey))}</span>
@@ -11911,18 +13293,20 @@ function renderMetricDelta(labelKey, before, after, formatter = formatCount) {
 
 function renderRemediationPreview(preview) {
   if (!preview) return "";
-  const scoreDelta = Number(preview.previewScore || 0) - Number(preview.currentScore || 0);
+  const previewScore = finiteNumericValue(preview.previewScore);
+  const currentScore = finiteNumericValue(preview.currentScore);
+  const scoreDelta = previewScore === null || currentScore === null ? null : previewScore - currentScore;
   const cards = [
     Number(preview.before.rowCount || 0) !== Number(preview.after.rowCount || 0)
       ? renderMetricDelta("rows", preview.before.rowCount, preview.after.rowCount, formatCount)
       : "",
-    Number(preview.before.stockValue || 0) !== Number(preview.after.stockValue || 0)
+    finiteNumericValue(preview.before.stockValue, "stock_value") !== finiteNumericValue(preview.after.stockValue, "stock_value")
       ? renderMetricDelta("metricInventory", preview.before.stockValue, preview.after.stockValue, formatCompactMoney)
       : "",
-    Number(preview.before.recoveryPotential || 0) !== Number(preview.after.recoveryPotential || 0)
+    finiteNumericValue(preview.before.recoveryPotential, "recovery_potential") !== finiteNumericValue(preview.after.recoveryPotential, "recovery_potential")
       ? renderMetricDelta("metricRecovery", preview.before.recoveryPotential, preview.after.recoveryPotential, formatCompactMoney)
       : "",
-    scoreDelta !== 0 ? `
+    scoreDelta !== null && scoreDelta !== 0 ? `
       <div>
         <span>${html(t("currentCorrectedDataQualityScore"))}</span>
         <strong>${html(`${preview.currentScore} -> ${preview.previewScore}`)}</strong>
@@ -11944,7 +13328,9 @@ function renderRemediationScoreComparison(model) {
   if (!hasActiveRemediationState()) return "";
   const original = originalDataQualitySnapshot || { score: model.score };
   const current = currentDataQualityScoreSnapshot();
-  const improvement = Number(current.score || 0) - Number(original.score || 0);
+  const currentScore = finiteNumericValue(current.score);
+  const originalScore = finiteNumericValue(original.score);
+  const improvement = currentScore === null || originalScore === null ? null : currentScore - originalScore;
   const originalIssues = original.issueMetrics || { openIssues: 0, criticalHighIssues: 0, missingRequiredIssues: 0 };
   const currentIssues = current.issueMetrics || issueMetricSnapshot();
   return `
@@ -11959,7 +13345,7 @@ function renderRemediationScoreComparison(model) {
       </div>
       <div>
         <span>${html(t("scoreImprovement"))}</span>
-        <strong>${html(`${improvement >= 0 ? "+" : ""}${improvement}`)}</strong>
+        <strong>${html(improvement === null ? t("notAvailable") : `${improvement >= 0 ? "+" : ""}${improvement}`)}</strong>
       </div>
       <div>
         <span>${html(t("openIssues"))}</span>
@@ -12267,7 +13653,7 @@ function renderManualValueEditors(fieldKey) {
   return `
     <div id="remediationManualEditor" class="remediation-manual-editor" data-active-field-type="${html(fieldType)}">
       <input id="remediationManualValueText" class="remediation-correction-control remediation-manual-value" data-manual-type="text" type="text" placeholder="${html(t("enterCorrectedValue"))}" />
-      <input id="remediationManualValueNumber" class="remediation-correction-control remediation-manual-value hidden" data-manual-type="number" type="number" step="any" placeholder="${html(t("enterCorrectedValue"))}" />
+      <input id="remediationManualValueNumber" class="remediation-correction-control remediation-manual-value hidden" data-manual-type="number" type="text" inputmode="decimal" placeholder="${html(t("enterCorrectedValue"))}" />
       <input id="remediationManualValueDate" class="remediation-correction-control remediation-manual-value hidden" data-manual-type="date" type="date" />
       <select id="remediationManualValueBoolean" class="remediation-correction-control remediation-manual-value hidden" data-manual-type="boolean">
         <option value="true">${html(t("yes"))}</option>
@@ -12295,7 +13681,7 @@ function renderPerRowValueTable(issue, fieldKey) {
             <tr>
               <td>${html(rowIndex)}</td>
               <td>${html(normalizedRow(rowIndex)?.[fieldKey] || sourceRow(rowIndex)?.[sourceColumnForCanonicalField(fieldKey)] || t("emptyCell"))}</td>
-              <td><input class="remediation-correction-control remediation-row-value-input" data-remediation-row-value="${html(rowIndex)}" type="${html(manualInputTypeForField(fieldKey))}" placeholder="${html(t("optionalRowValue"))}" /></td>
+              <td><input class="remediation-correction-control remediation-row-value-input" data-remediation-row-value="${html(rowIndex)}" type="${html(manualInputTypeForField(fieldKey))}" inputmode="${html(manualInputModeForField(fieldKey))}" placeholder="${html(t("optionalRowValue"))}" /></td>
             </tr>
           `).join("")}
         </tbody>
@@ -12510,7 +13896,7 @@ function renderCompactIssueRows(issue) {
               <td>${html(row.material)}</td>
               <td>${html(row.description)}</td>
               <td>${html(row.organization)}</td>
-              <td>${html(Number.isFinite(Number(row.stockValue)) ? formatCompactMoney(Number(row.stockValue)) : row.stockValue || "-")}</td>
+              <td>${html(finiteNumericValue(row.stockValue, "stock_value") !== null ? formatCompactMoney(row.stockValue) : row.stockValue || "-")}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -12853,7 +14239,8 @@ function renderValueCorrectionControls(issue) {
       </div>
     `;
   }
-  const inputType = ["number", "currency", "percentage"].includes(inventoryFieldDefinitions[fieldKey]?.type) ? "number" : "text";
+  const inputType = manualInputTypeForField(fieldKey);
+  const inputMode = manualInputModeForField(fieldKey);
   const defaultValue = issue.issueType === "negative_recovery_input" ? "0" : "";
   return `
     <div class="remediation-control-card">
@@ -12862,7 +14249,7 @@ function renderValueCorrectionControls(issue) {
         ${(issue.sourceRowIndexes || []).map(rowIndex => `<option value="${html(rowIndex)}">${html(`${t("rowNumber")} ${rowIndex}`)}</option>`).join("")}
       </select>
       <label for="remediationCorrectedValue">${html(t("correctedValue"))}</label>
-      <input id="remediationCorrectedValue" class="remediation-correction-control" type="${inputType}" value="${html(defaultValue)}" placeholder="${html(t("enterCorrectedValue"))}" />
+      <input id="remediationCorrectedValue" class="remediation-correction-control" type="${inputType}" inputmode="${inputMode}" value="${html(defaultValue)}" placeholder="${html(t("enterCorrectedValue"))}" />
       <p>${html(`${t("sourceColumn")}: ${sourceColumn} · ${t("canonicalField")}: ${fieldLabel(fieldKey)}`)}</p>
     </div>
   `;
@@ -13224,17 +14611,19 @@ function renderExactDuplicateFooterImpact(issue, draft) {
 function footerPreviewImpactLines(preview) {
   if (!preview) return [];
   const lines = [];
-  const scoreDelta = Number(preview.previewScore || 0) - Number(preview.currentScore || 0);
+  const previewScore = finiteNumericValue(preview.previewScore);
+  const currentScore = finiteNumericValue(preview.currentScore);
+  const scoreDelta = previewScore === null || currentScore === null ? null : previewScore - currentScore;
   if (Number(preview.before.rowCount || 0) !== Number(preview.after.rowCount || 0)) {
     lines.push(`${t("rows")}: ${formatCount(preview.before.rowCount)} -> ${formatCount(preview.after.rowCount)}`);
   }
-  if (Number(preview.before.stockValue || 0) !== Number(preview.after.stockValue || 0)) {
+  if (finiteNumericValue(preview.before.stockValue, "stock_value") !== finiteNumericValue(preview.after.stockValue, "stock_value")) {
     lines.push(`${t("metricInventory")}: ${formatCompactMoney(preview.before.stockValue)} -> ${formatCompactMoney(preview.after.stockValue)}`);
   }
-  if (Number(preview.before.recoveryPotential || 0) !== Number(preview.after.recoveryPotential || 0)) {
+  if (finiteNumericValue(preview.before.recoveryPotential, "recovery_potential") !== finiteNumericValue(preview.after.recoveryPotential, "recovery_potential")) {
     lines.push(`${t("metricRecovery")}: ${formatCompactMoney(preview.before.recoveryPotential)} -> ${formatCompactMoney(preview.after.recoveryPotential)}`);
   }
-  if (scoreDelta !== 0) {
+  if (scoreDelta !== null && scoreDelta !== 0) {
     lines.push(`${t("currentCorrectedDataQualityScore")}: ${preview.currentScore} -> ${preview.previewScore}`);
   }
   return lines;
@@ -13808,6 +15197,7 @@ function restoreInventoryAnalyticalRuntimeState(snapshot = {}) {
   currentInventoryMaterialMasterRelationship = clonePlainRecord(snapshot.currentInventoryMaterialMasterRelationship);
   currentInventoryEnrichmentDiagnostics = clonePlainRecord(snapshot.currentInventoryEnrichmentDiagnostics);
   currentInventoryEnrichmentProvenance = clonePlainRecord(snapshot.currentInventoryEnrichmentProvenance || {});
+  invalidateExcessPortfolioModel("inventory_runtime_restored");
 }
 
 function snapshotRemediationRuntimeState() {
@@ -14100,8 +15490,9 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
     } else if (options.sourceKind === "materialMaster") {
       const relationship = currentInventoryMaterialMasterRelationship || currentDatasetMeta?.materialMasterRelationship?.relationship || null;
       const enrichment = currentInventoryEnrichmentDiagnostics || currentDatasetMeta?.materialMasterRelationship?.enrichment || null;
-      if (Number.isFinite(Number(relationship?.matchRate))) {
-        meta.push(`${formatQualityPercent(Number(relationship.matchRate || 0) * 100)} ${t("dataFoundationMatchRateShort")}`);
+      const relationshipMatchRate = finiteNumericValue(relationship?.matchRate);
+      if (relationshipMatchRate !== null) {
+        meta.push(`${formatQualityPercent(relationshipMatchRate * 100)} ${t("dataFoundationMatchRateShort")}`);
       }
       if (Number.isFinite(Number(enrichment?.enrichedFieldCount))) {
         meta.push(`${formatCount(enrichment.enrichedFieldCount)} ${t("dataFoundationFieldsEnriched")}`);
@@ -14152,8 +15543,8 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
 }
 
 function relationshipMatchRateText(relationship) {
-  if (!relationship || relationship.matchRate === null || relationship.matchRate === undefined) return t("notAvailable");
-  return formatQualityPercent(Number(relationship.matchRate || 0) * 100);
+  const matchRate = finiteNumericValue(relationship?.matchRate);
+  return matchRate === null ? t("notAvailable") : formatQualityPercent(matchRate * 100);
 }
 
 function relationshipMatchedRowsText(relationship) {
@@ -14226,7 +15617,7 @@ function renderRelationshipReadinessItem(readiness) {
         </div>
         <div class="data-foundation-relationship-metric">
           <span>${html(t("excessQualityTitle"))}</span>
-          <strong>${html(`${relationshipQualityLabel(quality)} · ${formatCount(quality.score || 0)}/100`)}</strong>
+          <strong>${html(`${relationshipQualityLabel(quality)} · ${formatCount(quality.score)}/100`)}</strong>
         </div>
       </div>
       ${renderRelationshipExamples(relationship)}
@@ -14247,8 +15638,8 @@ function renderRelationshipReadinessItem(readiness) {
 
 function formatTriStateNumber(value, calculated) {
   if (!calculated) return t("notAvailable");
-  const number = Number(value);
-  return Number.isFinite(number) ? formatCount(number) : t("notAvailable");
+  const number = finiteNumericValue(value);
+  return number !== null ? formatCount(number) : t("notAvailable");
 }
 
 function formatTriStateBoolean(value, calculated) {
@@ -14284,9 +15675,10 @@ function renderInventoryHistoryRelationshipItem(runtimeState = historicalMetrics
   const relationship = runtime?.inventoryHistoryRelationshipResult || {};
   const calculated = ["available", "limited"].includes(runtimeState?.status) && Boolean(runtime);
   if (!state.packageRecord || !calculated) return "";
-  const matchRate = Number.isFinite(Number(summary.relationshipMatchRate))
-    ? formatQualityPercent(Number(summary.relationshipMatchRate || 0) * 100)
-    : t("notAvailable");
+  const relationshipMatchRate = finiteNumericValue(summary.relationshipMatchRate);
+  const matchRate = relationshipMatchRate === null
+    ? t("notAvailable")
+    : formatQualityPercent(relationshipMatchRate * 100);
   const rows = [
     [t("historicalRelationshipRate"), matchRate],
     [t("historicalMatchedEntities"), formatTriStateNumber(summary.matchedInventoryEntityCount, calculated)],
@@ -15039,6 +16431,257 @@ function openActionsForSlowDeadCase(caseId) {
   switchProcessTab("actions", t("navActions"));
 }
 
+function currentInventoryRiskPortfolioRuntime() {
+  const excessModel = currentExcessPageModel(enrichedRows);
+  const slowDeadRuntime = slowDeadRecoveryCaseRuntimeForPresentation();
+  if (
+    currentInventoryRiskPortfolio
+    && currentInventoryRiskPortfolioRowsRef === enrichedRows
+    && currentInventoryRiskExcessModelRef === excessModel
+    && currentInventoryRiskSlowDeadRuntimeRef === slowDeadRuntime
+  ) {
+    return currentInventoryRiskPortfolio;
+  }
+  const packageIdentity = activeInventoryPackageIdentity();
+  currentExcessViewModel = excessModel;
+  const excessCases = excessRiskAdapter.adapt(excessModel, { projectDecisionCore: currentExcessDecisionCore });
+  const slowDeadCases = slowDeadRiskAdapter.adapt(slowDeadRuntime);
+  const blockedQualityCases = blockedQualityRiskAdapter.adapt(enrichedRows, {
+    datasetId: currentDatasetId(),
+    datasetMeta: currentDatasetMeta,
+    packageId: packageIdentity.packageId,
+    packageRevision: packageIdentity.packageRevision,
+    currency: activeCurrency().code
+  });
+  inventoryRiskPortfolioBuildCount += 1;
+  currentInventoryRiskPortfolio = inventoryRiskPortfolioService.buildPortfolio({
+    excessCases,
+    slowDeadCases,
+    blockedQualityCases,
+    familyAvailability: {
+      excess_demand: { status: "available", reasonCode: "accepted_excess_runtime" },
+      slow_dead: { status: slowDeadRuntime.status || "unavailable", reasonCode: slowDeadRuntime.reasonCode || "slow_dead_runtime_unavailable" },
+      blocked_quality: { status: "limited", reasonCode: "blocked_quality_capability_limited" }
+    },
+    analyticsRevision: [
+      currentDatasetId(),
+      excessPortfolioModelRevision,
+      slowDeadRuntime.completedInputSignature || slowDeadRuntime.inputSignature || slowDeadRuntime.status || "",
+      inventoryRiskPortfolioBuildCount
+    ].join("::")
+  });
+  currentInventoryRiskPortfolioRowsRef = enrichedRows;
+  currentInventoryRiskExcessModelRef = excessModel;
+  currentInventoryRiskSlowDeadRuntimeRef = slowDeadRuntime;
+  return currentInventoryRiskPortfolio;
+}
+
+function resetInventoryRiskPortfolioCache() {
+  currentInventoryRiskPortfolio = null;
+  currentInventoryRiskPortfolioRowsRef = null;
+  currentInventoryRiskExcessModelRef = null;
+  currentInventoryRiskSlowDeadRuntimeRef = null;
+  currentInventoryRiskPageModel = null;
+}
+
+function inventoryRiskCaseId(item = {}) {
+  return item.case_kind === "portfolio" ? item.portfolio_case_id : item.family_case_id;
+}
+
+function inventoryRiskCaseById(caseId, runtime = currentInventoryRiskPortfolioRuntime()) {
+  const targetId = String(caseId || "").trim();
+  if (!targetId) return null;
+  return [...(runtime.portfolioCases || []), ...(runtime.familyCases || [])]
+    .find(item => inventoryRiskCaseId(item) === targetId) || null;
+}
+
+function inventoryRiskFamilyCase(item = null) {
+  if (!item) return null;
+  return item.case_kind === "portfolio" ? item.primary_family_case || null : item;
+}
+
+function inventoryRiskTargetId(segment, target = null, runtime = currentInventoryRiskPortfolioRuntime()) {
+  if (!target) return "";
+  const targetId = typeof target === "string"
+    ? target.trim()
+    : String(target.family_case_id || target.case_id || target.portfolio_case_id || "").trim();
+  const candidates = segment === "all" || segment === "prioritized"
+    ? runtime.portfolioCases || []
+    : (runtime.familyCases || []).filter(item => item.primary_risk_family === segment);
+  if (targetId) {
+    const direct = candidates.find(item => inventoryRiskCaseId(item) === targetId);
+    if (direct) return inventoryRiskCaseId(direct);
+    const familyMatch = (runtime.familyCases || []).find(item => item.family_case_id === targetId);
+    if (familyMatch && (segment === familyMatch.primary_risk_family || segment === "all" || segment === "prioritized")) {
+      if (segment === "all" || segment === "prioritized") {
+        return familyMatch.portfolio_case_id || targetId;
+      }
+      return familyMatch.family_case_id;
+    }
+  }
+  if (typeof target === "object") {
+    const entityKey = String(target.inventory_entity_key || target.inventoryEntityKey || "").trim();
+    const rowKeys = new Set([
+      ...(Array.isArray(target.inventory_row_keys) ? target.inventory_row_keys : []),
+      target.inventory_row_key,
+      target.inventoryRowKey
+    ].map(value => String(value || "").trim()).filter(Boolean));
+    const materialId = String(target.material_id || target.materialId || "").trim();
+    const plant = String(target.plant || target.profit_center || "").trim();
+    const exact = candidates.find(item => {
+      if (entityKey && item.inventory_entity_key === entityKey) return true;
+      if (rowKeys.size && (item.inventory_row_keys || []).some(key => rowKeys.has(String(key)))) return true;
+      return Boolean(materialId && plant && item.material_id === materialId && (item.plant === plant || item.profit_center === plant));
+    });
+    if (exact) return inventoryRiskCaseId(exact);
+  }
+  return targetId || `MISSING::${segment}`;
+}
+
+function activateInventoryRiskSegment(segment = "all", target = null) {
+  const normalizedSegment = inventoryRiskPageModelModule.SEGMENTS.includes(segment) ? segment : "all";
+  inventoryRiskPageState = {
+    ...inventoryRiskPageState,
+    segment: normalizedSegment,
+    page: 1,
+    selectedCaseId: inventoryRiskTargetId(normalizedSegment, target),
+    requireExactSelection: Boolean(target)
+  };
+}
+
+function updateInventoryRiskPageState(patch = {}) {
+  if (patch.resetFilters) {
+    inventoryRiskPageState = {
+      ...inventoryRiskPageState,
+      filters: { ...inventoryRiskPageModelModule.DEFAULT_FILTERS },
+      page: 1
+    };
+  }
+  if (patch.filters) {
+    inventoryRiskPageState = {
+      ...inventoryRiskPageState,
+      filters: { ...inventoryRiskPageState.filters, ...patch.filters },
+      page: patch.page || 1
+    };
+  }
+  if (patch.segment) inventoryRiskPageState.segment = patch.segment;
+  if (Object.prototype.hasOwnProperty.call(patch, "page")) inventoryRiskPageState.page = Number(patch.page || 1) || 1;
+  if (Object.prototype.hasOwnProperty.call(patch, "pageSize")) inventoryRiskPageState.pageSize = Number(patch.pageSize || 25) || 25;
+  if (Object.prototype.hasOwnProperty.call(patch, "selectedCaseId")) inventoryRiskPageState.selectedCaseId = String(patch.selectedCaseId || "");
+  if (Object.prototype.hasOwnProperty.call(patch, "requireExactSelection")) inventoryRiskPageState.requireExactSelection = patch.requireExactSelection === true;
+  if (patch.sortKey) {
+    inventoryRiskPageState.sort = {
+      key: patch.sortKey,
+      direction: inventoryRiskPageState.sort.key === patch.sortKey && inventoryRiskPageState.sort.direction === "asc" ? "desc" : "asc"
+    };
+  }
+  if (currentView === "inventory-risks") renderInventoryRiskPage();
+}
+
+function ensureInventoryRiskPageController() {
+  const root = $("inventoryRisksPage");
+  if (!root || inventoryRiskPageController) return;
+  inventoryRiskPageController = ObsoliQModules.application.inventoryRiskPageController.createInventoryRiskPageController({
+    root,
+    onStateChange: updateInventoryRiskPageState,
+    onExport: () => showDownloadDialog("inventoryRisks"),
+    onOpenInventory: openInventoryForInventoryRiskCase,
+    onOpenActions: openActionsForInventoryRiskCase
+  });
+  inventoryRiskPageController.bind();
+}
+
+function inventoryRiskSlowDeadDetail(familyCase = {}) {
+  const sourceCase = familyCase.family_payload?.accepted_case;
+  if (!sourceCase) return "";
+  const detailModel = slowDeadPageModelModule.createSlowDeadPageModel({
+    runtimeState: slowDeadRecoveryCaseRuntimeForPresentation(),
+    filters: { ...slowDeadPageModelModule.DEFAULT_FILTERS },
+    sort: { ...slowDeadPageModelModule.DEFAULT_SORT },
+    page: 1,
+    pageSize: 100,
+    selectedCaseId: sourceCase.case_id,
+    linkedActionTargets: slowDeadLinkedActionTargets()
+  });
+  return slowDeadPageView.renderDetail(detailModel);
+}
+
+function inventoryRiskDetailHtml(model = {}) {
+  const familyCase = inventoryRiskFamilyCase(model.selectedCase);
+  if (!familyCase) return "";
+  if (familyCase.primary_risk_family === "excess_demand") {
+    const sourceCase = familyCase.family_payload?.accepted_case;
+    if (!sourceCase) return "";
+    currentExcessViewModel = currentExcessPageModel(enrichedRows);
+    currentActiveExcessCase = sourceCase;
+    return renderExcessDetail(sourceCase);
+  }
+  if (familyCase.primary_risk_family === "slow_dead") return inventoryRiskSlowDeadDetail(familyCase);
+  return "";
+}
+
+function renderInventoryRiskPage() {
+  ensureInventoryRiskPageController();
+  const root = $("inventoryRisksPage");
+  if (!root) return;
+  const focusedFilter = document.activeElement?.dataset?.inventoryRiskFilter || "";
+  const selectionStart = document.activeElement instanceof HTMLInputElement ? document.activeElement.selectionStart : null;
+  const model = inventoryRiskPageModelModule.buildPageModel({
+    runtime: currentInventoryRiskPortfolioRuntime(),
+    state: inventoryRiskPageState
+  });
+  currentInventoryRiskPageModel = model;
+  if (typeof excessDetailNavigationCleanup === "function") excessDetailNavigationCleanup();
+  excessDetailNavigationCleanup = null;
+  root.innerHTML = inventoryRiskPageView.render(model, { detailHtml: inventoryRiskDetailHtml(model) });
+  if (model.selectedCase && !inventoryRiskPageState.selectedCaseId) {
+    inventoryRiskPageState.selectedCaseId = inventoryRiskCaseId(model.selectedCase);
+  }
+  if (model.selectedCase && inventoryRiskFamilyCase(model.selectedCase)?.primary_risk_family === "excess_demand") {
+    bindExcessDetailNavigation(root);
+    excessPilotReviewController.bind(root);
+  }
+  if (focusedFilter) {
+    const control = root.querySelector(`[data-inventory-risk-filter="${CSS.escape(focusedFilter)}"]`);
+    if (control instanceof HTMLElement) {
+      control.focus({ preventScroll: true });
+      if (control instanceof HTMLInputElement && selectionStart !== null) control.setSelectionRange(selectionStart, selectionStart);
+    }
+  }
+}
+
+function openInventoryForInventoryRiskCase(caseId) {
+  const item = inventoryRiskCaseById(caseId);
+  const familyCase = inventoryRiskFamilyCase(item);
+  if (!familyCase) return { status: "missing" };
+  if (familyCase.primary_risk_family === "excess_demand") return openInventoryForExcessCase(familyCase.family_case_id);
+  if (familyCase.primary_risk_family === "slow_dead") {
+    openInventoryForSlowDeadCase(familyCase.family_case_id);
+    return { status: "opened", target: familyCase.inventory_navigation_target };
+  }
+  const targetRows = slowDeadRowsMatchingTarget(composeHistoricalInventoryRows(enrichedRows), familyCase);
+  if (!targetRows.length) return { status: "missing" };
+  slowDeadInventoryRevealTarget = slowDeadCaseTarget(familyCase);
+  switchProcessTab("inventory-explorer", t("navInventoryExplorer"));
+  return { status: "opened", target: slowDeadInventoryRevealTarget };
+}
+
+function openActionsForInventoryRiskCase(caseId) {
+  const item = inventoryRiskCaseById(caseId);
+  const familyCase = inventoryRiskFamilyCase(item);
+  if (!familyCase) return { status: "missing" };
+  if (familyCase.primary_risk_family === "excess_demand") return openActionsForExcessCase(familyCase.family_case_id);
+  if (familyCase.primary_risk_family === "slow_dead") {
+    openActionsForSlowDeadCase(familyCase.family_case_id);
+    return { status: "opened", target: familyCase.linked_action_target };
+  }
+  const actionRow = slowDeadActionRowForCase(familyCase);
+  if (!actionRow) return { status: "missing" };
+  slowDeadActionRevealTarget = slowDeadCaseTarget(familyCase);
+  switchProcessTab("actions", t("navActions"));
+  return { status: "opened", target: slowDeadActionRevealTarget };
+}
+
 function renderCurrentView(options = {}) {
   if (currentView !== "check") cancelScheduledRemediationFilterRender();
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
@@ -15046,6 +16689,7 @@ function renderCurrentView(options = {}) {
   if (currentView === "dashboard") renderOverview();
   if (currentView === "excess") renderExcessPage();
   if (currentView === "slow-dead") renderSlowDeadPage();
+  if (currentView === "inventory-risks") renderInventoryRiskPage();
   if (currentView === "actions") renderActions();
   if (currentView === "inventory") renderInventoryExplorer();
   if (currentView === "check") renderDataQuality();
@@ -15060,7 +16704,8 @@ function renderAfterPresentationChange() {
 function renderAfterDatasetChange(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderGlobalChrome({ syncStateFromControls: false });
-  ["dashboard", "excess", "slow-dead", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
+  resetInventoryRiskPortfolioCache();
+  ["dashboard", "inventory-risks", "excess", "slow-dead", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
   renderCurrentView({ globalChrome: false, syncStateFromControls: false });
 }
 
@@ -15073,6 +16718,7 @@ function renderEmptyDatasetState() {
   if ($("topTable")) $("topTable").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("excessPage")) $("excessPage").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("slowDeadPage")) $("slowDeadPage").innerHTML = renderEmptyState(t("noDataLoaded"));
+  if ($("inventoryRisksPage")) $("inventoryRisksPage").innerHTML = renderEmptyState(t("noDataLoaded"));
   renderActionSummary([]);
   if ($("actionsTable")) $("actionsTable").innerHTML = renderEmptyState(t("noDataLoaded"));
   if ($("inventoryTable")) $("inventoryTable").innerHTML = renderEmptyState(t("noDataLoaded"));
@@ -15501,7 +17147,7 @@ function updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(runtimeState = his
     const result = slowDeadRecoveryCaseService.buildSlowDeadRecoveryCases(buildInput);
     const status = ["available", "limited"].includes(result?.status) ? result.status : "unavailable";
     slowDeadRecoveryCaseBuildCount += 1;
-    slowDeadRecoveryCaseBuildLog.push({
+    slowDeadRecoveryCaseBuildLog = appendRuntimeBuildLog(slowDeadRecoveryCaseBuildLog, {
       inputSignature,
       historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
       reason: options.reason || "historical_runtime_changed",
@@ -15526,7 +17172,7 @@ function updateSlowDeadRecoveryCaseRuntimeFromHistoricalState(runtimeState = his
     });
   } catch (error) {
     slowDeadRecoveryCaseFailedBuildCount += 1;
-    slowDeadRecoveryCaseBuildLog.push({
+    slowDeadRecoveryCaseBuildLog = appendRuntimeBuildLog(slowDeadRecoveryCaseBuildLog, {
       inputSignature,
       historicalMetricsInputSignature: runtimeState.completedInputSignature || "",
       reason: options.reason || "historical_runtime_changed",
@@ -15619,6 +17265,9 @@ function handleHistoricalMetricsRuntimeStateChange(state, options = {}) {
   }
   if (currentView === "slow-dead") {
     renderSlowDeadPage();
+  }
+  if (currentView === "inventory-risks") {
+    renderInventoryRiskPage();
   }
 }
 
@@ -16419,6 +18068,7 @@ function commitInventoryDatasetBuild(buildResult, statusSnapshot = null, nextDat
       materialMasterRelationship: enrichment.metadata
     };
   }
+  invalidateExcessPortfolioModel("inventory_dataset_committed");
 }
 
 function loadDataset(headers, rows, sourceLabel, options = {}) {
@@ -16613,15 +18263,21 @@ function switchView(view) {
 const inventoryTabViewRoutes = {
   overview: "dashboard",
   "inventory-explorer": "inventory",
-  "excess-stock": "excess",
-  "slow-dead-stock": "slow-dead",
+  "inventory-risks": "inventory-risks",
   actions: "actions",
   "data-quality": "check"
 };
 
+const inventoryRiskRouteAliases = Object.freeze({
+  "excess-stock": "excess_demand",
+  "slow-dead-stock": "slow_dead",
+  "blocked-quality": "blocked_quality"
+});
+
 const inventoryTabDescriptions = {
   overview: "descOverview",
   "inventory-explorer": "descInventoryExplorer",
+  "inventory-risks": "descInventoryRisks",
   "excess-stock": "descExcessStock",
   "slow-dead-stock": "descSlowDeadStock",
   "blocked-quality": "descBlockedQuality",
@@ -16637,25 +18293,32 @@ function setPlaceholderContent(processKey, label) {
   $("placeholderDescription").textContent = t(inventoryTabDescriptions[processKey]) || t("placeholderText");
 }
 
-function switchProcessTab(processKey, label) {
-  activeProcessKey = processKey;
-  activeProcessLabel = label;
+function switchProcessTab(processKey, label, options = {}) {
+  const aliasSegment = inventoryRiskRouteAliases[processKey] || "";
+  const canonicalProcessKey = aliasSegment ? "inventory-risks" : processKey;
+  const target = options.target || options.caseId || options.familyCaseId || options.portfolioCaseId || null;
+  if (aliasSegment) activateInventoryRiskSegment(aliasSegment, target);
+  if (canonicalProcessKey === "inventory-risks" && !aliasSegment && (options.segment || target)) {
+    activateInventoryRiskSegment(options.segment || inventoryRiskPageState.segment || "all", target);
+  }
+  activeProcessKey = canonicalProcessKey;
+  activeProcessLabel = canonicalProcessKey === "inventory-risks" ? t("navInventoryRisks") : label;
   document.querySelectorAll(".process-tabs button").forEach(button => {
-    button.classList.toggle("active", button.dataset.process === processKey);
+    button.classList.toggle("active", button.dataset.process === canonicalProcessKey);
   });
   updateNavigationSummary();
 
-  if (inventoryTabViewRoutes[processKey]) {
+  if (inventoryTabViewRoutes[canonicalProcessKey]) {
     $("overviewWorkspace").classList.remove("hidden");
     $("placeholderPage").classList.add("hidden");
-    switchView(inventoryTabViewRoutes[processKey]);
+    switchView(inventoryTabViewRoutes[canonicalProcessKey]);
     return;
   }
 
   $("overviewWorkspace").classList.add("hidden");
   $("placeholderPage").classList.remove("hidden");
-  setPlaceholderContent(processKey, label);
-  if (processKey === "settings") openSettingsDialog();
+  setPlaceholderContent(canonicalProcessKey, activeProcessLabel);
+  if (canonicalProcessKey === "settings") openSettingsDialog();
 }
 
 function mappingPolicyForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
@@ -16969,8 +18632,8 @@ function historyReadinessStatusLabel(state) {
 }
 
 function formatReadinessRatio(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return t("notAvailable");
+  const numeric = finiteNumericValue(value);
+  if (numeric === null) return t("notAvailable");
   return formatQualityPercent(numeric * 100);
 }
 
@@ -17616,6 +19279,14 @@ function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
       ...options,
       packageType
     });
+  }
+  if (!Array.isArray(parsed?.rows) || parsed.rows.length === 0) {
+    const error = new Error(t("emptyDatasetRowsError"));
+    error.code = "EMPTY_DATASET_ROWS";
+    if (!options.suppressFeedback) {
+      setFeedback(error.message, "error", { autoReset: !options.preserveFailureFeedback });
+    }
+    return { status: "error", error };
   }
   const metadata = parsed.sourceColumnMetadata || buildSourceColumnMetadata(parsed.headers);
   const policy = mappingPolicyForPackageType(INVENTORY_PACKAGE_TYPE);
@@ -18321,7 +19992,14 @@ function exportValue(row, key) {
   const value = row[key];
   if (historicalFieldDefinition(key)) return formatHistoricalMetricValue(key, value, row);
   if (key === "recovery_is_capped") return formatBooleanForExport(value);
-  if (moneyKeys.has(key)) return convertMoneyValue(value);
+  if (moneyKeys.has(key)) {
+    const converted = convertMoneyValue(value, key, { parseResult: rowNumericParseResult(row, key) });
+    return converted === null ? "" : converted;
+  }
+  if (analyticalNumericExportKeys.has(key) || /(?:_qty|_quantity|_count|_score|_months)$/.test(key)) {
+    const normalized = finiteNumericValue(value, key, { parseResult: rowNumericParseResult(row, key) });
+    return normalized === null ? "" : normalized;
+  }
   if (key === "category" || key === "primary_category") return displayCategory(value || row.category);
   if (["root_cause", "recommended_action", "next_step"].includes(key)) return displayGeneratedText(value);
   if (key === "decision_type") return displayDecisionType(value);
@@ -18585,6 +20263,12 @@ function localizedFilename(type, format, scope) {
       : scope === "all" ? "slow_dead_cases_all" : "slow_dead_cases_filtered";
     return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
   }
+  if (type === "inventoryRisks") {
+    const base = german
+      ? scope === "all" ? "bestandsrisiken_aktives_segment" : "bestandsrisiken_gefilterte_ansicht"
+      : scope === "all" ? "inventory_risks_active_segment" : "inventory_risks_filtered_view";
+    return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
+  }
   if (type === "top") {
     const base = german ? "top_recovery_potenziale" : "top_recovery_opportunities";
     return `${base}${sheets ? "_google_sheets.csv" : ".xls"}`;
@@ -18676,8 +20360,29 @@ function slowDeadRowsForExport(scope = "filtered") {
   ];
 }
 
+function inventoryRiskRowsForExport(scope = "filtered") {
+  const runtime = currentInventoryRiskPortfolioRuntime();
+  const model = currentInventoryRiskPageModel || inventoryRiskPageModelModule.buildPageModel({ runtime, state: inventoryRiskPageState });
+  const cases = scope === "all"
+    ? inventoryRiskPageModelModule.segmentRows(runtime, inventoryRiskPageState.segment)
+    : model.filteredRows;
+  const exportData = inventoryRiskExportBuilder.buildRows({ cases });
+  const headers = exportData.rows.length ? Object.keys(exportData.rows[0]) : Object.keys(inventoryRiskExportBuilder.buildRow({}));
+  return [headers, ...exportData.rows.map(row => headers.map(header => row[header]))];
+}
+
 function buildDownloadPayload(type, format, scope = "filtered") {
   if (!ensureData()) return;
+  if (type === "inventoryRisks") {
+    const rows = inventoryRiskRowsForExport(scope);
+    if (format === "excel") {
+      return {
+        blob: spreadsheetXmlBlob({ [t("inventoryRiskExportSheet")]: rows }),
+        filename: localizedFilename(type, format, scope)
+      };
+    }
+    return { blob: csvBlob(rows), filename: localizedFilename(type, format, scope) };
+  }
   if (type === "slowDead") {
     const slowDeadRows = slowDeadRowsForExport(scope);
     if (format === "excel") {
@@ -18693,15 +20398,21 @@ function buildDownloadPayload(type, format, scope = "filtered") {
   }
   const data = exportDataForScope(scope, type);
   const top = type === "top" ? data : topRecoveryRows(data);
+  const summaryMoneyValue = key => {
+    const aggregate = numericAggregate(data, key, { type: "currency" });
+    if (aggregate.value === null) return "";
+    const converted = convertMoneyValue(aggregate.value, key);
+    return converted === null ? "" : converted;
+  };
   const summary = [
     ["KPI", t("value")],
     [t("currencyTitle"), activeCurrency().code],
-    [t("metricInventory"), convertMoneyValue(sum(data, "stock_value"))],
-    [t("metricExcess"), convertMoneyValue(sum(data, "excess_value"))],
-    [t("metricBad"), convertMoneyValue(sum(data, "bad_stock_value"))],
-    [t("metricNoNeed"), convertMoneyValue(sum(data, "no_need_value"))],
-    [t("metricNoPlan"), convertMoneyValue(sum(data, "no_plan_value"))],
-    [t("metricRecovery"), convertMoneyValue(sum(data, "recovery_potential"))],
+    [t("metricInventory"), summaryMoneyValue("stock_value")],
+    [t("metricExcess"), summaryMoneyValue("excess_value")],
+    [t("metricBad"), summaryMoneyValue("bad_stock_value")],
+    [t("metricNoNeed"), summaryMoneyValue("no_need_value")],
+    [t("metricNoPlan"), summaryMoneyValue("no_plan_value")],
+    [t("metricRecovery"), summaryMoneyValue("recovery_potential")],
     [t("rows"), data.length]
   ];
   const topRows = rowsForExport(top, opportunityColumns());
@@ -18802,10 +20513,15 @@ function showDownloadDialog(type, options = {}) {
     top: t("topDownload"),
     actions: t("actionsDownload"),
     excess: t("excessExport"),
-    slowDead: t("slowDeadDownload")
+    slowDead: t("slowDeadDownload"),
+    inventoryRisks: t("inventoryRiskExport")
   };
   $("downloadTitle").textContent = labels[type] || t("downloadPrepare");
-  $("downloadSubtitle").textContent = type === "slowDead" ? t("slowDeadDownloadSubtitle") : t("downloadSubtitle");
+  $("downloadSubtitle").textContent = type === "slowDead"
+    ? t("slowDeadDownloadSubtitle")
+    : type === "inventoryRisks"
+      ? t("inventoryRiskNoCombinedTotal")
+      : t("downloadSubtitle");
   $("downloadScopeFiltered").checked = true;
   const variantSection = $("downloadVariantSection");
   if (variantSection) variantSection.hidden = type !== "inventory";
@@ -18861,6 +20577,7 @@ function updateActionStatus(rowNumber, status) {
   const row = enrichedRows.find(item => String(item.row_number) === String(rowNumber));
   if (!row || !statusOptions.includes(status)) return;
   row.status = status;
+  invalidateExcessPortfolioModel("action_status_changed");
   renderGlobalChrome();
   if (currentView === "dashboard") {
     renderOverview();
@@ -19582,8 +21299,20 @@ document.addEventListener("click", event => {
   const resetButton = event.target.closest("[data-reset-filters]");
   if (resetButton) clearFiltersForCurrentView();
 });
-document.querySelectorAll(".process-tabs button").forEach(button => {
+const processTabButtons = [...document.querySelectorAll(".process-tabs button")];
+processTabButtons.forEach((button, index) => {
   button.addEventListener("click", () => switchProcessTab(button.dataset.process, button.textContent.trim()));
+  button.addEventListener("keydown", event => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const targetIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? processTabButtons.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + processTabButtons.length) % processTabButtons.length;
+    processTabButtons[targetIndex]?.focus();
+    processTabButtons[targetIndex]?.click();
+  });
 });
 const navToggleButton = $("navToggleButton");
 if (navToggleButton) {
@@ -19674,6 +21403,8 @@ function createObsoliqTestBridge() {
     consumptionHistoryInterpretationServiceForTest: consumptionHistoryInterpretationService,
     consumptionHistoryBuilderForTest: ObsoliQModules.data.consumptionHistoryBuilder,
     historicalInventoryMetricsServiceForTest: historicalMetricsService,
+    runtimeBuildLogLimitForTest: RUNTIME_BUILD_LOG_LIMIT,
+    appendRuntimeBuildLogForTest: (log, entry, options = {}) => clonePlainArray(appendRuntimeBuildLog(clonePlainArray(log || []), entry, options)),
     slowDeadConditionEngineForTest: ObsoliQModules.slowDead.conditionEngine,
     slowDeadRecoveryCaseServiceForTest: slowDeadRecoveryCaseService,
     slowDeadPageModelForTest: slowDeadPageModelModule,
@@ -19704,7 +21435,11 @@ function createObsoliqTestBridge() {
       return $("slowDeadPage")?.textContent || "";
     },
     switchSlowDeadPageForTest: () => {
-      switchProcessTab("slow-dead-stock", t("navSlowDeadStock"));
+      activeProcessKey = "slow-dead-stock";
+      activeProcessLabel = t("navSlowDeadStock");
+      $("overviewWorkspace").classList.remove("hidden");
+      $("placeholderPage").classList.add("hidden");
+      switchView("slow-dead");
       return $("slowDeadPage")?.textContent || "";
     },
     getSlowDeadPageStateForTest: () => clonePlainRecord({
@@ -19756,6 +21491,47 @@ function createObsoliqTestBridge() {
       slowDeadRecoveryCaseRuntime = { ...slowDeadRecoveryCaseRuntime, buildCount: 0 };
       return { buildCount: slowDeadRecoveryCaseBuildCount, failedBuildCount: 0, dependencyNoBuildCount: 0, buildLog: [] };
     },
+    inventoryRiskCaseContractForTest: inventoryRiskCaseContract,
+    inventoryRiskPortfolioServiceForTest: inventoryRiskPortfolioService,
+    inventoryRiskPageModelForTest: inventoryRiskPageModelModule,
+    inventoryRiskExportBuilderForTest: inventoryRiskExportBuilder,
+    getInventoryRiskPortfolioForTest: () => clonePlainRecord(currentInventoryRiskPortfolioRuntime()),
+    getInventoryRiskPageModelForTest: () => clonePlainRecord(currentInventoryRiskPageModel || inventoryRiskPageModelModule.buildPageModel({
+      runtime: currentInventoryRiskPortfolioRuntime(),
+      state: inventoryRiskPageState
+    })),
+    getInventoryRiskStateForTest: () => clonePlainRecord({
+      currentView,
+      activeProcessKey,
+      pageState: inventoryRiskPageState,
+      portfolioBuildCount: inventoryRiskPortfolioBuildCount,
+      analyticsRevision: currentInventoryRiskPortfolioRuntime().analyticsRevision
+    }),
+    resetInventoryRiskPortfolioForTest: () => {
+      resetInventoryRiskPortfolioCache();
+      inventoryRiskPortfolioBuildCount = 0;
+      return inventoryRiskPortfolioBuildCount;
+    },
+    switchInventoryRiskRouteForTest: (processKey = "inventory-risks", target = null, segment = "") => {
+      switchProcessTab(processKey, processKey, { target, segment });
+      return clonePlainRecord({
+        currentView,
+        activeProcessKey,
+        pageState: inventoryRiskPageState,
+        model: currentInventoryRiskPageModel
+      });
+    },
+    setInventoryRiskStateForTest: patch => {
+      updateInventoryRiskPageState(patch || {});
+      return clonePlainRecord(inventoryRiskPageState);
+    },
+    renderInventoryRiskPageForTest: () => {
+      renderInventoryRiskPage();
+      return $("inventoryRisksPage")?.textContent || "";
+    },
+    inventoryRiskRowsForExportForTest: scope => clonePlainArray(inventoryRiskRowsForExport(scope || "filtered")),
+    openInventoryForInventoryRiskCaseForTest: caseId => clonePlainRecord(openInventoryForInventoryRiskCase(caseId)),
+    openActionsForInventoryRiskCaseForTest: caseId => clonePlainRecord(openActionsForInventoryRiskCase(caseId)),
     requestHistoricalMetricsRuntimeForTest: options => clonePlainRecord(onHistoricalMetricInputsChanged({
       reason: options?.reason || "test_request",
       force: options?.force === true
@@ -19890,8 +21666,32 @@ function createObsoliqTestBridge() {
     excessExportColumnsForTest: () => clonePlainArray(excessExportColumns()),
     rowsForExportForTest: (rows, columns) => clonePlainArray(rowsForExport(rows || [], columns || [])),
     enrichedRowsForExportForTest: (rows, options = {}) => clonePlainArray(enrichedRowsForExport(rows || [], options)),
-    sanitizeSpreadsheetCellForTest: value => sanitizeSpreadsheetCell(value),
+    exportValueForTest: (row, key) => exportValue(row || {}, key || ""),
+    convertMoneyValueForTest: (value, key = "", options = {}) => convertMoneyValue(value, key, options),
+    numericAggregateForTest: (rows, key, options = {}) => clonePlainRecord(numericAggregate(rows || [], key || "", options)),
+    sumForTest: (rows, key, options = {}) => sum(rows || [], key || "", options),
+    groupSumForTest: (rows, groupKey, valueKey) => clonePlainArray(groupSum(rows || [], groupKey || "", valueKey || "")),
+    formatNumericForTest: (kind, value, options = {}) => {
+      if (kind === "count") return formatCount(value);
+      if (kind === "quantity") return qty(value);
+      if (kind === "percent") return pct(value);
+      if (kind === "number") return formatNumber(value, options);
+      if (kind === "money") return money(value);
+      if (kind === "compactMoney") return formatCompactMoney(value);
+      return "";
+    },
+    compileNumericRangeFilterForTest: (rows, key, query) => clonePlainRecord(compileNumericRangeFilter(rows || [], key || "", query || {})),
+    rowMatchesColumnFilterForTest: (row, key, query, rows = [row]) => rowMatchesColumnFilter(
+      row || {},
+      key || "",
+      query,
+      compileNumericRangeFilter(rows || [], key || "", query || {})
+    ),
+    validateManualCorrectionValueForTest: (fieldKey, value, rows = []) => clonePlainRecord(validateManualCorrectionValue(fieldKey, value, rows)),
+    moneyKeysForTest: () => [...moneyKeys],
+    sanitizeSpreadsheetCellForTest: (value, context = {}) => sanitizeSpreadsheetCell(value, context),
     opportunityScoreEngineForTest: ObsoliQModules.excess.opportunityScoreEngine,
+    excessDecisionWorkspaceModelForTest: excessDecisionWorkspaceModel,
     excessScenarioEngineForTest: ObsoliQModules.excess.excessScenarioEngine,
     excessAnalysisServiceForTest: excessAnalysisService,
     excessPilotReviewModuleForTest: excessPilotReviewModule,
@@ -19953,11 +21753,45 @@ function createObsoliqTestBridge() {
     getExcessRowsForTest: () => clonePlainArray(getExcessRows()),
     getExcessPresentationSummaryForTest: cases => clonePlainRecord(excessDecisionWorkspaceModel.summarize(cases || currentExcessVisibleRows)),
     getExcessDecisionCoreForTest: item => clonePlainRecord(currentExcessDecisionCore(item || currentActiveExcessCase || {})),
+    renderExcessDetailForTest: item => renderExcessDetail(item || {}),
+    isPurchaseOrdersImportSupportedForTest: () => PURCHASE_ORDERS_IMPORT_SUPPORTED,
+    renderExcessActionOptionsForTest: core => renderExcessActionOptions(core || {}),
+    renderExcessHistoricalEvidenceForTest: core => renderExcessHistoricalEvidence(core || {}),
+    renderExcessValueNarrativeForTest: core => renderGrossNetExplanation(core || {}),
+    renderExcessScoreComponentsForTest: item => renderExcessScoreComponents(item || {}),
+    renderExcessDecisionReadinessForTest: (core, primaryStep = "") => renderExcessDecisionReadiness(core || {}, primaryStep),
+    renderExcessCauseHypothesisForTest: (core, primaryReasons = []) => renderExcessCauseHypothesis(core || {}, primaryReasons),
+    normalizeDisplayTextForTest: value => normalizeDisplayText(value),
+    getOpportunityScoreComponentMaximumsForTest: () => clonePlainRecord(ObsoliQModules.excess.opportunityScoreEngine.componentMaximums || {}),
+    renderExcessWorkContextForTest: core => renderExcessWorkContext(core || {}),
+    updateLanguageForTest: language => {
+      updateLanguage(language);
+      return currentLanguage;
+    },
+    getTranslationsForTest: () => clonePlainRecord(translations),
+    updateActionStatusForTest: (rowNumber, status) => {
+      updateActionStatus(rowNumber, status);
+      return clonePlainRecord(enrichedRows.find(item => String(item.row_number) === String(rowNumber)) || null);
+    },
+    invalidateExcessPortfolioModelForTest: reason => invalidateExcessPortfolioModel(reason || "test_input_changed"),
+    mutateExcessInputForTest: (rowNumber, patch = {}, reason = "test_input_changed") => {
+      const row = enrichedRows.find(item => String(item.row_number) === String(rowNumber));
+      if (!row) return null;
+      Object.assign(row, clonePlainRecord(patch || {}));
+      invalidateExcessPortfolioModel(reason);
+      return clonePlainRecord(row);
+    },
+    getExcessPortfolioCacheStateForTest: () => ({
+      revision: excessPortfolioModelRevision,
+      cacheRevision: currentExcessPortfolioCacheRevision,
+      lastInvalidationReason: excessPortfolioLastInvalidationReason,
+      buildCount: excessPageModelBuildCountForTest,
+      hasModel: Boolean(currentExcessPortfolioModel)
+    }),
     getActionRowsForTest: () => clonePlainArray(getActionRows()),
     getFilteredRowsForTest: scope => clonePlainArray(getFilteredRows(scope || "overview")),
     resetExcessPageModelBuildCountForTest: () => {
-      currentExcessPortfolioRowsRef = null;
-      currentExcessPortfolioModel = null;
+      invalidateExcessPortfolioModel("test_reset");
       excessPageModelBuildCountForTest = 0;
       return excessPageModelBuildCountForTest;
     },
@@ -20053,6 +21887,7 @@ function createObsoliqTestBridge() {
     resetAllRemediation,
     getState: () => ({
       currentView,
+      activeProcessKey,
       currentDatasetId: currentDatasetId(),
       datasetMeta: clonePlainRecord(currentDatasetMeta),
       pendingUploadPackageType,

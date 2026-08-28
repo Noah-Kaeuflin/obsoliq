@@ -4,6 +4,11 @@
 
   const SERVICE_MODEL_VERSION = "slow-dead-recovery-case-service-v1";
   const RUNTIME_MODEL_VERSION = "slow-dead-recovery-case-runtime-v1";
+  const aggregateNumericValues = root.core?.valueUtils?.aggregateNumericValues;
+
+  if (typeof aggregateNumericValues !== "function") {
+    throw new Error("ObsoliQ Slow / Dead Recovery Case Service requires strict numeric aggregation utilities.");
+  }
 
   function cloneData(value) {
     if (value === undefined) return undefined;
@@ -23,30 +28,26 @@
   }
 
   function finiteNumber(value) {
-    const number = Number(value);
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    if (typeof value !== "string" || !value.trim()) return null;
+    if (!/^[+\-]?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?$/.test(value.trim())) return null;
+    const number = Number(value.trim());
     return Number.isFinite(number) ? number : null;
   }
 
   function nullableNumber(value) {
-    if (value === null || value === undefined) return null;
-    if (typeof value === "string" && !normalizeText(value)) return null;
-    const number = Number(value);
-    return Number.isFinite(number) ? number : null;
+    return finiteNumber(value);
   }
 
   function sumNumbers(rows = [], key) {
+    // Recovery category fields are additive optional inputs; absence is the documented zero contribution.
     return rows.reduce((total, row) => total + (finiteNumber(row?.[key]) || 0), 0);
   }
 
-  function sumNullableNumbers(rows = [], key) {
-    let hasNumericValue = false;
-    const total = rows.reduce((sum, row) => {
-      const number = nullableNumber(row?.[key]);
-      if (number === null) return sum;
-      hasNumericValue = true;
-      return sum + number;
-    }, 0);
-    return hasNumericValue ? total : null;
+  function sumCompleteNumbers(rows = [], key) {
+    if (!rows.length) return null;
+    const values = rows.map(row => finiteNumber(row?.[key]));
+    return values.some(value => value === null) ? null : values.reduce((total, value) => total + value, 0);
   }
 
   function firstMeaningful(rows = [], keys = []) {
@@ -157,9 +158,11 @@
       plant: entity.plant || firstMeaningful(rows, ["plant", "profit_center"]),
       profit_center: firstMeaningful(rows, ["profit_center", "plant"]),
       program: firstMeaningful(rows, ["program", "group", "material_group"]),
-      stock_quantity: stockQuantity !== null ? stockQuantity : sumNumbers(rows, "stock_quantity"),
+      stock_quantity: entity.stockQuantityStatus
+        ? stockQuantity
+        : sumCompleteNumbers(rows, "stock_quantity"),
       stock_unit: entity.inventoryUnit || firstMeaningful(rows, ["base_unit", "inventory_unit", "stock_unit"]),
-      stock_value: sumNullableNumbers(rows, "stock_value"),
+      stock_value: sumCompleteNumbers(rows, "stock_value"),
       currency: firstMeaningful(rows, ["currency", "currency_code"]) || "EUR",
       excess_value: sumNumbers(rows, "excess_value"),
       no_need_value: sumNumbers(rows, "no_need_value"),
@@ -289,7 +292,7 @@
       stock_unit: inventoryEvidence.stock_unit || "",
       stock_value: nullableNumber(inventoryEvidence.stock_value),
       currency: inventoryEvidence.currency || "EUR",
-      recovery_potential_input: finiteNumber(inventoryEvidence.recovery_potential) || 0,
+      recovery_potential_input: finiteNumber(inventoryEvidence.recovery_potential),
       positive_evidence: cloneData(conditionResult.positive_evidence || []),
       counter_evidence: cloneData(conditionResult.counter_evidence || []),
       limitation_codes: cloneData(conditionResult.limitation_codes || []),
@@ -329,6 +332,8 @@
     const confidenceCounts = {};
     const eligibilityCounts = {};
     const stockValueByCondition = {};
+    const stockValueAvailableByCondition = {};
+    const stockValueAggregateByCondition = {};
     const quantityByConditionAndUnit = {};
     cases.forEach(item => {
       conditionCounts[item.condition_code] = (conditionCounts[item.condition_code] || 0) + 1;
@@ -336,9 +341,35 @@
       confidenceCounts[item.condition_confidence] = (confidenceCounts[item.condition_confidence] || 0) + 1;
       const eligibility = item.recovery_case_eligibility?.eligibility || "unknown";
       eligibilityCounts[eligibility] = (eligibilityCounts[eligibility] || 0) + 1;
-      stockValueByCondition[item.condition_code] = (stockValueByCondition[item.condition_code] || 0) + (nullableNumber(item.stock_value) ?? 0);
       const quantityKey = `${item.condition_code}|${item.stock_unit || ""}`;
-      quantityByConditionAndUnit[quantityKey] = (quantityByConditionAndUnit[quantityKey] || 0) + (finiteNumber(item.stock_quantity) || 0);
+      const quantity = finiteNumber(item.stock_quantity);
+      if (quantity !== null) {
+        quantityByConditionAndUnit[quantityKey] = (quantityByConditionAndUnit[quantityKey] || 0) + quantity;
+      }
+    });
+    Object.keys(conditionCounts).forEach(conditionCode => {
+      const conditionCases = cases.filter(item => item.condition_code === conditionCode);
+      const strictAggregate = aggregateNumericValues(conditionCases, {
+        valueAccessor: item => item.stock_value,
+        fieldDefinition: { type: "currency", fieldKey: "stock_value" }
+      });
+      const availableAggregate = aggregateNumericValues(conditionCases, {
+        valueAccessor: item => item.stock_value,
+        fieldDefinition: { type: "currency", fieldKey: "stock_value" },
+        allowPartial: true
+      });
+      stockValueByCondition[conditionCode] = strictAggregate.value;
+      stockValueAvailableByCondition[conditionCode] = availableAggregate.value;
+      stockValueAggregateByCondition[conditionCode] = strictAggregate;
+    });
+    const inventoryExposureAggregate = aggregateNumericValues(cases, {
+      valueAccessor: item => item.stock_value,
+      fieldDefinition: { type: "currency", fieldKey: "stock_value" }
+    });
+    const inventoryExposureAvailableAggregate = aggregateNumericValues(cases, {
+      valueAccessor: item => item.stock_value,
+      fieldDefinition: { type: "currency", fieldKey: "stock_value" },
+      allowPartial: true
     });
     return {
       evaluatedEntityCount,
@@ -348,9 +379,13 @@
       confidenceCounts,
       eligibilityCounts,
       stockValueByCondition,
-      inventoryExposureAvailableValue: cases.reduce((total, item) => total + (nullableNumber(item.stock_value) ?? 0), 0),
-      inventoryExposureAvailableCaseCount: cases.filter(item => nullableNumber(item.stock_value) !== null).length,
-      inventoryExposureUnavailableCaseCount: cases.filter(item => nullableNumber(item.stock_value) === null).length,
+      stockValueAvailableByCondition,
+      stockValueAggregateByCondition,
+      inventoryExposureValue: inventoryExposureAggregate.value,
+      inventoryExposureAvailableValue: inventoryExposureAvailableAggregate.value,
+      inventoryExposureAggregate,
+      inventoryExposureAvailableCaseCount: inventoryExposureAggregate.validCount,
+      inventoryExposureUnavailableCaseCount: inventoryExposureAggregate.totalCount - inventoryExposureAggregate.validCount,
       quantityByConditionAndUnit
     };
   }

@@ -1,6 +1,11 @@
 (function registerSlowDeadPageModel(global) {
   const root = global.ObsoliQ = global.ObsoliQ || {};
   root.slowDead = root.slowDead || {};
+  const aggregateNumericValues = root.core?.valueUtils?.aggregateNumericValues;
+
+  if (typeof aggregateNumericValues !== "function") {
+    throw new Error("ObsoliQ Slow / Dead Page Model requires strict numeric aggregation utilities.");
+  }
 
   const CONDITION_CODES = Object.freeze([
     "insufficient_evidence",
@@ -359,12 +364,28 @@
       });
   }
 
-  function sumExposure(cases = []) {
-    return cases.reduce((total, item) => total + (finiteNumber(item.inventory_exposure_value) || 0), 0);
+  function exposureAggregate(cases = [], allowPartial = false) {
+    return aggregateNumericValues(cases, {
+      valueAccessor: item => item.inventory_exposure_value,
+      parseResultAccessor: item => item.inventory_exposure_missing
+        ? { status: "missing", normalizedValue: null }
+        : { status: "valid", normalizedValue: finiteNumberOrNull(item.inventory_exposure_value) },
+      fieldDefinition: { type: "currency", fieldKey: "inventory_exposure_value" },
+      allowPartial
+    });
   }
 
-  function availableExposureCases(cases = []) {
-    return cases.filter(item => !item.inventory_exposure_missing);
+  function exposureSummary(cases = []) {
+    const aggregate = exposureAggregate(cases);
+    const availableAggregate = exposureAggregate(cases, true);
+    return {
+      inventoryExposureValue: aggregate.value,
+      inventoryExposureAvailableValue: availableAggregate.value,
+      inventoryExposureAggregate: aggregate,
+      inventoryExposureAvailableCaseCount: aggregate.validCount,
+      inventoryExposureUnavailableCaseCount: aggregate.totalCount - aggregate.validCount,
+      missingExposureCount: aggregate.missingCount + aggregate.invalidCount + aggregate.ambiguousCount
+    };
   }
 
   function conditionSummary(cases = []) {
@@ -373,11 +394,7 @@
       return {
         code,
         count: rows.length,
-        inventoryExposureValue: sumExposure(rows),
-        inventoryExposureAvailableValue: sumExposure(rows),
-        inventoryExposureAvailableCaseCount: availableExposureCases(rows).length,
-        inventoryExposureUnavailableCaseCount: rows.filter(item => item.inventory_exposure_missing).length,
-        missingExposureCount: rows.filter(item => item.inventory_exposure_missing).length
+        ...exposureSummary(rows)
       };
     });
   }
@@ -390,13 +407,10 @@
       { key: "protected_monitor", conditions: ["intermittent_expected", "strategic_reserve"] },
       { key: "insufficient_evidence", conditions: ["insufficient_evidence"] }
     ];
+    const portfolioExposure = exposureSummary(cases);
     return {
       caseCount: cases.length,
-      inventoryExposureValue: sumExposure(cases),
-      inventoryExposureAvailableValue: sumExposure(cases),
-      inventoryExposureAvailableCaseCount: availableExposureCases(cases).length,
-      inventoryExposureUnavailableCaseCount: cases.filter(item => item.inventory_exposure_missing).length,
-      missingExposureCount: cases.filter(item => item.inventory_exposure_missing).length,
+      ...portfolioExposure,
       conditionSummary: conditionSummary(cases),
       primaryItems: groups.map(group => {
         const rows = cases.filter(item => group.conditions.includes(item.condition_code));
@@ -404,11 +418,7 @@
           key: group.key,
           conditions: [...group.conditions],
           count: rows.length,
-          inventoryExposureValue: sumExposure(rows),
-          inventoryExposureAvailableValue: sumExposure(rows),
-          inventoryExposureAvailableCaseCount: availableExposureCases(rows).length,
-          inventoryExposureUnavailableCaseCount: rows.filter(item => item.inventory_exposure_missing).length,
-          missingExposureCount: rows.filter(item => item.inventory_exposure_missing).length
+          ...exposureSummary(rows)
         };
       })
     };
@@ -416,7 +426,7 @@
 
   function defaultCompare(a, b) {
     return (CONDITION_SORT_RANK[a.condition_code] ?? 99) - (CONDITION_SORT_RANK[b.condition_code] ?? 99)
-      || (finiteNumber(b.inventory_exposure_value) || -1) - (finiteNumber(a.inventory_exposure_value) || -1)
+      || (finiteNumber(b.inventory_exposure_value) ?? -1) - (finiteNumber(a.inventory_exposure_value) ?? -1)
       || (CONFIDENCE_RANK[a.condition_confidence] ?? 99) - (CONFIDENCE_RANK[b.condition_confidence] ?? 99)
       || (EVIDENCE_STRENGTH_RANK[a.evidence_strength] ?? 99) - (EVIDENCE_STRENGTH_RANK[b.evidence_strength] ?? 99)
       || text(a.material_id).localeCompare(text(b.material_id))

@@ -1,0 +1,275 @@
+[
+  {
+    "id": "overview",
+    "label": "Übersicht",
+    "group": "navigation",
+    "lucideIcon": "LayoutDashboard",
+    "file": "navigation/overview.svg"
+  },
+  {
+    "id": "inventory-explorer",
+    "label": "Bestands-Explorer",
+    "group": "navigation",
+    "lucideIcon": "PackageSearch",
+    "file": "navigation/inventory-explorer.svg"
+  },
+  {
+    "id": "excess-stock",
+    "label": "Überbestand",
+    "group": "navigation",
+    "lucideIcon": "PackagePlus",
+    "file": "navigation/excess-stock.svg"
+  },
+  {
+    "id": "slow-dead-stock",
+    "label": "Langsam / Totbestand",
+    "group": "navigation",
+    "lucideIcon": "Clock",
+    "file": "navigation/slow-dead-stock.svg"
+  },
+  {
+    "id": "blocked-quality",
+    "label": "Gesperrt / Qualität",
+    "group": "navigation",
+    "lucideIcon": "ShieldAlert",
+    "file": "navigation/blocked-quality.svg"
+  },
+  {
+    "id": "purchase-orders",
+    "label": "Bestellungen",
+    "group": "navigation",
+    "lucideIcon": "ShoppingCart",
+    "file": "navigation/purchase-orders.svg"
+  },
+  {
+    "id": "actions",
+    "label": "Maßnahmen",
+    "group": "navigation",
+    "lucideIcon": "ListChecks",
+    "file": "navigation/actions.svg"
+  },
+  {
+    "id": "data-quality",
+    "label": "Datenqualität",
+    "group": "navigation",
+    "lucideIcon": "DatabaseZap",
+    "file": "navigation/data-quality.svg"
+  },
+  {
+    "id": "reports",
+    "label": "Berichte",
+    "group": "navigation",
+    "lucideIcon": "FileChartColumn",
+    "file": "navigation/reports.svg"
+  },
+  {
+    "id": "settings",
+    "label": "Einstellungen",
+    "group": "navigation",
+    "lucideIcon": "Settings",
+    "file": "navigation/settings.svg"
+  },
+  {
+    "id": "upload-file",
+    "label": "Datei hochladen",
+    "group": "actions",
+    "lucideIcon": "Upload",
+    "file": "actions/upload-file.svg"
+  },
+  {
+    "id": "sample-data",
+    "label": "Beispieldaten",
+    "group": "actions",
+    "lucideIcon": "Database",
+    "file": "actions/sample-data.svg"
+  },
+  {
+    "id": "export",
+    "label": "Exportieren",
+    "group": "actions",
+    "lucideIcon": "Download",
+    "file": "actions/export.svg"
+  },
+  {
+    "id": "data-loaded",
+    "label": "Daten geladen",
+    "group": "actions",
+    "lucideIcon": "CircleCheck",
+    "file": "actions/data-loaded.svg"
+  },
+  {
+    "id": "search",
+    "label": "Suchen",
+    "group": "actions",
+    "lucideIcon": "Search",
+    "file": "actions/search.svg"
+  },
+  {
+    "id": "filter",
+    "label": "Filter",
+    "group": "actions",
+    "lucideIcon": "Funnel",
+    "file": "actions/filter.svg"
+  },
+  {
+    "id": "advanced-filter",
+    "label": "Weitere Filter",
+    "group": "actions",
+    "lucideIcon": "SlidersHorizontal",
+    "file": "actions/advanced-filter.svg"
+  },
+  {
+    "id": "reset-filter",
+    "label": "Filter zurücksetzen",
+    "group": "actions",
+    "lucideIcon": "RotateCcw",
+    "file": "actions/reset-filter.svg"
+  },
+  {
+    "id": "open-record",
+    "label": "Datensatz öffnen",
+    "group": "actions",
+    "lucideIcon": "ArrowRight",
+    "file": "actions/open-record.svg"
+  },
+  {
+    "id": "review-case",
+    "label": "Fall prüfen",
+    "group": "actions",
+    "lucideIcon": "SearchCheck",
+    "file": "actions/review-case.svg"
+  },
+  {
+    "id": "release-stock",
+    "label": "Bestand freigeben",
+    "group": "actions",
+    "lucideIcon": "ShieldCheck",
+    "file": "actions/release-stock.svg"
+  },
+  {
+    "id": "expand",
+    "label": "Aufklappen",
+    "group": "actions",
+    "lucideIcon": "ChevronRight",
+    "file": "actions/expand.svg"
+  },
+  {
+    "id": "recovery-potential",
+    "label": "Recovery-Potential",
+    "group": "indicators",
+    "lucideIcon": "BadgeEuro",
+    "file": "indicators/recovery-potential.svg"
+  },
+  {
+    "id": "total-inventory",
+    "label": "Gesamtbestand",
+    "group": "indicators",
+    "lucideIcon": "Boxes",
+    "file": "indicators/total-inventory.svg"
+  },
+  {
+    "id": "no-demand",
+    "label": "Ohne Bedarf",
+    "group": "indicators",
+    "lucideIcon": "CircleOff",
+    "file": "indicators/no-demand.svg"
+  },
+  {
+    "id": "unplanned",
+    "label": "Ohne Plan",
+    "group": "indicators",
+    "lucideIcon": "ClipboardX",
+    "file": "indicators/unplanned.svg"
+  },
+  {
+    "id": "priority-score",
+    "label": "Priorisierungsscore",
+    "group": "indicators",
+    "lucideIcon": "Gauge",
+    "file": "indicators/priority-score.svg"
+  },
+  {
+    "id": "missing-data",
+    "label": "Fehlende Daten",
+    "group": "indicators",
+    "lucideIcon": "FileQuestion",
+    "file": "indicators/missing-data.svg"
+  },
+  {
+    "id": "invalid-data",
+    "label": "Ungültige Daten",
+    "group": "indicators",
+    "lucideIcon": "CircleX",
+    "file": "indicators/invalid-data.svg"
+  },
+  {
+    "id": "duplicates",
+    "label": "Dubletten",
+    "group": "indicators",
+    "lucideIcon": "Copy",
+    "file": "indicators/duplicates.svg"
+  },
+  {
+    "id": "warning",
+    "label": "Warnung / Mittel",
+    "group": "indicators",
+    "lucideIcon": "CircleAlert",
+    "file": "indicators/warning.svg"
+  },
+  {
+    "id": "critical",
+    "label": "Hoch / Kritisch",
+    "group": "indicators",
+    "lucideIcon": "TriangleAlert",
+    "file": "indicators/critical.svg"
+  },
+  {
+    "id": "blocked",
+    "label": "Blockiert",
+    "group": "indicators",
+    "lucideIcon": "Ban",
+    "file": "indicators/blocked.svg"
+  },
+  {
+    "id": "information",
+    "label": "Information",
+    "group": "indicators",
+    "lucideIcon": "Info",
+    "file": "indicators/information.svg"
+  },
+  {
+    "id": "decision",
+    "label": "Entscheidung",
+    "group": "detail-tabs",
+    "lucideIcon": "ClipboardCheck",
+    "file": "detail-tabs/decision.svg"
+  },
+  {
+    "id": "value-logic",
+    "label": "Wertlogik",
+    "group": "detail-tabs",
+    "lucideIcon": "BadgeEuro",
+    "file": "detail-tabs/value-logic.svg"
+  },
+  {
+    "id": "history",
+    "label": "Historie",
+    "group": "detail-tabs",
+    "lucideIcon": "History",
+    "file": "detail-tabs/history.svg"
+  },
+  {
+    "id": "prioritization",
+    "label": "Priorisierung",
+    "group": "detail-tabs",
+    "lucideIcon": "Gauge",
+    "file": "detail-tabs/prioritization.svg"
+  },
+  {
+    "id": "action-paths",
+    "label": "Handlungswege",
+    "group": "detail-tabs",
+    "lucideIcon": "Route",
+    "file": "detail-tabs/action-paths.svg"
+  }
+]

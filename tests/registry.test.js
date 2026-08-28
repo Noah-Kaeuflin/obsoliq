@@ -428,7 +428,7 @@
     assert.equal(state.enrichedRows, 0, "Analytical rows should be empty");
     assert.equal(state.activeInventoryPackageId, "", "No active Inventory Snapshot package should remain");
     assert.equal(bridge.getRegistryStats().packageCount, 0, "No package should be left after no-dataset rollback");
-    assert.ok((app.document.getElementById("mInventory")?.textContent || "").includes("0"), "Inventory KPI should show a zero state");
+    assert.ok(app.document.getElementById("mInventory")?.classList.contains("metric-value-unavailable"), "Inventory KPI should show an unavailable state without a dataset");
     assert.ok((app.document.getElementById("categoryBars")?.textContent || "").includes("Keine Daten"), "Category chart should show empty state");
     assert.ok((app.document.getElementById("topTable")?.textContent || "").includes("Keine Daten"), "Top table should show empty state");
     assert.ok(chips.source.every(text => text === ""), "Source chips should be cleared");

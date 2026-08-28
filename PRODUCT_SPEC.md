@@ -6,6 +6,12 @@ ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. 
 
 The product helps users move from SAP or Excel inventory data to classification, recovery potential, root cause, recommended action, owner, status tracking and exportable management reporting.
 
+### ICON-01 — File-safe Icon Foundation & Global Shell
+
+ObsoliQ uses the local Icon Pack as its binding functional icon family. The 39-symbol pack follows a 24×24 Lucide outline contract with stroke width 2, no fill and color inherited through `currentColor`. A file-safe inline Sprite runtime loads before `app.js`, mounts exactly once without network access and accepts only known manifest IDs.
+
+ICON-01 is intentionally limited to the ten existing main-navigation routes and the existing Upload File, Sample Data, Inventory Export and loaded-data status elements. Mapping uses stable route and element IDs, so German/English text changes do not alter icon identity. Visible text remains the accessible name; decorative SVGs are hidden from assistive technology and cannot intercept pointer events. The Q signet, logo assets, KPI cards, Data Quality content, Data Foundation and Excess Decision Workspace remain unchanged.
+
 ### EX-UX-01.2 — Excess Decision Core & Risk-Workbench Alignment
 
 The Excess workspace uses a compact page header, a one-row desktop filter contract and exactly four Summary items: Net Addressable, Excess Cases, Prioritization and Addressability. Search, Plant / Profit Center and Program / Group reuse the shared controls; Owner and Priority are Excess-only presentation filters. Category and row limit remain available to other views but are neither visible nor applied on Excess.
@@ -17,6 +23,71 @@ The selected Case Decision Core remains above the Detail scroll and exposes exac
 Historical evidence is read only from the already completed Historical Runtime for the exact current `inventory_row_key`. Available or limited scalar metrics may be presented; missing, stale or ambiguous evidence renders an unavailable state and may open the existing Consumption History import flow. The view does not trigger historical calculation, scan Raw History, aggregate monthly data or invent Forecast evidence.
 
 Scenarios and assumptions, Evidence and limitations, Data and Relationship Quality, Owner and Action Context, Pilot Review and Technical Provenance remain available through closed-by-default disclosures. The page projection is presentation-only and does not alter Excess formulas, Opportunity Scores, scenarios, Recovery, Data Quality, Actions, Pilot Reviews, Runtime state, Registry records or Package revisions.
+
+### EX-UX-01.3 — Excess Decision Narrative & Action Options
+
+The selected Excess Case now presents one deterministic decision narrative. Outside the internal Detail scroll, the compact Case header contains Category, Priority, the existing session-only Action status, Case identity, exact Inventory and Actions navigation and short values for Net Addressable, Opportunity Score, Owner and Priority. Inside the scroll, the visible sequence is: Why Prioritized / Next Review Step / Cause Hypothesis / Decision Readiness and Limits, then Gross-to-Net Value Bridge, Historical Evidence, Prioritization and Operational Evidence, Checkable Action Options and a compact Work Context. Scenarios and assumptions, evidence records, relationship details, full technical Owner context, Pilot Review and provenance remain closed by default.
+
+The Action Option contract is presentation-only: `{ optionCode, labelKey, status, isPrimary, evidence, missingEvidence, nextCheck, provenance }`. The authoritative `recommended_action` remains whole and is the primary checkable recommendation; it is never split heuristically and is not described as automatically optimal. Additional options can be projected only from existing structured scenarios, explicit decision results or concrete Purchase Order evidence. The internal statuses are `checkable`, `review_required`, `not_checkable` and `not_recommended`. A Purchase Order option distinguishes Package missing, loaded without an exact matching line, insufficient evidence and concrete Case evidence.
+
+Decision Readiness uses the non-weighted, versioned rule `excess-decision-readiness-v2`:
+
+| Result | Deterministic condition |
+| --- | --- |
+| Not decidable | Valid Case identity, finite Gross-to-Net basis or authoritative recommendation is missing or invalid. |
+| Review required | The central basis exists, but Cause, Owner, exact Relationship assignment or primary-option checkability is missing. |
+| Limited | A checkable path exists, but Historical Evidence is not fully available, `whyNotHigher`, limitations or other non-critical evidence gaps remain. |
+| Decision ready | The primary path is evidence-based and checkable, with no critical or non-critical open decision limit. |
+
+Readiness exposes existing evidence, missing evidence, decision limits, `whyNotHigher` and the next data or review step. It is not a probability or a new analytical score.
+
+The Value Narrative preserves numerical `0` as an available value and distinguishes it from missing, empty, non-finite or otherwise invalid input, which is shown as Not available. It presents Inventory Value, Gross Excess, overlap deductions, Net Addressable and remaining Inventory from existing Case fields without changing formulas. Net Addressable is explicitly an identified potential, not Expected Recovery Value, an approved amount, realized cash, Working-Capital Recognition or P&L impact.
+
+Historical Evidence remains exact-row and read-only. It differentiates Package missing, loaded without an exact relationship, not calculated, limited, insufficient, available and Runtime error. Three-month and twelve-month consumption, average monthly consumption, trend, run-out and completeness come only from the completed current Historical Runtime. A chart is rendered only from canonical Runtime monthly buckets; the presentation does not reconstruct, interpolate or forecast a time series.
+
+Current limitations remain explicit: Action status and Pilot Review are session-only and separate; Purchase Order options cannot be checkable without concrete Case-level PO evidence; History can remain unavailable without an exact completed Runtime result; and the MVP has no persistence, approval workflow, Expected or realized Recovery, SAP live integration, predictive recommendation or customer-validated action optimization.
+
+### EX-UX-01.3.1 — Decision Contract, Unit Context & Acceptance Evidence Closure
+
+The accepted Excess Decision Narrative now has a matching presentation contract in `DATA_CONTRACT.md`. Cause Hypothesis, versioned Decision Readiness, evidence-bound Action Options, differentiated Historical Evidence, null-safe Gross-to-Net Value Narrative and session-only Work Context remain one deterministic read-only projection owned by the Excess Decision Workspace Model.
+
+Historical quantities now show the canonical Historical Runtime unit. The UI distinguishes an available unit, a missing unit and conflicting units; it preserves a calculated zero with its unit and does not merge conflicting monthly buckets. Inventory Coverage remains a time metric. No unit is guessed, converted or substituted with a currency.
+
+Purchase Order communication follows the productive capability boundary. Concrete or partial PO evidence may come from fields already present on the current Inventory Case and names that row-level source in provenance. The registered `purchase_orders` type remains contract-only: there is no Builder, productive Package import, upload choice or PO import CTA. A test fixture or Registry-only record cannot imply product availability.
+
+The primary Recommendation remains fully visible and authoritative. Secondary structured options retain their status in compact native disclosures and expose evidence, gaps, next check and provenance only when opened. The visible Work Context no longer repeats Action status, Owner and Owner function already shown in the fixed Case header; it adds decision type, Owner source, assignment confidence and the session-only boundary.
+
+This closure does not change Excess, Recovery, Opportunity Score, Scenario or Historical formulas, Action or Pilot Review lifecycle, Registry semantics, Package revisions, upload, mapping or export behavior. It adds no PO optimization, Forecast, Expected Recovery Value, financial Recognition, execution workflow, persistence or common Inventory Risks cockpit.
+
+### EX-UX-01.4 — Excess Decision Visual Compression
+
+The Excess Detail scroll now contains exactly four decision visual types: a Gross-to-Net Value Bridge, a canonical monthly consumption SVG, Opportunity Score contribution bars and a Decision Readiness Matrix. Existing Action Options remain the operational follow-up and use the already accepted open-primary / compact-secondary disclosure pattern.
+
+The Value Bridge keeps Inventory Value and remaining Inventory as Case context. Its only mathematical sequence is `Gross Excess - overlap / deductions = Net Addressable`. Every displayed amount comes from `valueNarrative.fields`; a real zero remains visible and unavailable values remain unavailable. Net Addressable remains identified potential only, with an explicit statement that it is not expected, approved or realized value.
+
+The Historical visual uses at most the last twelve actual `historicalEvidence.monthlyBuckets`, sorted chronologically for display. It draws straight SVG segments, includes a zero baseline, preserves negative net consumption and shows Unit Context plus existing partial-period provenance. It never reconstructs buckets from 3M / 12M aggregates, invents missing months or adds Forecast or demand-plan styling. Zero buckets, one-bucket and no-bucket states remain truthful and readable.
+
+Score contribution bars display each existing `opportunity_score_components` contribution against the corresponding immutable maximum exposed by the Opportunity Score Engine (`35 / 20 / 20 / 15 / 12`). Bar width is `component contribution / component maximum`; the total remains the existing `x / 100` score. This visualization neither recalculates components nor changes weights and remains explicitly a prioritization, not a probability.
+
+The Readiness Matrix renders the existing `decisionReadiness` projection only. It groups `existingEvidence` under Available and combines `missingEvidence`, `decisionLimits` and `whyNotHigher` under Open / limited, with at most four direct items per column and a native Further evidence disclosure for the remainder. Status, next check and policy version remain unchanged. Text accompanies every CSS status symbol, figures include captions and accessible SVG descriptions, numeric values remain readable outside graphical marks, and Light / Dark Mode plus reduced-motion preferences are supported.
+
+This work block adds no Portfolio chart, donut, radar, Forecast, AI score, success probability, Expected Recovery Value, Cash, Working-Capital Recognition or P&L visualization. It does not change Excess, Recovery, Historical, Readiness, Action Option, Pilot Review, Registry, Package revision, upload, mapping or export logic.
+
+### EX-UX-01.5 — Visual Hierarchy, Readability & Screenshot Closure
+
+The Excess page presents four equal Summary metrics for identified Net Addressable potential, Case count, average Opportunity Score and the Gross-to-Net ratio. The reset control is visible only while an Excess-local filter is active. The Worklist uses stable business columns, aligned monetary and score values, compact pagination and one clear Case action; the existing Case set, sorting and page logic remain unchanged.
+
+The bounded desktop workspace fills the available viewport and gives Worklist and Detail independent scroll ownership. A sticky navigation inside the Detail scroll links Decision, Value, History, Prioritization and Actions without introducing route or analytical state. The Next Review Step is the primary prompt, while causes, readiness limits, context and additional historical evidence use quieter supporting surfaces or disclosures.
+
+The value presentation explicitly reads Gross Excess minus deductions or overlap equals Net Addressable. Inventory Value and remaining Inventory stay contextual and are not part of that equation. This closure is presentation-only: it does not change calculations, scores, Runtime evidence, Action Options, Pilot Reviews, upload, mapping, export, Registry or Package revisions.
+
+### EX-UX-01.6 — Interaction, Semantic Color & Density Closure
+
+The Excess workspace now uses five exact Detail anchors for Decision, Value, History, Prioritization and Actions. Navigation uses native container scrolling, exposes the current location accessibly and removes its local handlers before rerendering. This interaction state remains DOM-only and does not become route, filter, Case or analytical state.
+
+Display-level normalization suppresses exact repeated next-step and cause/readiness statements without deleting or modifying accepted projection data. The Value Bridge is a textual Gross-to-Net reconciliation rather than a success-like progress visualization. Historical empty states, Operational Context and the primary Action Option are compact, evidence remains available in native disclosures and unavailable or not-checkable states use neutral status treatment.
+
+At desktop widths above `1240px`, the Excess workspace owns the available viewport and gives Worklist and Detail independent internal scrolling without body scroll. Narrower widths keep natural page flow and responsive stacking. Summary metrics use a consistent `82px` height, Worklist values remain readable at accepted business widths and German presentation terms use Überbestand-specific wording. Calculations, scoring, accepted fields, upload, mapping, export, Registry and Package revisions are unchanged.
 
 ### AP 16.4b.1 — Source-Bound Interpretation & History Readiness Closure
 
@@ -103,6 +174,30 @@ A dedicated Slow / Dead export writes one row per Recovery Case with evidence an
 AP 16.4d.2 is presentation and export enablement only. It does not change Condition thresholds, Condition precedence, Historical Metrics formulas, Recovery, Data Quality, current Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry state, Package revisions, SAP integration, persistence or financial Recognition.
 
 Recommended Next Work Block: AP 16.4d.3 — Pilot Calibration & Acceptance Closure.
+
+### AP 16.4d.3a — Slow / Dead Calibration Contract & Safety Fixture Foundation
+
+AP 16.4d.3a establishes a controlled calibration foundation without changing product behavior. It adds the versioned `slow-dead-calibration-case-v1` contract, a direct read-only reference to productive Policy `slow-dead-condition-policy-v1`, a fixed `2026-08-25` reference date, manually authored synthetic Safety Fixtures and a deterministic Runner against the real existing Condition Engine.
+
+NUM-CAL-MIG-01 retains that Fixture schema and every expected outcome while adding `slow-dead-calibration-numeric-boundary-v1`. The v2 Calibration Runner uses the productive Numeric Core for all 16 numeric Engine inputs, keeps zero distinct from Missing/Invalid/Ambiguous evidence and blocks positive agreement when no eligible Result Row exists.
+
+The Fixture portfolio covers all six existing Conditions, immediately below/at/above the 6-, 12- and 18-month thresholds, explicit Strategic Reserve, recurring intermittent demand, independent Dead-signal presence/absence, insufficient History, low completeness, ambiguous relationships, unit conflict, project/one-time-demand context and numeric zero versus missing evidence. The twelve Safety Invariants preserve the existing non-definitive and protection boundaries; they do not add a new Condition or Action.
+
+Synthetic Safety Fixtures are published-Policy contract examples. They are not Pilot observations, customer records, expert labels or Ground Truth. No Fixture is marked human-validated. Future expert labels require explicit reviewer provenance and belong to the human Pilot closure in `AP 16.4d.3c`.
+
+The generated report uses the term **Synthetic Contract Agreement**. AP 16.4d.3a provides no Pilot Accuracy, Expert Agreement, Precision, Recall, F1, exposure weighting, sensitivity analysis or threshold recommendation. Productive thresholds, precedence, UI, Recovery Cases, Actions, Excess and Opportunity Score remain unchanged. `AP 16.4d.3b` owns future Calibration Metrics and Threshold Sensitivity; `AP 16.4d.3c` owns Human Pilot Review and Acceptance Closure.
+
+### AP 16.4d.3b — Synthetic Calibration Metrics & OFAT Threshold Sensitivity
+
+AP 16.4d.3b measures the accepted 30-fixture synthetic contract without changing product behavior. `slow-dead-calibration-metrics-v2` reports eligible/excluded Fixture Coverage, calculability status, Synthetic Contract Agreement, Synthetic Condition Agreement, Boundary Stability, Reason-Code coverage, Safety results and deterministic content fingerprints from Calibration Runner v2 Result Rows.
+
+The versioned `slow-dead-threshold-sensitivity-plan-v1` executes exactly 17 controlled scenarios: the productive Baseline plus low/high OFAT alternatives for minimum History coverage, minimum completeness, strong completeness, Slow-Moving age, Non-Moving age, Dead-Candidate age, recurring-demand active months and intermittency. Every candidate is validated before the real productive Condition Engine evaluates it.
+
+Sensitivity Runner v2 preserves that plan and all threshold values but delegates numeric normalization and eligibility to the shared Calibration Runner. It contains no permissive raw-number fallback and cannot treat an empty or wholly invalid basis as a successful analysis.
+
+All ten immutable analysis Safety Guards run in every scenario. Condition migration is descriptive and is not automatically an error. A Guard violation marks a scenario analytically unsafe but cannot activate, recommend, rank, persist or promote it. No Conservative/Sensitive bundles, multi-parameter search, auto-tuning, Policy v2, exposure weighting or best-Policy field exists.
+
+The generated Markdown, JSON and CSV artifacts contain synthetic contractual data only. They establish no Pilot Accuracy, Customer Accuracy, Expert Agreement, Precision, Recall or F1. Productive Policy v1, UI, `app.js`, Actions, Excess and Opportunity Score remain unchanged. There is explicitly **no Policy recommendation**; human Pilot Review remains the separately governed handover to `AP 16.4d.3c`.
 
 ### AP 16.4d.2.1 — Entity-Exact Navigation & Case Contract Closure
 
@@ -1520,9 +1615,12 @@ Product rules:
 - Excess filters are presentation filters over the current Excess portfolio and must not rebuild analytics, scores, scenarios, Pilot Reviews, Registry records or Package revisions.
 - Excess -> Actions navigation resolves by row key, entity key or exact Material/Plant identity, with material-only fallback only when unique.
 
-Not included beyond AP 16.3a:
+Still not included in the current MVP:
 
-- cross-package analytics beyond Inventory-to-Material-Master context enrichment
+- arbitrary cross-package analytics beyond the explicit Inventory-to-Material-Master context-enrichment and Inventory-to-Consumption-History historical-metrics pipelines
+- standalone Purchase Orders import or Purchase Order optimization
+- Demand Forecast, Quality Package or Finance Recognition integration
+- Action Outcome learning
 - cross-package financial joins
 - multi-dataset UI
 - Snapshot History
@@ -1570,12 +1668,14 @@ Not included beyond AP 16.3a:
 19. The Slow / Dead Page Model consumes the Runtime state for page-only filtering, sorting, pagination, selected Case identity, Portfolio Summary and nullable Inventory Exposure presentation.
 20. The Slow / Dead View / Controller renders the Recovery Case Workbench and handles scoped page interactions, entity-exact Inventory/Action navigation reveal and export-dialog opening without rebuilding the Runtime.
 21. The Slow / Dead export writes one row per current Recovery Case with evidence, provenance, separate Inventory Exposure and Currency columns.
-22. Data Quality detection runs application-side from Inventory-owned source/canonical rows for Inventory source-quality identity, then combines that result with the existing remediation lifecycle state. Material Master context enrichment may be visible in Explorer and Actions, but it does not change Inventory duplicate-candidate issue identity.
-23. Overview renders compact management KPIs, dataset context chips, compact chart panels and a Recovery Worklist from the enriched dataset.
-24. Excess Stock renders Excess decision cases, net-addressable values, overlap, opportunity scoring, scenario evidence, relationship/enrichment quality and session-only Pilot Review from the enriched dataset.
-25. Inventory Explorer renders the full inventory table in original Excel order with filters, internal scrolling and additional enriched Material Master context columns where available.
-26. Data Quality renders a remediation-first workspace with a primary Score-plus-issue metric row, compact Quick Filters, targeted filter-result rendering, simplified issue worklist, right-side issue Review Sheet and secondary collapsed technical diagnostics for readiness, score breakdown, field coverage, content quality, mapping, source-column diagnostics and recovery validation.
-27. Recovery/action/excess/slow-dead exports include traceability fields; inventory export generates a local Excel-compatible or Google-Sheets-compatible file for the selected export scope and selected data variant. Corrected dataset and issue-log exports are available from Data Quality.
+22. The Unified Inventory Risks Runtime adapts accepted Excess, Slow / Dead and Blocked / Quality outputs into separate Family Cases, then deduplicates them into Portfolio Cases without losing Family IDs or provenance.
+23. The Unified Page Model presents All Risks, Excess & Demand, Slow / Dead, Blocked / Quality and Prioritized segments through one visible route; Primary and Secondary Families remain inspectable.
+24. Data Quality detection runs application-side from Inventory-owned source/canonical rows for Inventory source-quality identity, then combines that result with the existing remediation lifecycle state. Material Master context enrichment may be visible in Explorer and Actions, but it does not change Inventory duplicate-candidate issue identity.
+25. Overview renders compact management KPIs, dataset context chips, compact chart panels and a Recovery Worklist from the enriched dataset.
+26. The Excess Family detail renders net-addressable values, overlap, opportunity scoring, scenario evidence, relationship/enrichment quality and session-only Pilot Review without reintroducing a separate main-navigation route.
+27. Inventory Explorer renders the full inventory table in original Excel order with filters, internal scrolling and additional enriched Material Master context columns where available.
+28. Data Quality renders a remediation-first workspace with a primary Score-plus-issue metric row, compact Quick Filters, targeted filter-result rendering, simplified issue worklist, right-side issue Review Sheet and secondary collapsed technical diagnostics for readiness, score breakdown, field coverage, content quality, mapping, source-column diagnostics and recovery validation.
+29. Recovery/action/inventory-risk exports include traceability fields; inventory export generates a local Excel-compatible or Google-Sheets-compatible file for the selected export scope and selected data variant. Corrected dataset and issue-log exports are available from Data Quality.
 
 Workflow and lifecycle state remains separate from the data pipeline:
 
@@ -1590,6 +1690,18 @@ Workflow and lifecycle state remains separate from the data pipeline:
 
 These decisions may change what the app shows or how issues are classified, but they are not physical source-data transformations.
 
+## R0A And Unified Risk Safety State
+
+R0A establishes strict Derived-Value postconditions: a derived financial value is available only when all required inputs and the result are finite and non-negative. Invalid, negative, overflow and non-finite derivations remain `null`/unavailable; validated zero remains valid evidence. Header-only Inventory uploads are rejected transactionally before commit, so the prior active Dataset and all dependent runtime state remain intact. Family adapters contain missing Inventory Entity identity fail-closed instead of inventing identifiers.
+
+Unified Inventory Risks is one visible route with separate Excess & Demand, Slow / Dead and Blocked / Quality Family Cases. A Portfolio Case may expose a deterministic Primary Family and Secondary Families, but each Family Case retains exact identity, evidence and provenance. Portfolio Evidence uses conservative aggregation.
+
+Evidence Readiness equals readiness-capable currently filtered Portfolio Cases divided by all currently filtered Portfolio Cases. The visible KPI includes numerator and denominator; an empty denominator is unavailable. Net Addressable Recovery, Slow / Dead Inventory Exposure and Blocked / Quality Value are separate financial semantics and are not added into a false Unified recovery total.
+
+Blocked / Quality is a limited exposure and evidence model, not a complete Recovery Engine. Release, rework, supplier-return, approval and success-probability data is not available, so no unsupported recoverable quantity or recoverable value is claimed.
+
+R0A is complete. R0B establishes local Runtime, test, manifest and Git reproducibility; it is not a Product Release. `TRUST-01` remains open unless independently proven, and the Product Release Gate remains `HOLD`.
+
 ## Current Assumptions
 
 - Data is handled locally in the browser.
@@ -1600,12 +1712,22 @@ These decisions may change what the app shows or how issues are classified, but 
 - Action recommendations are rule-based and non-binding.
 - Action status is session-only and not production persistence.
 - Pilot Reviews are session-only customer-validation evidence, not persistent workflow or realized-value tracking.
-- Placeholder tabs still describe not-yet-implemented product areas only: Blocked / Quality, Purchase Orders and Reports.
+- Placeholder tabs still describe not-yet-implemented product areas only: Purchase Orders and Reports.
+
+## CH-EX-01A Integrity Closure
+
+The Excess Decision Workspace now fails closed when its monetary decision basis is missing, invalid, currency-inconsistent or mathematically unreconciled. Gross Excess minus overlap/deductions must equal Net Addressable within EUR-cent precision (`0.01`). Missing values remain visibly unavailable and are never presented as zero; genuine zero remains valid evidence.
+
+The current interoperable package contract is Workspace Projection `3`, Decision Readiness `excess-decision-readiness-v2` and subordinate Gross-to-Net Reconciliation `gross-net-reconciliation-v1`. The Application Service, selected Case projection and renderer consume this one versioned chain; historical Projection 2 / Readiness v1 descriptions are superseded for the current product state.
+
+The Case Header and Gross-to-Net detail use one canonical Availability projection. Invalid value basis is visibly marked for review and can never produce positive Decision Readiness. Opportunity Score remains the established deterministic score with unchanged weights; new metadata makes the existing 100-point cap transparent when the component sum exceeds 100.
+
+The session-only Excess portfolio cache is revisioned and invalidated only by relevant analytical mutations such as Action status, dataset/remediation/enrichment commits, active Inventory Package revisions and rollback restoration. Filters, selection, language, theme and currency remain presentation-only and do not rebuild the analytical model. Diagnostic Runtime build history is disabled in product mode and bounded to 50 entries in test mode.
+
+This closure adds no new product feature, chart, forecast, persistence, approval, SAP integration or workflow execution.
 
 ## Recommended Next Work Block
 
-AP 16.4d.3: Pilot Calibration & Acceptance Closure. This next block should calibrate Slow / Dead thresholds, evidence wording and pilot acceptance criteria against representative DACH manufacturing datasets without turning candidates into execution approvals.
+`TRUST-01`: independently close the source-bound input trust and release-governance gate. R0B may create a reproducible local candidate, but it does not authorize publication, deployment, tagging or Product Release.
 
-Subsequent roadmap:
-
-- AP 16.5: Purchase Order and Quality-specific intelligence
+Subsequent roadmap remains Purchase Order and deeper Quality-specific intelligence after the trust gate.

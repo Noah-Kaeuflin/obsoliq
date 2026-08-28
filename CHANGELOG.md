@@ -1,5 +1,362 @@
 # Changelog
 
+## 2026-08-28 - R0B: Release Integrity Closure
+
+### Changed
+
+- Migrated the seven legacy Excess Product Smokes from the removed `excess-stock` navigation button to the visible `inventory-risks` route and the real `excess_demand` segment while retaining their functional assertions.
+- Bound the existing Excess section-guide interaction inside the Unified Inventory Risks detail pane and added scoped scroll/navigation presentation rules.
+- Added structured and static R0B regression coverage for current route identity, segment selection, embedded detail navigation and legacy-selector absence.
+- Added the current Unified Inventory Risks Runtime, R0A safety tests and R0B test bootstrap to the explicit deterministic package delta.
+- Updated current product, architecture and data contracts for R0A numeric/transaction/identity safety, conservative Evidence aggregation, Unified Family Cases and separate financial semantics.
+
+### Preserved
+
+- Recovery formulas, Opportunity Score weights, Slow / Dead thresholds and Blocked / Quality capability limits.
+- Upload parsing, Sample Data, Registry semantics, exports and local `file://` operation.
+- Historical verification documents as evidence of their original accepted state.
+
+### Release Boundary
+
+- R0B establishes reproducible local Runtime and package integrity only.
+- `TRUST-01` remains open unless separately verified; Product Release remains `HOLD`.
+- No push, tag, merge, deployment or Product Release is authorized by this work block.
+
+## 2026-08-28 - R0A: IR, Data And Numeric Safety Closure
+
+### Changed
+
+- Enforced finite, non-negative postconditions for derived financial evidence and preserved validated zero.
+- Rejected header-only Inventory uploads transactionally before active-state mutation.
+- Contained missing Inventory Entity identity fail-closed at Family adapter collection boundaries.
+- Added conservative mixed-family Evidence aggregation, numerator/denominator readiness presentation and separate family financial semantics.
+
+### Verified
+
+- All twelve R0A gates passed, including 336 structured browser tests and six targeted R0A regressions with 144 assertions.
+- Product Release remained held; `REL-001` was intentionally left for R0B.
+
+## 2026-08-26 - NUM-CAL-MIG-01: Calibration Migration to Strict Numeric Boundary
+
+### Changed
+
+- Routed all 16 numeric Calibration input fields through the productive `numericEvidence(...)` boundary while preserving explicit zero, Missing, Ambiguous and Invalid status evidence.
+- Added `slow-dead-calibration-numeric-boundary-v1`, Calibration Runner v2 and Metrics v2 outputs with eligible/excluded row counts and explicit not-calculable coverage states.
+- Migrated the OFAT Sensitivity Runner to the shared Calibration adapter and removed permissive direct numeric coercion from the analysis path.
+- Added empty/all-invalid coverage guards, adversarial numeric regressions and a reproducible `NUM_CAL_MIG_01_VERIFICATION.md` evidence report.
+
+### Preserved
+
+- All 30 Fixture literals, Expected Conditions, twelve Safety Invariants and 17 OFAT scenarios.
+- Productive `slow-dead-condition-policy-v1`, every threshold, the Condition Engine, Numeric Core, visible UI and product bootstrap.
+- Upload, parsing, export, Excess, Recovery, Actions, Input Trust and Historical Runtime behavior.
+
+### Boundaries
+
+- Calibration modules remain analysis-only and are not loaded by `prototype.html`.
+- The migration makes no Policy recommendation and does not authorize `IR-01`; the product release gate remains held for the separately authorized hardening sequence.
+
+## 2026-08-26 - PKG-02: Current Bundle Integrity & Analysis-Bootstrap Closure
+
+### Changed
+
+- Removed the four analysis-only Slow / Dead Calibration modules from the productive `prototype.html` bootstrap and its production-like test template.
+- Added one explicit, ordered Calibration analysis loader to the existing structured test entry; no product route or Calibration UI was added.
+- Added package-reference, script-order, duplicate-ID and hidden-dependency checks plus a dedicated productive `file://` package smoke.
+- Added portable SHA-256 manifest generation/verification and deterministic review-bundle tooling with repository-relative paths and strict package-scope validation.
+
+### Verified
+
+- Verified ICON-01 assets/runtime, 39 manifest IDs, 39 Sprite symbols, ten navigation icons, four global Shell icons and offline interaction behavior.
+- Verified 30 synthetic AP 16.4d.3a Fixtures, twelve Safety Invariants, productive Policy v1 identity and a deterministic zero-critical-violation baseline.
+- Verified AP 16.4d.3b Metrics v1, 17 OFAT scenarios, deterministic migrations/artifacts and the no-activation/no-recommendation boundary.
+
+### Preserved
+
+- Product calculations, Condition thresholds, upload, parsing, export, Actions, Excess, Opportunity Score, sample data, visible UI and `app.js` behavior.
+- Local `file://` operation and the existing structured browser-suite entry.
+- AP 16.4d.3c remains unstarted.
+
+## 2026-08-26 - AP 16.4d.3b: Synthetic Calibration Metrics & OFAT Threshold Sensitivity
+
+### Added
+
+- Added DOM-independent `slow-dead-calibration-metrics-v1` with synthetic agreement, per-Condition coverage, Boundary Stability, Reason-Code coverage, Safety results and deterministic content fingerprints.
+- Added `slow-dead-threshold-sensitivity-plan-v1` with one Baseline and sixteen validated OFAT variants across eight productive thresholds.
+- Added deterministic Condition migrations, changed Case-ID evidence, ten immutable Safety Guards and explicit analytically-unsafe scenario marking.
+- Added reproducible Markdown, JSON and CSV artifacts plus byte-identical artifact checking.
+- Added Metrics, Sensitivity, determinism, static-contract and file:// Product-Smoke coverage.
+
+### Preserved
+
+- Productive `slow-dead-condition-policy-v1`, Condition Engine, default Engine behavior and all threshold values.
+- Visible UI, `app.js`, Actions, Excess, Opportunity Score, upload, parsing, Registry and Package revisions.
+- Synthetic 3a Fixtures, Calibration Contract, Runner and byte-reproducible Baseline report.
+
+### Boundaries
+
+- Every alternative is analysis-only, production-ineligible, inactive and not recommended.
+- A Condition migration is not automatically an error; only an explicit Safety-Guard violation is critical.
+- No Policy ranking, best Policy, auto-tuning, Policy v2, exposure weighting or automatic threshold adoption was added.
+- Results are synthetic contract evidence only, not Pilot Accuracy or human expert validation. There is no Policy recommendation.
+- Human Pilot Review and Acceptance Closure remain `AP 16.4d.3c`.
+
+## 2026-08-26 - AP 16.4d.3a: Slow / Dead Calibration Contract & Safety Fixture Foundation
+
+### Added
+
+- Added the DOM-independent `slow-dead-calibration-case-v1` contract with fixed reference date, stable Reason Codes, Protection Flags, provenance validation and twelve Safety Invariants.
+- Added 30 immutable, synthetic acceptance fixtures covering all six productive Conditions, 6/12/18-month boundary semantics and critical Strategic Reserve, intermittent-demand, independent-signal, History, Relationship, Unit and project-demand protections.
+- Added a deterministic Calibration Runner that calls the real productive Condition Engine without a Policy override and reports Synthetic Contract Agreement, stable disagreement codes and critical protection violations.
+- Added a reproducible Fixture Baseline report generator plus Contract, Fixture, Runner, mutation and safety regression tests.
+
+### Preserved
+
+- Productive Policy remains `slow-dead-condition-policy-v1` with unchanged thresholds, precedence and inclusive/exclusive semantics.
+- Visible UI, `app.js`, Slow / Dead Case behavior, Actions, Excess, Opportunity Score, upload, parsing, Registry and Package revisions remain unchanged.
+
+### Not Included
+
+- No Pilot Accuracy, Expert Agreement, Precision, Recall, F1, threshold optimization, sensitivity analysis or human label is asserted in this block.
+- Calibration Metrics and Threshold Sensitivity remain `AP 16.4d.3b`; Human Pilot Review and Acceptance Closure remain `AP 16.4d.3c`.
+
+## 2026-08-25 - ICON-01: File-safe Icon Foundation & Global Shell Integration
+
+### Changed
+
+- Added the controlled 39-symbol ObsoliQ Icon Pack, manifest, Sprite, README and Lucide license under `assets/icons/obsoliq/`.
+- Added an allowlisted, idempotent inline-Sprite runtime that remains fully functional through `file://` without fetch, CDN, icon font or external SVG references.
+- Added semantic icons to the ten existing global navigation routes and the existing Upload, Sample Data, Inventory Export and loaded-data status elements while preserving labels, focus states and interaction behavior.
+
+### Validation
+
+- Added static asset/manifest/Sprite validation, structured runtime regression coverage and a product `file://` smoke with interaction, language, network and responsive screenshot checks.
+- Verified 24×24 geometry, no fill, `currentColor`, stroke width 2, one Sprite mount, unknown-ID rejection and desktop/mobile Shell alignment.
+
+### Preserved
+
+- Q signet and logo assets, Excess Decision Workspace, Data Quality and Data Foundation content, Domain and Score logic, upload/parsing behavior and export behavior.
+
+## 2026-08-25 - CH-EX-01A.1: Package Integrity, Contract Version & Evidence Closure
+
+### Changed
+
+- Harmonized the current Excess contract to Workspace Projection `3`, Decision Readiness `excess-decision-readiness-v2` and Gross-to-Net Reconciliation `gross-net-reconciliation-v1` across Workspace metadata, Application Service metadata and current contract documentation.
+- Added explicit Reconciliation version metadata to the central validator and one canonical contract-version tuple to the selected Case projection and Excess page model.
+- Replaced user-specific Product Smoke paths with a repository-relative `file://` resolver and added a portable command-line runner for the complete structured browser suite.
+
+### Validation
+
+- Added a real Engine -> Excess Analysis Service -> Decision Workspace -> `app.js` renderer regression that checks Availability objects, complete and inconsistent value bases, score metadata pass-through and a real 102-to-100 cap.
+- Extended static package validation to cover physical files, product script uniqueness/order, prototype/test-template parity, test registration, current versions and portable Smoke paths.
+- Reviewer evidence, final test counts and SHA-256 checksums are recorded in `CH_EX_01A_1_VERIFICATION.md` and `artifacts/ch-ex-01a.1-review-bundle.zip` after execution.
+
+### Preserved
+
+- Score weights and formulas, Recovery calculations, upload, parsing, mapping, sample data, export behavior, Registry ownership and local file-based product operation.
+- CH-EX-01B has not started.
+
+## 2026-08-25 - CH-EX-01A: Excess Contract & Runtime Integrity Closure
+
+### Fixed
+
+- Centralized complete Gross-minus-overlap-equals-Net validation with a `0.01` epsilon, normalized currency consistency, explicit Availability and stable missing/invalid/inconsistent reason codes.
+- Removed false-zero projection from Opportunity Score and monetary values in the fixed Excess Case Header; invalid value basis now fails closed and shows a review limitation.
+- Replaced reference-only Excess portfolio caching with centralized revision-based invalidation for Action status, dataset/enrichment/remediation commits, Package revisions and rollback restoration.
+
+### Changed
+
+- Added canonical Opportunity Score cap metadata while preserving all component weights and formulas.
+- Disabled Historical and Slow / Dead build-log accumulation in product mode and bounded test diagnostics to 50 metadata-only entries.
+- Removed duplicate 3M/6M translation definitions and added canonical `importError` plus value-basis/cap labels in German and English.
+- Mirrored the active Inventory Package revision into Dataset Meta before rebuilding Excess provenance.
+
+### Validation
+
+- Added CH-EX-01A contract, DOM, cache, ranking, score-cap, log, i18n, static-source and product `file://` smoke coverage.
+- Existing EX-UX-01.6 layout, upload, parsing, export and calculation boundaries remain unchanged.
+
+## 2026-08-25 - EX-UX-01.6: Interaction, Semantic Color & Density Closure
+
+### Changed
+
+- Replaced offset-based Detail navigation with five exact section anchors, native `scrollIntoView`, `aria-current="location"` and rerender-safe listener cleanup.
+- Removed visible duplicate next-step and cause/readiness statements while preserving the underlying accepted projection fields.
+- Tightened the Excess Worklist, Summary metrics, Value Bridge, Historical Evidence, Operational Context and primary Action Option for a denser decision workspace.
+- Applied neutral unavailable/not-checkable states, restrained semantic status colors, accepted typography weights and compact German business terminology.
+- Closed desktop scroll ownership above `1240px`: the page shell remains fixed while Worklist and Detail scroll independently; narrower layouts retain natural document flow.
+
+### Preserved
+
+- Excess, Recovery, Gross-to-Net, Opportunity Score, Historical, Decision Readiness and Action Option calculations.
+- Upload, parsing, mapping, sample data, export behavior, Registry ownership, Package revisions and local file-based operation.
+
+### Validation
+
+- Added structured EX-UX-01.6 regression coverage and product smoke checks for `1440x900`, `1440x768`, `1366x768`, `1200x800`, `900x900`, `720x900` and `390x844`.
+- Verified German / English, Light / Dark, exact section landing, accessible Worklist action labelling and horizontal-overflow absence with screenshot evidence.
+
+### Known Limitations
+
+- The active closure styles were consolidated in the existing final EX-UX block without adding another override layer. Broad deletion of older foundational selectors was deferred because visual equivalence for every hidden disclosure and pilot state could not be proven safely.
+- The workspace remains a local MVP without persistence, approval workflow, SAP write-back, Expected Recovery Value or realized financial tracking.
+
+## 2026-08-25 - EX-UX-01.5: Visual Hierarchy, Readability & Screenshot Closure
+
+### Changed
+
+- Rebalanced the Excess Summary into four equal decision metrics with clearer labels and active-only filter reset behavior.
+- Stabilized Worklist column widths, numeric alignment, compact business pagination and the primary Case action without changing the visible Case scope.
+- Added a sticky, Detail-local section navigation for Decision, Value, History, Prioritization and Actions.
+- Made the existing Next Review Step the dominant decision prompt, flattened secondary evidence surfaces and increased decision-copy readability.
+- Clarified the Gross minus deductions equals Net equation while retaining Inventory and remaining Inventory as context only.
+- Bounded the desktop Excess workspace to the available viewport with independent Worklist and Detail scrolling, plus responsive layouts for 1440, 1200, 900, 720 and 390 pixels.
+
+### Preserved
+
+- Excess, Recovery, Gross-to-Net, Opportunity Score, Historical, Decision Readiness and Action Option calculations.
+- Upload, parsing, mapping, sample data, export behavior, Registry ownership, Package revisions and local file-based operation.
+
+### Validation
+
+- Added focused structured regression coverage for Summary, Worklist, section navigation, decision hierarchy, value equation and scroll ownership.
+- Added responsive Light / Dark product smoke coverage with screenshot evidence and horizontal-overflow checks.
+- Complete structured browser suite: 276 passed, 0 failed, 0 skipped, no page errors.
+
+### Known Limitations
+
+- The workspace remains a local MVP without persistence, approval workflow, SAP write-back, Expected Recovery Value or realized financial tracking.
+
+## 2026-08-25 - EX-UX-01.4: Excess Decision Visual Compression
+
+### Added
+
+- Added a Gross-to-Net Value Bridge using the accepted Value Narrative fields, with Inventory Value and remaining Inventory kept outside the bridge equation.
+- Added a semantic SVG for up to twelve exact canonical monthly History buckets, including chronological order, negative values, a zero baseline, Unit Context, partial-period evidence, caption and accessible description.
+- Added Opportunity Score contribution bars scaled against immutable maximum metadata from the existing Score Engine.
+- Added a two-column Decision Readiness Matrix with four direct items per column and a native Further evidence disclosure.
+- Added focused structured regression coverage and a responsive Light / Dark product smoke suite for `1440`, `1200`, `900`, `720` and `390` pixels.
+
+### Changed
+
+- Reordered the Excess Detail visuals to Gross-to-Net, Historical Evidence, Prioritization and existing Action Options after the accepted decision narrative.
+- Kept the primary Action Option open and secondary options compact without generating or reclassifying options.
+- Exposed the existing Opportunity Score component maxima as read-only Engine metadata; component formulas, weights, total cap and model version are unchanged.
+
+### Preserved
+
+- Excess and Recovery formulas, Gross-to-Net calculations, Opportunity Score values and weights, Historical aggregation, Decision Readiness rules, Action Options, Pilot Review, upload, mapping and export behavior.
+- Registry ownership, Package revisions, local file-based operation and existing German / English, Light / Dark and currency behavior.
+
+### Not Implemented
+
+- No Forecast or demand-plan series, Portfolio / donut / radar chart, AI score, success probability, Expected Recovery Value, Cash, Working-Capital Recognition, P&L effect, persistence or execution workflow was added.
+
+## 2026-08-25 - EX-UX-01.3.1:
+Decision Contract, Unit Context & Acceptance Evidence Closure
+
+### Changed
+
+- Added the binding EX-UX-01.3 Excess Decision Workspace presentation contract to `DATA_CONTRACT.md`, including actual field names, versions, null states, ownership and mutation boundaries.
+- Added canonical Historical Unit Context for 3M/12M quantity, average monthly consumption and monthly Runtime buckets.
+- Distinguished available, missing and conflicting quantity units without guessing, conversion or currency substitution; calculated zero remains available with its unit.
+- Closed Purchase Order capability wording around the productive path: concrete or partial evidence can originate from current Inventory-row fields, while standalone `purchase_orders` import remains unavailable.
+- Prevented Registry-only or fixture-only Purchase Order records from being interpreted as a production import capability and kept the UI free of a false PO import CTA.
+- Kept the authoritative primary Recommendation fully visible and moved secondary structured Action Options into compact native disclosures with visible status and keyboard focus.
+- Reduced the visible Work Context to decision type, Owner source, assignment confidence and the session-only boundary; Action status and compact Owner identity remain in the fixed Case header.
+- Corrected current supported/unsupported Cross-Package documentation to the two implemented pipelines: Inventory-to-Material-Master Context Enrichment and Inventory-to-Consumption-History Derived Historical Metrics.
+- Updated Product Spec, Architecture and README scope without claiming future capabilities.
+
+### Files Changed
+
+- `app.js`
+- `styles.css`
+- `js/excess/excess-decision-workspace-model.js`
+- `tests/ex-ux-01-3-regression.test.js`
+- `tests/tests.html`
+- `DATA_CONTRACT.md`
+- `PRODUCT_SPEC.md`
+- `ARCHITECTURE.md`
+- `README.md`
+- `CHANGELOG.md`
+
+### Files Added
+
+- `tests/ex-ux-01-3-1-regression.test.js`
+- `tests/ex-ux-01-3-1-product-smoke.cjs`
+
+### Validation
+
+- `node --check app.js`: passed.
+- `node --check js/excess/excess-decision-workspace-model.js`: passed.
+- Complete structured browser suite: 262 passed, 0 failed, 0 skipped, no page errors.
+- EX-UX-01.3.1 Product Smoke: passed at 1440, 1200, 900, 720 and 390 pixels, including keyboard disclosure behavior, horizontal-overflow checks and Light/Dark screenshots.
+- Patch hygiene is checked through `git diff --check` before final acceptance.
+
+### Preserved
+
+- Excess, Recovery, Gross-to-Net, overlap/cap, Opportunity Score and Scenario formulas.
+- Historical Semantics, Relationship, Aggregation and Runtime behavior.
+- Authoritative `recommended_action`, Action lifecycle and Pilot Review lifecycle.
+- Registry semantics, Package revisions, upload, parsing, mapping and export behavior.
+
+### Known Limitations
+
+- Purchase Orders remain a contract-only Package type without Builder, upload selector or optimization workflow.
+- PO evidence is limited to concrete fields already present on the current Inventory Case.
+- Action status and Pilot Review remain separate session-only state.
+- No Forecast, Expected Recovery Value, Cash/P&L Recognition, Action execution, persistence, SAP live integration or customer-validated optimization exists.
+
+## 2026-08-24 - EX-UX-01.3:
+Excess Decision Narrative & Action Options
+
+### Changed
+
+- Extended the pure Excess Decision Workspace projection with a visible Cause Hypothesis, deterministic Decision Readiness, evidence-bound Action Options, differentiated Historical Evidence, null-safe Value Narrative and compact Work Context.
+- Added the versioned non-weighted `excess-decision-readiness-v1` truth table with decision-ready, limited, review-required and not-decidable outcomes.
+- Preserved the authoritative Recommendation as one whole primary option and allowed additional options only from structured scenario, decision or concrete Purchase Order evidence.
+- Distinguished missing Purchase Order Package, loaded/no matching line, insufficient evidence and concrete Case evidence.
+- Moved the four-part Decision Narrative to the start of the internal Detail scroll and added a visible Action status badge to the compact fixed Case header.
+- Made Gross-to-Net logic visible while explicitly separating identified Net Addressable potential from expected, approved or realized financial value.
+- Distinguished finite zero from missing or invalid numeric evidence.
+- Differentiated all Historical presentation states and rendered monthly history only from canonical Runtime buckets.
+- Added scoped responsive Detail styles, semantic Case labelling, keyboard focus treatment and the 1200px split-layout closure.
+
+### Files
+
+- `app.js`
+- `styles.css`
+- `js/excess/excess-decision-workspace-model.js`
+- `tests/ex-ux-01-1-regression.test.js`
+- `tests/ex-ux-01-2-regression.test.js`
+- `tests/ex-ux-01-3-regression.test.js`
+- `tests/ex-ux-01-3-product-smoke.cjs`
+- `tests/tests.html`
+- `PRODUCT_SPEC.md`
+- `ARCHITECTURE.md`
+- `CHANGELOG.md`
+
+### Validation
+
+- JavaScript syntax checks passed for the changed application, model and test files.
+- The complete structured browser suite passed: 256 passed, 0 failed, 0 skipped.
+- The EX-UX-01.2 product smoke remained green.
+- The EX-UX-01.3 product smoke passed at 1440, 1200, 900, 720 and 390 pixels; Light and Dark Mode were inspected.
+- `git diff --check` passed.
+
+### Preserved
+
+- Excess formulas, Recovery Waterfall, Gross-to-Net, cap and overlap calculations.
+- Opportunity Score formulas and weights, Scenario formulas and authoritative `recommended_action`.
+- Action and Pilot Review lifecycles, Historical Aggregation and Runtime, Registry, Package revisions, upload, parsing, mapping and export contracts.
+
+### Known Limitations
+
+- Action status and Pilot Review remain separate session-only state.
+- Purchase Order options require concrete Case-level PO evidence; no PO optimization or supplier-return assertion was added.
+- No Expected Recovery Value, approved value, realized Cash, financial Recognition, forecast, predictive recommendation or automatically optimal Action exists.
+- No persistence, approval workflow, SAP live integration or customer validation is implemented.
+
 ## 2026-08-24 - EX-UX-01.2:
 Excess Decision Core & Risk-Workbench Alignment
 

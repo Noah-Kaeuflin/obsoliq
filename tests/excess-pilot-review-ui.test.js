@@ -20,7 +20,7 @@
 
     let text = bridge.renderExcessPageForTest();
     assert.ok(text.includes("Warum priorisiert"), "Case detail should render German Why Prioritized text");
-    assert.ok(text.includes("Warum nicht höher"), "Case detail should render German Why Not Higher text");
+    assert.equal(text.includes("Warum nicht höher"), false, "Why Not Higher should be integrated into the open readiness matrix without a duplicate heading");
     assert.ok(text.includes("Annahmenbasiertes Szenario"), "Scenario text should remain explicitly non-predictive in German");
     assert.equal(text.includes("Pilot material A"), false, "Pilot fixtures must not appear in production sample bootstrap");
 

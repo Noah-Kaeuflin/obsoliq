@@ -1,5 +1,12 @@
 (function () {
   let frameVersion = 0;
+  const CALIBRATION_ANALYSIS_SCRIPTS = Object.freeze([
+    "../js/slow-dead/slow-dead-calibration-contract.js",
+    "../js/slow-dead/slow-dead-calibration-runner.js",
+    "../js/slow-dead/slow-dead-calibration-metrics.js",
+    "../js/slow-dead/slow-dead-threshold-sensitivity.js",
+    "fixtures/slow-dead-calibration-fixtures.js"
+  ]);
 
   function appHtml(options = {}) {
     frameVersion += 1;
@@ -73,6 +80,14 @@
     });
   }
 
+  async function loadCalibrationAnalysisApp(options = {}) {
+    const app = options.sampleData ? await loadSampleApp() : await loadProductionApp();
+    for (const relativePath of CALIBRATION_ANALYSIS_SCRIPTS) {
+      await injectAppScript(app, relativePath);
+    }
+    return app;
+  }
+
   async function loadSampleApp() {
     const app = await loadApp();
     const result = await app.__obsoliqTestBridge.loadSample();
@@ -119,8 +134,10 @@
   }
 
   window.ObsoliQTestHelpers = {
+    CALIBRATION_ANALYSIS_SCRIPTS,
     loadApp,
     loadProductionApp,
+    loadCalibrationAnalysisApp,
     loadSampleApp,
     injectAppScript,
     withThrowingConsoleAssert,

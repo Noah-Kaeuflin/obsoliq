@@ -2,7 +2,15 @@
   const root = global.ObsoliQ = global.ObsoliQ || {};
   root.excess = root.excess || {};
 
-  const ENGINE_VERSION = "1";
+  const ENGINE_VERSION = "2";
+  const SCORE_CAP = 100;
+  const COMPONENT_MAXIMUMS = Object.freeze({
+    financial_impact: 35,
+    urgency: 20,
+    actionability: 20,
+    evidence: 15,
+    data_confidence: 12
+  });
 
   function number(value, fallback = 0) {
     const parsed = Number(value);
@@ -47,6 +55,22 @@
     return Math.max(0, points);
   }
 
+  function scoreMetadata(components = {}) {
+    const uncappedScore = Math.max(0, Math.round(Object.values(components)
+      .reduce((total, value) => total + number(value), 0)));
+    const finalScore = Math.min(SCORE_CAP, uncappedScore);
+    const maxComponentTotal = Object.values(COMPONENT_MAXIMUMS)
+      .reduce((total, value) => total + number(value), 0);
+    return {
+      uncappedScore,
+      finalScore,
+      scoreCap: SCORE_CAP,
+      maxComponentTotal,
+      wasCapped: uncappedScore > SCORE_CAP,
+      cappedPoints: Math.max(0, uncappedScore - finalScore)
+    };
+  }
+
   function scoreExcessCases(input = {}) {
     const cases = Array.isArray(input.cases) ? input.cases : [];
     const maxValue = Math.max(...cases.map(item => number(item.net_addressable_excess_value, number(item.gross_excess_value))), 0);
@@ -58,7 +82,8 @@
         evidence: evidencePoints(item),
         data_confidence: confidencePoints(item)
       };
-      const score = Math.max(0, Math.min(100, Math.round(Object.values(components).reduce((total, value) => total + value, 0))));
+      const metadata = scoreMetadata(components);
+      const score = metadata.finalScore;
       const drivers = [];
       if (components.financial_impact >= 25) drivers.push("high_financial_impact");
       if (item.priority === "High") drivers.push("high_priority_case");
@@ -71,6 +96,7 @@
         excess_opportunity_score: score,
         opportunity_score: score,
         opportunity_score_components: components,
+        opportunity_score_metadata: metadata,
         opportunity_score_drivers: drivers,
         opportunity_score_model_version: ENGINE_VERSION
       };
@@ -164,6 +190,9 @@
 
   root.excess.opportunityScoreEngine = Object.freeze({
     version: ENGINE_VERSION,
+    scoreCap: SCORE_CAP,
+    componentMaximums: COMPONENT_MAXIMUMS,
+    scoreMetadata,
     scoreExcessCases,
     evaluateExcessPilotCalibration
   });

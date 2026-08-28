@@ -3,10 +3,15 @@
   root.application = root.application || {};
 
   const ENGINE_VERSION = "1";
+  const aggregateNumericValues = root.core?.valueUtils?.aggregateNumericValues;
+  const numericEvidence = root.core?.valueUtils?.numericEvidence;
 
-  function number(value, fallback = 0) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
+  if (typeof aggregateNumericValues !== "function" || typeof numericEvidence !== "function") {
+    throw new Error("ObsoliQ Excess Analysis Service requires strict numeric aggregation utilities.");
+  }
+
+  function finiteNumber(value) {
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
 
   function cloneData(value) {
@@ -14,8 +19,116 @@
     return JSON.parse(JSON.stringify(value));
   }
 
-  function sum(rows, key) {
-    return rows.reduce((total, row) => total + number(row[key]), 0);
+  function hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object || {}, key);
+  }
+
+  function sourceMoneyEvidence(row = {}, key = "") {
+    if (!hasOwn(row, key)) return { status: "absent", normalizedValue: null };
+    return numericEvidence(row[key], {
+      fieldKey: key,
+      fieldDefinition: { type: "currency", fieldKey: key },
+      parseResult: row.__numericParseResults?.[key] || null
+    });
+  }
+
+  function evidenceStatus(evidence = []) {
+    if (evidence.some(item => item.status === "invalid")) return "invalid";
+    if (evidence.some(item => item.status === "ambiguous")) return "ambiguous";
+    if (evidence.some(item => item.status === "missing")) return "incomplete";
+    return evidence.length && evidence.every(item => item.status === "valid") ? "complete" : "unavailable";
+  }
+
+  function strictFinancialCase(item = {}) {
+    const row = item.source_row || {};
+    const grossEvidence = ["excess_value", "net_excess_value"]
+      .filter(key => hasOwn(row, key))
+      .map(key => sourceMoneyEvidence(row, key));
+    const netEvidence = hasOwn(row, "net_excess_value")
+      ? [sourceMoneyEvidence(row, "net_excess_value")]
+      : [
+          hasOwn(row, "recovery_available_stock_value")
+            ? sourceMoneyEvidence(row, "recovery_available_stock_value")
+            : sourceMoneyEvidence(row, "stock_value"),
+          sourceMoneyEvidence(row, "recovery_potential")
+        ].filter(evidence => evidence.status !== "absent");
+    const stockEvidence = sourceMoneyEvidence(row, "stock_value");
+    const recoveryEvidence = sourceMoneyEvidence(row, "recovery_potential");
+    const grossStatus = evidenceStatus(grossEvidence);
+    const netStatus = evidenceStatus(netEvidence);
+    const grossValue = grossStatus === "complete" ? finiteNumber(item.gross_excess_value) : null;
+    const netValue = grossValue !== null && ["complete", "unavailable"].includes(netStatus)
+      ? finiteNumber(item.net_addressable_excess_value)
+      : null;
+    const overlapValue = grossValue !== null && netValue !== null
+      ? finiteNumber(item.excess_overlap_value)
+      : null;
+    const stockValue = stockEvidence.status === "valid" ? finiteNumber(item.stock_value) : null;
+    const remainingValue = stockValue !== null && netValue !== null
+      ? finiteNumber(item.excess_remaining_inventory_value)
+      : null;
+    const recoveryValue = recoveryEvidence.status === "valid"
+      ? finiteNumber(item.recovery_potential)
+      : null;
+    const financialStatus = evidenceStatus([
+      ...grossEvidence,
+      ...netEvidence,
+      stockEvidence,
+      recoveryEvidence
+    ].filter(evidence => evidence.status !== "absent"));
+    const limitations = financialStatus === "complete"
+      ? [...(item.limitations || [])]
+      : [...new Set([...(item.limitations || []), `financial_evidence_${financialStatus}`])];
+    return {
+      ...item,
+      gross_excess_value: grossValue,
+      net_addressable_excess_value: netValue,
+      excess_overlap_value: overlapValue,
+      excess_remaining_inventory_value: remainingValue,
+      recovery_potential: recoveryValue,
+      stock_value: stockValue,
+      financial_evidence_status: financialStatus,
+      limitations
+    };
+  }
+
+  function strictFinancialScore(item = {}) {
+    if (finiteNumber(item.gross_excess_value) !== null && finiteNumber(item.net_addressable_excess_value) !== null) {
+      return item;
+    }
+    const components = {
+      ...(item.opportunity_score_components || {}),
+      financial_impact: null
+    };
+    const metadata = {
+      ...(item.opportunity_score_metadata || {}),
+      uncappedScore: null,
+      finalScore: null,
+      wasCapped: false,
+      cappedPoints: null
+    };
+    return {
+      ...item,
+      excess_opportunity_score: null,
+      opportunity_score: null,
+      opportunity_score_components: components,
+      opportunity_score_metadata: metadata,
+      opportunity_score_drivers: (item.opportunity_score_drivers || [])
+        .filter(driver => driver !== "high_financial_impact")
+    };
+  }
+
+  function aggregate(rows, key, type = "currency") {
+    return aggregateNumericValues(rows, {
+      fieldKey: key,
+      fieldDefinition: { type, fieldKey: key },
+      valueAccessor: row => row?.[key],
+      parseResultAccessor: row => row?.__numericParseResults?.[key] || null
+    });
+  }
+
+  function sum(rows, key, type = "currency") {
+    return aggregate(rows, key, type).value;
   }
 
   function evidenceRecord(input = {}) {
@@ -93,7 +206,7 @@
         sourcePackageId: inventoryPackageId,
         sourcePackageRevision: inventoryPackageRevision,
         confidence: "High",
-        limitationCodes: number(item.excess_overlap_value) > 0 ? ["gross_to_net_overlap"] : []
+        limitationCodes: finiteNumber(item.excess_overlap_value) > 0 ? ["gross_to_net_overlap"] : []
       }),
       evidenceRecord({
         evidenceKey: "owner_reference",
@@ -125,19 +238,19 @@
   function buildWhyPrioritized(item = {}) {
     const components = item.opportunity_score_components || {};
     const reasons = [];
-    if (number(item.net_addressable_excess_value) > 0) reasons.push("why_net_addressable_excess");
-    if (number(components.financial_impact) >= 25) reasons.push("why_high_financial_impact");
+    if (finiteNumber(item.net_addressable_excess_value) > 0) reasons.push("why_net_addressable_excess");
+    if (finiteNumber(components.financial_impact) >= 25) reasons.push("why_high_financial_impact");
     if (item.priority === "High") reasons.push("why_high_priority");
     if (item.owner_reference) reasons.push("why_owner_reference");
     if (item.relationship_match_type === "exact_material_plant") reasons.push("why_exact_match");
-    if (number(item.excess_overlap_value) > 0) reasons.push("why_gross_net_transparent");
+    if (finiteNumber(item.excess_overlap_value) > 0) reasons.push("why_gross_net_transparent");
     return reasons.length ? reasons : ["why_excess_case"];
   }
 
   function buildWhyNotHigher(item = {}, scenarios = []) {
     const reasons = [];
     (item.limitations || []).forEach(code => reasons.push(`limitation_${code}`));
-    if (number(item.excess_overlap_value) > 0) reasons.push("why_overlap_reduces_net");
+    if (finiteNumber(item.excess_overlap_value) > 0) reasons.push("why_overlap_reduces_net");
     if (!item.owner_reference) reasons.push("why_missing_owner_limits_actionability");
     if (item.relationship_match_type && item.relationship_match_type !== "exact_material_plant") reasons.push("why_non_exact_match_limits_confidence");
     scenarios
@@ -156,11 +269,12 @@
       whyNotHigher: buildWhyNotHigher(item, scenarios),
       evidenceRecords: buildEvidenceRecords(item),
       grossToNetExplanation: {
-        grossExcessValue: number(item.gross_excess_value),
-        netAddressableExcessValue: number(item.net_addressable_excess_value),
-        overlapValue: number(item.excess_overlap_value),
-        remainingInventoryValue: number(item.excess_remaining_inventory_value),
-        reasonKey: number(item.excess_overlap_value) > 0 ? "grossNetOverlapReason" : "grossNetNoOverlapReason"
+        grossExcessValue: item.gross_excess_value,
+        netAddressableExcessValue: item.net_addressable_excess_value,
+        overlapValue: item.excess_overlap_value,
+        remainingInventoryValue: item.excess_remaining_inventory_value,
+        currencyUnit: item.currency_unit || item.currency || item.source_row?.currency || "NORMALIZED_BASE_CURRENCY",
+        reasonKey: finiteNumber(item.excess_overlap_value) > 0 ? "grossNetOverlapReason" : "grossNetNoOverlapReason"
       },
       ownerActionContext: {
         ownerFunction: item.owner_function || "",
@@ -201,6 +315,15 @@
     ];
   }
 
+  function decisionContractVersions() {
+    const workspaceModel = root.excess?.decisionWorkspaceModel || {};
+    return {
+      workspaceProjection: workspaceModel.version || "",
+      decisionReadiness: workspaceModel.READINESS_MODEL_VERSION || "",
+      grossNetReconciliation: workspaceModel.GROSS_NET_RECONCILIATION_VERSION || ""
+    };
+  }
+
   function buildExcessPageModel(input = {}) {
     const rows = Array.isArray(input.rows) ? input.rows : [];
     const ownerContextByRowKey = buildOwnerContextByRowKey(input);
@@ -211,26 +334,39 @@
       enrichmentDiagnostics: input.enrichmentDiagnostics,
       enrichmentProvenance: input.enrichmentProvenance,
       ownerContextByRowKey
-    });
-    const scoredCases = root.excess.opportunityScoreEngine.scoreExcessCases({ cases });
+    }).map(strictFinancialCase);
+    const scoredCases = root.excess.opportunityScoreEngine.scoreExcessCases({ cases })
+      .map(strictFinancialScore);
     const casesWithScenarios = scoredCases.map(decorateDecisionCase);
     const relationshipQuality = root.data.packageRelationshipQualityEngine.relationshipQuality({
       relationshipResult: input.relationshipResult,
       enrichmentDiagnostics: input.enrichmentDiagnostics
     });
-    const averageScore = casesWithScenarios.length
-      ? Math.round(casesWithScenarios.reduce((total, item) => total + number(item.excess_opportunity_score), 0) / casesWithScenarios.length)
-      : 0;
+    const grossAggregate = aggregate(casesWithScenarios, "gross_excess_value");
+    const netAggregate = aggregate(casesWithScenarios, "net_addressable_excess_value");
+    const overlapAggregate = aggregate(casesWithScenarios, "excess_overlap_value");
+    const remainingAggregate = aggregate(casesWithScenarios, "excess_remaining_inventory_value");
+    const scoreAggregate = aggregate(casesWithScenarios, "excess_opportunity_score", "number");
+    const averageScore = scoreAggregate.value === null || !casesWithScenarios.length
+      ? null
+      : Math.round(scoreAggregate.value / casesWithScenarios.length);
 
     return {
       version: ENGINE_VERSION,
       summary: {
         caseCount: casesWithScenarios.length,
-        grossExcessValue: sum(casesWithScenarios, "gross_excess_value"),
-        netAddressableExcessValue: sum(casesWithScenarios, "net_addressable_excess_value"),
-        overlapValue: sum(casesWithScenarios, "excess_overlap_value"),
-        remainingInventoryValue: sum(casesWithScenarios, "excess_remaining_inventory_value"),
-        averageOpportunityScore: averageScore
+        grossExcessValue: grossAggregate.value,
+        netAddressableExcessValue: netAggregate.value,
+        overlapValue: overlapAggregate.value,
+        remainingInventoryValue: remainingAggregate.value,
+        averageOpportunityScore: averageScore,
+        aggregates: {
+          grossExcessValue: grossAggregate,
+          netAddressableExcessValue: netAggregate,
+          overlapValue: overlapAggregate,
+          remainingInventoryValue: remainingAggregate,
+          averageOpportunityScore: scoreAggregate
+        }
       },
       relationshipQuality,
       relationshipIssues: relationshipIssueWorklist(input),
@@ -238,6 +374,7 @@
       cases: casesWithScenarios,
       metadata: {
         engineVersion: ENGINE_VERSION,
+        decisionContracts: decisionContractVersions(),
         datasetId: input.datasetMeta?.datasetId || "",
         rowCount: rows.length,
         generatedAt: new Date().toISOString()

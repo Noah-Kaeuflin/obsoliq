@@ -29,6 +29,12 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/slow-dead-runtime-state.js` owns the explicit Slow / Dead Recovery Case Runtime state shape and Historical dependency mapping.
 - `js/application/slow-dead-page-view.js` owns the Slow / Dead Recovery Case Workbench markup.
 - `js/application/slow-dead-page-controller.js` owns scoped Slow / Dead page interactions.
+- `js/inventory-risks/inventory-risk-case-contract.js` owns stable Family Case identity, risk-family vocabulary and family-specific value semantics.
+- `js/inventory-risks/excess-risk-adapter.js`, `slow-dead-risk-adapter.js` and `blocked-quality-risk-adapter.js` adapt accepted family outputs without cross-family score or value projection.
+- `js/inventory-risks/inventory-risk-portfolio-service.js` deduplicates Inventory Entities into Portfolio Cases while preserving Primary and Secondary Family Cases, provenance and conservative Evidence state.
+- `js/inventory-risks/inventory-risk-page-model.js` owns Unified segment filtering, sorting, pagination, exact selection and separate summary semantics.
+- `js/inventory-risks/inventory-risk-export-builder.js` exports one row per selected Portfolio or Family Case with separate financial columns.
+- `js/application/inventory-risk-page-view.js` and `inventory-risk-page-controller.js` own the visible Unified workbench and its scoped interactions.
 - `js/data/package-relationship-engine.js` matches Inventory rows to Material Master rows with deterministic package keys.
 - `js/data/package-enrichment-engine.js` applies approved fill-missing-only Material Master enrichment and provenance.
 - `js/data/package-relationship-quality-engine.js` classifies active Inventory-to-Material-Master relationship quality for decision transparency.
@@ -46,7 +52,82 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/excess-pilot-review-service.js` owns session-only Excess Pilot Review records, case fingerprints, lifecycle reconciliation, summaries, export rows and snapshot/restore behavior.
 - `js/application/excess-pilot-review-view.js` owns Pilot Review form, stale-review notice and lifecycle summary rendering.
 - `js/application/excess-pilot-review-controller.js` owns scoped Pilot Review save/export click handling inside the Excess page.
+- `js/ui/obsoliq-icon-system.js` owns the file-safe functional icon allowlist, inline Sprite mount and stable Shell decoration.
 - `app.js` coordinates UI state, dataset transactions, remediation and rendering.
+
+## ICON-01 File-safe Functional Icon Boundary
+
+The ObsoliQ Icon Pack under `assets/icons/obsoliq/` is the binding functional icon source. Its 39 Lucide-derived symbols use one `0 0 24 24` outline contract, `fill="none"`, `stroke="currentColor"` and stroke width `2`; the bundled Lucide license remains beside the manifest and Sprite.
+
+Because the product starts directly through `file://`, no external SVG `<use>` reference and no `fetch()` is used. `js/ui/obsoliq-icon-system.js` contains an exact trusted inline representation of the productive Sprite, mounts it idempotently once and renders local fragment references through a frozen 39-ID allowlist. Unknown IDs fail closed and optional CSS classes are restricted to the icon system's own allowlist.
+
+ICON-01 maps the ten global navigation routes and the existing Upload, Sample Data, Inventory Export and loaded-data status elements by stable route or element IDs. It does not derive meaning from German or English labels. Icons are decorative (`aria-hidden="true"`, `focusable="false"`), inherit the control's current color and never replace visible text. The block does not extend into KPI cards, Data Foundation, Data Quality content, Excess Detail navigation or analytical modules.
+
+## EX-UX-01.4 Excess Decision Visual Presentation
+
+EX-UX-01.4 remains inside the browser presentation boundary. `js/excess/excess-decision-workspace-model.js` continues to own the selected Case projection; `app.js` reads that projection and renders four scoped visual types without storing another analytical result.
+
+The rendering path is:
+
+Existing Excess Case + completed exact-row Historical Runtime -> Excess Decision Workspace Projection -> Value Bridge / Historical SVG / Score Contribution Bars / Readiness Matrix -> Excess Detail DOM.
+
+Visual ownership and sources are separated as follows:
+
+- Value Bridge: `valueNarrative.fields.stockValue`, `grossExcessValue`, `overlapValue`, `netAddressableValue` and `remainingInventoryValue`. Stock and remaining values are context; only Gross minus deductions equals Net is drawn as a bridge.
+- Historical SVG: `historicalEvidence.monthlyBuckets` and `unitContext` from the completed current Historical Runtime for the exact `inventory_row_key`. The renderer sorts and limits existing buckets for geometry only; it does not read Raw History, reconstruct aggregates, interpolate or forecast.
+- Score bars: existing `opportunity_score_components` plus immutable `componentMaximums` exposed by `js/excess/opportunity-score-engine.js`. The Engine remains the single owner of component maxima. Renderer width is contribution divided by that maximum; score calculation and model version remain unchanged.
+- Readiness Matrix: existing `decisionReadiness.existingEvidence`, `missingEvidence`, `decisionLimits`, `whyNotHigher`, `nextCheck` and status. Rendering groups and bounds evidence for layout only; it does not evaluate a second readiness rule.
+
+SVG output uses semantic `figure`, `figcaption`, `role="img"` and an accessible description. Score tracks use progressbar semantics with numeric contribution and maximum. Readiness overflow and secondary Action Options use native `details` / `summary`. CSS status marks always accompany text, product colors come from existing tokens and all new rules are scoped under `#excessPage` with responsive and reduced-motion handling.
+
+No chart library, new state store, second calculation layer or persistence boundary is introduced. The block adds no Forecast, probability, Expected Recovery, Cash, Recognition, Portfolio or workflow model and does not mutate Registry records or Package revisions.
+
+## EX-UX-01.5 Excess Decision Presentation Closure
+
+EX-UX-01.5 remains in the `app.js` and `styles.css` presentation boundary. The four Summary metrics, fixed Worklist columns, business pagination, Detail hierarchy and responsive workspace consume the existing Excess page projection without recalculation or mutation.
+
+The local Detail navigation is DOM-only. It scrolls the existing bounded Detail container to Decision, Value, History, Prioritization and Actions sections and derives its active marker from that container's scroll position. It does not create route, Dataset, Registry, filter or analytical state. Worklist and Detail retain independent internal scrolling on desktop and fall back to natural page flow at narrower breakpoints.
+
+The explicit Gross minus deductions equals Net layout reads the accepted Value Narrative fields only. Inventory and remaining Inventory are contextual values outside the equation. No calculation engine, Historical Runtime, Action Option, Pilot Review, upload, parsing, mapping, export, Registry or Package revision behavior changes.
+
+## EX-UX-01.6 Interaction And Density Closure
+
+EX-UX-01.6 stays inside the existing `app.js` rendering adapter and `styles.css` presentation boundary. Five explicit anchor elements are the single landing contract for Decision, Value, History, Prioritization and Actions. The navigation calls native `scrollIntoView`, derives `aria-current="location"` from the local Detail scroll and owns cleanup for its click listener, passive scroll listener and pending animation frame before each Excess rerender.
+
+Display deduplication compares normalized visible strings only. It limits repeated Cause signals and Readiness/Next Check copy but does not mutate `decisionCore`, `decisionReadiness`, Action Options or any model output. Evidence and secondary signals remain available through native disclosures. Semantic status colors communicate an existing status label; unavailable, not-checkable and not-recommended states remain neutral.
+
+Desktop scroll ownership is CSS-only above `1240px`: the document shell is bounded to `100dvh`, while Worklist and Detail retain independent `overflow-y: auto`. Responsive layouts at or below the breakpoint restore natural page flow. The active EX-UX closure rules remain in the existing final scoped block. Removing all older foundational selectors was deliberately deferred because equivalent rendering of every closed disclosure and Pilot state could not be established without reopening accepted behavior.
+
+No analytical engine, field contract, Registry record, Package revision, Runtime result, upload, parsing, mapping or export path is changed.
+
+## CH-EX-01A Excess Contract And Runtime Integrity
+
+`js/excess/excess-decision-workspace-model.js` is the single owner of Gross-to-Net Availability and reconciliation. `valueNarrative()` projects the three required monetary fields and calls `validateGrossNetValueBasis()` once. Decision Readiness and `app.js` renderers consume that result. The fixed Case Header no longer owns competing numeric fallbacks: Gross, overlap and Net are references to the same projected field values, while Opportunity Score has a separate null-safe Availability projection.
+
+The binding contract versions are Workspace Projection `3`, Decision Readiness `excess-decision-readiness-v2` and Gross-to-Net Reconciliation `gross-net-reconciliation-v1`. The Workspace projection emits all three, the Reconciliation result carries its own subordinate version, and `js/application/excess-analysis-service.js` forwards the same version tuple in `metadata.decisionContracts`. This keeps Engine -> Service -> Workspace -> `app.js` contract inspection explicit without introducing a second calculation path.
+
+`prototype.html` is the productive classic-script entry point. The Excess Analysis Engine loads before Opportunity Score, Scenario and Decision Workspace; the Application Service loads after those domain dependencies and before `app.js`. `tests/app-template.js` mirrors that exact script sequence for structured browser tests. Static package validation checks file existence, uniqueness, dependency order and parity between both entry paths.
+
+The Excess portfolio cache uses an input revision in addition to the `enrichedRows` reference. `invalidateExcessPortfolioModel(reason)` advances the revision, clears the cached reference/model and records one diagnostic reason. A cache hit requires both the same array reference and an equal revision. There is no render-time blanket invalidation.
+
+| Mutation path | Influences Excess model | Invalidation | Regression evidence |
+| --- | --- | --- | --- |
+| Action status | Yes: Actionability, score and ranking | `action_status_changed` | Same-reference status mutation test |
+| Owner/Action context | Yes | Dataset commit or explicit relevant-input invalidation | Score/actionability and relevant-input tests |
+| Remediation correction, undo or reset | Yes when analytical rows change | `inventory_dataset_committed` | Existing remediation transaction suite plus dataset invalidation test |
+| Material Master enrichment | Yes: owner and relationship context | `inventory_dataset_committed` | Existing enrichment integration suite |
+| Dataset reload/import | Yes | `inventory_dataset_committed` | Dataset reload invalidation test |
+| Active Inventory Package revision | Yes: Package provenance | `<operation>_revision` | Package revision invalidation test |
+| Runtime rollback/restore | Yes | `inventory_runtime_restored` | Existing rollback suites |
+| Historical Metrics Runtime | No for cached portfolio; selected Case reads it dynamically | None | Decision Core runtime adapter remains outside portfolio cache |
+| Consumption History package | No direct portfolio input | None; Historical Runtime owns its own invalidation | Existing Historical Runtime suites |
+| Selection, filters, language, theme, currency | No analytical effect | None | Presentation-only no-rebuild test |
+
+Package finalization mirrors the active Registry revision into Dataset Meta before invalidation so rebuilt Cases carry current Package provenance.
+
+Opportunity Score component formulas and weights are unchanged. `js/excess/opportunity-score-engine.js` owns cap metadata (`uncappedScore`, `finalScore`, `scoreCap`, `maxComponentTotal`, `wasCapped`, `cappedPoints`); presentation only displays it.
+
+Historical and Slow / Dead detailed build logs use `appendRuntimeBuildLog()`. Product mode records no entries. Test mode retains at most the newest 50 metadata-only entries, with no row payloads.
 
 ## AP 16.4a Consumption History Package Boundary
 
@@ -146,6 +227,34 @@ Slow / Dead -> Inventory and Slow / Dead -> Actions navigation is entity-exact. 
 The Slow / Dead Recovery Case Service keeps Inventory Exposure nullable, projects operational Owner Context into Cases and exposes available/unavailable exposure summary counts. The Slow / Dead export uses one row per Recovery Case, includes evidence and provenance, preserves text identities such as leading-zero material numbers and reuses the existing spreadsheet/CSV download path. Inventory Exposure remains exposure only; it is exported separately from Currency and is not Recovery Potential, cash release, P&L effect, Expected Recovery Value or realized value.
 
 AP 16.4d.2 does not change Condition rules, thresholds, precedence, Historical Metrics formulas, Recovery, Data Quality, existing Actions, Excess, Opportunity Scores, scenarios, Pilot Reviews, Registry or Package revisions.
+
+## AP 16.4d.3a Slow / Dead Calibration Contract And Safety Fixtures
+
+The AP 16.4d.3a calibration flow is:
+
+Versioned Synthetic Calibration Case -> Contract Validator -> Calibration Runner -> existing productive Slow / Dead Condition Engine -> deterministic Agreement result -> reproducible Fixture Baseline report.
+
+`js/slow-dead/slow-dead-calibration-contract.js` owns the DOM-independent `slow-dead-calibration-case-v1` schema, fixed `2026-08-25` reference date, stable Reason-Code taxonomy, provenance requirements, Protection Flags and twelve Safety Invariants. `slow-dead-calibration-numeric-boundary-v1` routes all 16 numeric Engine input fields through the productive `numericEvidence(...)` API and preserves explicit zero, Missing, Ambiguous and Invalid evidence without a Calibration-specific parser. Its Calibration Policy reference is the same deeply frozen `DEFAULT_SLOW_DEAD_CONDITION_POLICY` object owned by the productive Condition Engine. It does not copy thresholds, override Policy values or define a second classifier.
+
+`js/slow-dead/slow-dead-calibration-runner.js` v2 validates and deterministically sorts controlled Cases, invokes `createSlowDeadConditionEngine()` without a Policy override only for numerically eligible rows, compares actual results with manually authored expectations and emits stable disagreement and critical-protection codes. Invalid or ambiguous rows remain explicit excluded Result Rows; empty or wholly excluded sets report insufficient coverage rather than positive agreement. It snapshots Fixture, Inventory-evidence and Historical-Runtime inputs before evaluation and fails if the real Engine mutates them. The Runner has no DOM, rendering, Storage, Registry, Package, Session or Action dependency.
+
+`tests/fixtures/slow-dead-calibration-fixtures.js` contains only fixed `synthetic_acceptance_fixture` records. Synthetic fixtures are policy-derived safety contracts, not observations, customer data, Pilot labels or expert-reviewed Ground Truth. The contract allows future `pilot_expert_label` records only with explicit reviewer identity, review timestamp and rationale; AP 16.4d.3a creates none.
+
+The generated `AP_16_4D_3A_FIXTURE_BASELINE.md` reports Synthetic Contract Agreement only. It is not Pilot Accuracy, Expert Agreement, Precision, Recall, F1, threshold sensitivity or a recommendation to change Policy. Productive Policy v1, visible UI, Slow / Dead Cases, Actions, Excess and Opportunity Score remain unchanged. Calibration metrics and threshold sensitivity belong to `AP 16.4d.3b`; human Pilot Review and acceptance belong to `AP 16.4d.3c`.
+
+## AP 16.4d.3b Synthetic Calibration Metrics And OFAT Threshold Sensitivity
+
+The AP 16.4d.3b analysis path is deliberately outside the visible application workflow:
+
+Validated 3a Fixtures + numeric-boundary Baseline Runner v2 result -> `slow-dead-calibration-metrics-v2` -> `slow-dead-threshold-sensitivity-plan-v1` + Sensitivity Runner v2 -> Calibration Runner with one immutable Policy variant -> real Condition Engine -> deterministic migrations and Safety evidence -> Markdown/JSON/CSV artifacts.
+
+`js/slow-dead/slow-dead-calibration-metrics.js` v2 is a pure, DOM-independent projection over validated Fixtures and eligible Calibration Runner results. It does not classify. It owns Synthetic Contract Agreement, eligible/excluded counts, explicit insufficient-coverage states, per-Condition counts, Boundary Stability, Reason-Code coverage, twelve-invariant results and deterministic content fingerprints.
+
+`js/slow-dead/slow-dead-threshold-sensitivity.js` keeps the v1 plan of one Baseline and sixteen controlled **OFAT** (one factor at a time) scenarios. Its v2 Runner validates threshold order and ranges, then delegates each immutable Policy variant and its numeric evidence to the shared Calibration Runner; it neither coerces raw numbers, duplicates classification nor mutates the globally frozen default Policy.
+
+Ten immutable analysis Safety Guards are evaluated in every scenario. A Condition migration is not automatically an error. A defined Guard violation marks a variant analytically unsafe, but never activates, recommends, persists or ranks it. The analysis has no DOM, Storage, Registry, Package, Session or workflow dependency and creates no Policy version or Package revision.
+
+The generated artifacts contain synthetic contractual data only. They provide no Pilot Accuracy, Customer Accuracy, Expert Agreement, Precision, Recall, F1, exposure weighting or best-Policy claim. Productive Policy v1, `app.js`, UI, Actions, Excess and Opportunity Score remain unchanged. `AP 16.4d.3c` must introduce separately governed human Pilot Review evidence; it must not reinterpret 3b as human validation.
 
 ## DF-UX-02 Capability-Oriented Data Foundation Presentation
 
@@ -325,13 +434,47 @@ The Relationship Quality Engine is read-only. It classifies relationship quality
 
 The Opportunity Score and Scenario engines are deterministic MVP decision-support layers. They provide explainable prioritization and scenario estimates; they are not predictive analytics and do not claim automated outcome certainty.
 
-EX-UX-01 through EX-UX-01.2 close presentation ownership around this analytical model:
+EX-UX-01 through EX-UX-01.3 close presentation ownership around this analytical model:
 
 Accepted Excess Cases + current completed Historical evidence -> Excess Decision Workspace projection -> filters / Summary / Worklist / Decision Core -> View.
 
 The Excess page reads the current completed Runtime state and does not calculate Excess or Historical metrics. Search, Plant, Program, Owner and Priority are presentation-only filters; the hidden generic Category state is deliberately excluded from the Excess projection. The Worklist presents Material, Net Addressable, Opportunity Score, Responsible Owner, Priority and the Detail affordance. Gross Excess remains secondary evidence, while relationship quality, scenarios, assumptions, Pilot Review and provenance remain available in the Decision Core disclosures.
 
 Historical evidence is projected only through an exact current `inventory_row_key` relationship. Missing or ambiguous evidence remains unavailable and never triggers a Historical build or a raw-history rescan. Future Risk-Workbench reuse is visual and structural only: no shared cross-family Case contract or unified risk domain exists yet.
+
+EX-UX-01.3 established `js/excess/excess-decision-workspace-model.js` as the sole owner of the pure, deterministic Decision Workspace projection. The current CH-EX-01A.1 contract is Workspace Projection version `3`; its Decision Readiness contract is independently versioned as `excess-decision-readiness-v2`, and its subordinate value-basis contract is `gross-net-reconciliation-v1`. `app.js` remains the UI adapter and localization boundary; it renders the projection but does not infer a second Case state, mutate analytical rows or run analytical engines.
+
+Visible block sources are deliberately bounded:
+
+| Visible block | Authoritative source |
+| --- | --- |
+| Compact Case header | Accepted Excess Case identity, existing Priority, Action status, Owner context and navigation identity. |
+| Why Prioritized / Next Review Step | Existing Case reasons and existing Action decoration. |
+| Cause Hypothesis | Existing `root_cause`, with supporting signals only from Case reasons, Evidence Records and exact Historical evidence. |
+| Decision Readiness and Limits | Versioned presentation truth table over identity, finite value basis, Cause, Recommendation, next step, Owner, Relationship, History, limitations, `whyNotHigher` and primary-option checkability. |
+| Action Options | Whole authoritative Recommendation plus structured Scenario availability, explicit decision results or concrete Purchase Order evidence. |
+| Historical Evidence | Current completed Historical Runtime for the exact `inventory_row_key`; canonical monthly buckets only. |
+| Gross-to-Net Value Logic | Existing Inventory, Gross Excess, overlap, Net Addressable and remaining-inventory Case values with explicit availability state. |
+| Work Context | Existing Action status, Owner function/reference/source/confidence and decision type. |
+
+Each Action Option carries `optionCode`, `labelKey`, status, primary flag, field-level evidence, missing evidence, next check and provenance. Free text is not split to manufacture options. Purchase Order status is projected separately for Package missing, loaded/no exact match, insufficient evidence and concrete Case evidence. No Slow / Dead Action Engine is reused for Excess.
+
+Historical presentation state differentiates `package_missing`, `loaded_no_exact_relationship`, `not_calculated`, `limited`, `insufficient`, `available` and `runtime_error`. The projection reads completed Runtime results only and does not schedule a build, scan source rows or derive pseudo-buckets from rolling metrics.
+
+The visible core owns business-facing decision narrative, options, History, Value Logic and Work Context. Closed disclosures own additional scenarios, raw evidence records, Relationship diagnostics, technical Owner fields, Pilot Review and provenance. Pilot Review never derives or changes Action status. Missing/invalid numeric values remain unavailable while a finite zero remains an available value.
+
+EX-UX-01.3.1 closes the presentation contract without adding an analytical capability. Historical Unit Context is projected from the completed Runtime metric's canonical `unit`, `provenance.historyUnit`, `provenance.unitStatus`, Inventory unit and canonical monthly-bucket units. A single unit is displayed, a missing unit remains unavailable and a conflict suppresses the chart projection. The adapter neither converts units nor invokes Semantics, Relationship, Aggregation or Runtime builds.
+
+Purchase Order evidence is Case-local. `purchaseOrderEvidence()` reads only existing PO number/detail and quantity/value fields from the current Case `source_row`, labels their provenance as `inventory_row_fields` and classifies the result as `concrete`, `insufficient` or `no_case_evidence`. `purchase_orders` remains a `contract_only` Registry definition without `importSupported`, Builder registration or upload control. The Decision Workspace therefore receives `purchaseOrderPackageImportSupported: false`; Registry fixtures cannot unlock a production capability and no PO import CTA is rendered.
+
+The UI adapter keeps the primary Recommendation expanded and renders only secondary structured Action Options as native disclosures. The fixed Case header remains the visible owner of Action status and compact Owner identity. The Work Context block owns supplementary decision type, Owner source, assignment confidence and session-only wording; the closed technical disclosure retains the complete Owner fields. This hierarchy does not alter Action or Pilot Review ownership.
+
+Current cross-package relationship support is intentionally limited to two explicit pipelines:
+
+- Inventory Snapshot -> Material Master Context Enrichment.
+- Inventory Snapshot -> Consumption History Relationship -> Derived Historical Metrics.
+
+The architecture does not provide arbitrary Package joins, Purchase Order optimization, Demand Forecast integration, Quality Package integration, Finance Recognition relationships or Action Outcome learning.
 
 ## AP 16.3b Excess Pilot Review Boundary
 
@@ -462,9 +605,37 @@ Mixed dataset contexts are rejected.
 
 Production startup is `prototype.html` and does not execute tests or expose the test bridge.
 
+The production bootstrap loads the productive Slow / Dead Condition Engine and visible page/runtime modules, but it does not load the analysis-only Calibration Contract, Calibration Runner, Calibration Metrics or Threshold Sensitivity modules. `app.js` and the visible product workflows have no dependency on those four modules.
+
 The structured test boundary is `tests/tests.html`. It activates test mode through the pre-bootstrap `window.__OBSOLIQ_TEST_MODE__ = true` flag only, loads the product shell in an iframe and exposes controlled bridge methods for regression tests.
 
+`tests/test-helpers.js` owns the explicit analysis bootstrap. It adds Calibration Contract, Runner, Metrics, Sensitivity and the synthetic Fixture package in dependency order to a fresh product frame. This keeps analysis reproducible through the existing file-based test entry without adding a product route, Calibration UI or Policy mutation path.
+
 URL query parameters cannot activate test mode.
+
+## R0A Safety Boundaries
+
+The Dataset Builder and Recovery boundary accepts derived financial evidence only when every required input and the derived result are finite and non-negative. Negative values, non-finite values and overflow remain `null` with explicit unavailable diagnostics; validated zero remains available evidence.
+
+Inventory import applies an Inventory-only non-empty-row gate before Mapping, Registry activation, Dataset identity consumption or UI commit. A header-only source therefore cannot replace the active Dataset. The transaction retains the prior analytical rows, KPIs, filters, Actions, reviews, Registry snapshot and identity sequence.
+
+Family adapters keep the canonical Family Case contract strict while containing missing Inventory Entity identity at the collection boundary. Invalid candidates are excluded fail-closed and diagnosed; no synthetic material identity is invented.
+
+## Unified Inventory Risks Runtime
+
+The visible shell exposes one `inventory-risks` route. Excess & Demand, Slow / Dead and Blocked / Quality remain separate Family Cases. The Portfolio Service groups those cases by stable Inventory Entity, elects one Primary Family by deterministic precedence and retains all other families as Secondary Family evidence with their original IDs and provenance.
+
+Evidence aggregation is conservative: a weaker Secondary Family state can lower the Portfolio Evidence state. Evidence Readiness is calculated only across currently filtered Portfolio Cases as ready-capable cases divided by all filtered Portfolio Cases. A zero denominator produces unavailable, never a synthetic zero percentage.
+
+Financial semantics remain intentionally separate. Excess exposes Net Addressable Recovery, Slow / Dead exposes Inventory Exposure and Blocked / Quality exposes Blocked / Quality Value. The Page Model does not add these heterogeneous amounts into a combined recovery total.
+
+Blocked / Quality is currently a limited exposure and evidence adapter. It is not a full Recovery Engine because release, rework, supplier-return, approval and success-probability data is absent. The adapter cannot create recoverable quantity or recoverable value without accepted evidence.
+
+## Package Integrity And Review Bundle
+
+PKG-02 defines a repository-relative package inventory through `scripts/sha256-manifest-lib.cjs`. `scripts/generate-sha256-manifest.cjs` hashes exact file bytes into lexicographically sorted `SHA256SUMS.txt`; `scripts/verify-sha256-manifest.cjs` rejects invalid, duplicate, missing, mismatched, unlisted and out-of-scope paths. The manifest excludes itself, Git metadata, dependencies, temporary output, screenshots and generated review bundles. R0B keeps the captured baseline immutable and records every later Runtime, test or verification addition explicitly in the authorized delta.
+
+After manifest verification, `scripts/build-pkg-02-review-bundle.cjs` creates a deterministic stored ZIP containing every manifest-listed file plus `SHA256SUMS.txt`. The bundle is accepted only after extraction into a fresh directory, manifest revalidation, central contract tests, the complete browser suite and a productive `file://` smoke run from the extracted package.
 
 ## Registry Ownership And Lifecycle
 
