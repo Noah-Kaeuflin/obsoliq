@@ -155,7 +155,7 @@ try {
 // Fixed positive path set and required anchors.
 const packageFiles = collectPackageFiles(root);
 check(BASELINE_PACKAGE_PATHS.length === 182, "Captured PKG-02A baseline must contain 182 paths");
-check(AUTHORIZED_PACKAGE_ADDITIONS.length === 25, "R0B must declare exactly 25 reviewed package additions");
+check(AUTHORIZED_PACKAGE_ADDITIONS.length === 27, "R0B plus R0B.1 must declare exactly 27 reviewed package additions");
 check(AUTHORIZED_PACKAGE_REMOVALS.length === 0, "No package path removals are authorized in this addendum implementation");
 check(EXPECTED_PACKAGE_PATHS.length === BASELINE_PACKAGE_PATHS.length + AUTHORIZED_PACKAGE_ADDITIONS.length, "Expected set must equal the captured baseline plus the explicit R0B delta");
 check(packageFiles.length === EXPECTED_PACKAGE_PATHS.length, "Actual positive package set differs from expected paths");
@@ -164,6 +164,8 @@ check(packageFiles.includes("scripts/generate-sha256-manifest.cjs"), "Manifest g
 check(packageFiles.includes("tests/pkg-02-static-contract.cjs"), "PKG-02 tests must be in package scope");
 check(packageFiles.includes("js/inventory-risks/inventory-risk-portfolio-service.js"), "Unified Inventory Risks Runtime must be in package scope");
 check(packageFiles.includes("tests/r0b-release-integrity.test.js"), "R0B structured regression must be in package scope");
+check(packageFiles.includes("tests/r0b-1-eol-manifest-reproducibility.test.cjs"), "R0B.1 EOL regression must be in package scope");
+check(packageFiles.includes("R0B_1_EOL_SHA_REPRODUCIBILITY_VERIFICATION.md"), "R0B.1 verification must be in package scope");
 check(!packageFiles.includes(MANIFEST_NAME), "Manifest must not hash itself");
 rejects(() => validateMandatoryAnchors(["prototype.html"], [], ["prototype.html", "app.js"]), "Missing mandatory anchor must be rejected", "PKG_ANCHOR_MISSING");
 

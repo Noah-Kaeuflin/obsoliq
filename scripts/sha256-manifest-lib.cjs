@@ -195,6 +195,7 @@ const BASELINE_PACKAGE_PATHS = Object.freeze([
 const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "NUM_CAL_MIG_01_VERIFICATION.md",
   "R0A_IR_DATA_NUMERIC_SAFETY_VERIFICATION.md",
+  "R0B_1_EOL_SHA_REPRODUCIBILITY_VERIFICATION.md",
   "js/application/inventory-risk-page-controller.js",
   "js/application/inventory-risk-page-view.js",
   "js/inventory-risks/blocked-quality-risk-adapter.js",
@@ -216,6 +217,7 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "tests/r0a-regression.test.js",
   "tests/r0a-targeted.html",
   "tests/r0b-release-integrity.test.js",
+  "tests/r0b-1-eol-manifest-reproducibility.test.cjs",
   "tests/r0b-static-contract.cjs",
   "tests/run-r0a-targeted.cjs"
 ]);
@@ -240,7 +242,8 @@ const REQUIRED_PACKAGE_ANCHORS = Object.freeze([
   "js/application/inventory-risk-page-controller.js", "tests/ir-01-regression.test.js",
   "tests/ir-01-static-contract.cjs", "tests/ir-01-product-smoke.cjs",
   "tests/r0a-regression.test.js", "tests/r0a-targeted.html", "tests/run-r0a-targeted.cjs",
-  "tests/r0b-release-integrity.test.js", "tests/r0b-static-contract.cjs",
+  "tests/r0b-release-integrity.test.js", "tests/r0b-1-eol-manifest-reproducibility.test.cjs",
+  "tests/r0b-static-contract.cjs", "R0B_1_EOL_SHA_REPRODUCIBILITY_VERIFICATION.md",
   "tests/inventory-risk-smoke-navigation.cjs"
 ]);
 
