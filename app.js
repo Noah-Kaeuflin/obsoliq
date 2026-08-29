@@ -1,6 +1,11 @@
 const ObsoliQModules = window.ObsoliQ || {};
 const obsoliqTestMode = window.__OBSOLIQ_TEST_MODE__ === true;
 const RUNTIME_BUILD_LOG_LIMIT = 50;
+const obsoliqIconSystem = ObsoliQModules.ui?.iconSystem || window.ObsoliQIcons;
+
+function iconHtml(iconId, options = {}) {
+  return obsoliqIconSystem?.iconHtml(iconId, options) || "";
+}
 
 function appendRuntimeBuildLog(log = [], entry = {}, options = {}) {
   const target = Array.isArray(log) ? log : [];
@@ -878,7 +883,7 @@ const translations = {
     excessDetailsTitle: "Fallentscheidung",
     excessDetailsSubtitle: "Score-Treiber, Szenarien, Evidenz und bekannte Grenzen für den ausgewählten Fall.",
     excessNoSelection: "Wähle einen Überbestandsfall aus der Liste.",
-    excessOpenActions: "In Maßnahmen öffnen →",
+    excessOpenActions: "In Maßnahmen öffnen",
     excessViewDetails: "Details",
     excessExport: "Fälle exportieren",
     excessScenarioTitle: "Szenarien",
@@ -928,8 +933,8 @@ const translations = {
     excessSectionPrioritization: "Priorisierung",
     excessSectionActions: "Handlungswege",
     excessHistoryMore: "Weitere historische Kennzahlen",
-    excessOpportunityScoreExplanation: "Transparente Priorisierung von 0 bis 100 – kein Erfolgsversprechen.",
-    excessScoreShortNote: "kein Erfolgsversprechen",
+    excessOpportunityScoreExplanation: "Transparente Priorisierung von 0 bis 100 – keine Erfolgsprognose.",
+    excessScoreShortNote: "Priorisierung, keine Erfolgsprognose",
     excessScoreAccessibleLabel: "Opportunity Score",
     excessCaseBadge: "Überbestand",
     excessOpenInventory: "Im Bestand öffnen",
@@ -942,7 +947,7 @@ const translations = {
     excessHistoricalEvidence: "Historische Evidenz",
     excessHistoricalUnavailableTitle: "Historischer Verlauf nicht verfügbar.",
     excessHistoricalUnavailableBody: "Verbrauchshistorie importieren, um letzten Verbrauch, 12-Monatsverbrauch, Trend und Reichweite zu ergänzen.",
-    excessImportHistory: "Importieren",
+    excessImportHistory: "Verbrauchshistorie importieren",
     excessScenarioAssumptions: "Szenarien & Annahmen",
     excessDataRelationship: "Daten- und Relationship-Qualität",
     excessTechnicalProvenance: "Technische Provenance",
@@ -1058,7 +1063,7 @@ const translations = {
     excessScoreContributionAria: "{label}: {value} von {maximum} Punkten",
     excessReadinessAvailable: "Vorhanden",
     excessReadinessOpenLimited: "Offen / begrenzt",
-    excessReadinessFurtherEvidence: "Weitere Evidenz",
+    excessReadinessFurtherEvidence: "Weitere Entscheidungsgrundlagen",
     remainingInventory: "Restbestand",
     assumptions: "Annahmen",
     pilotReviewTitle: "Pilotbewertung",
@@ -1199,7 +1204,7 @@ const translations = {
     relationshipStatus: "Relationship-Status",
     matchProblem: "Problem",
     affectedField: "Betroffenes Feld",
-    inventoryValue: "Inventory-Wert",
+    inventoryValue: "Bestandswert",
     materialMasterValue: "Materialstamm-Wert",
     preservedResolution: "Erhaltene Auflösung",
     openExcessCase: "Überbestandsfall öffnen",
@@ -1208,7 +1213,7 @@ const translations = {
     relationshipImpact_ambiguous: "Mehrdeutige Kandidaten werden nicht automatisch übernommen.",
     relationshipImpact_invalid_key: "Ungültige Schlüssel verhindern einen belastbaren Match.",
     relationshipImpact_relationship_conflict: "Relationship-Konflikte werden read-only angezeigt und nicht korrigiert.",
-    relationshipImpact_enrichment_conflict: "Inventory-Wert bleibt erhalten; Materialstamm-Konflikt wird nur als Evidenz gezeigt.",
+    relationshipImpact_enrichment_conflict: "Bestandswert bleibt erhalten; Materialstamm-Konflikt wird nur als Evidenz gezeigt.",
     colGrossExcess: "Brutto-Überbestand",
     colNetExcess: "Netto adressierbar",
     colExcessOverlap: "Überlappung",
@@ -2640,7 +2645,7 @@ const translations = {
     excessDetailsTitle: "Case Decision",
     excessDetailsSubtitle: "Score drivers, scenarios, evidence and known limitations for the selected case.",
     excessNoSelection: "Select an excess case from the list.",
-    excessOpenActions: "Open in Actions →",
+    excessOpenActions: "Open in Actions",
     excessViewDetails: "Details",
     excessExport: "Export cases",
     excessScenarioTitle: "Scenarios",
@@ -2690,8 +2695,8 @@ const translations = {
     excessSectionPrioritization: "Prioritization",
     excessSectionActions: "Action paths",
     excessHistoryMore: "Additional historical metrics",
-    excessOpportunityScoreExplanation: "Transparent prioritization from 0 to 100 – not a probability of success.",
-    excessScoreShortNote: "not a probability",
+    excessOpportunityScoreExplanation: "Transparent prioritization from 0 to 100 – not a success forecast.",
+    excessScoreShortNote: "prioritization, not a success forecast",
     excessScoreAccessibleLabel: "Opportunity Score",
     excessCaseBadge: "Excess",
     excessOpenInventory: "Open in Inventory",
@@ -2704,7 +2709,7 @@ const translations = {
     excessHistoricalEvidence: "Historical Evidence",
     excessHistoricalUnavailableTitle: "Historical trend unavailable.",
     excessHistoricalUnavailableBody: "Import consumption history to add last consumption, 12-month consumption, trend and inventory coverage.",
-    excessImportHistory: "Import",
+    excessImportHistory: "Import consumption history",
     excessScenarioAssumptions: "Scenarios & Assumptions",
     excessDataRelationship: "Data and Relationship Quality",
     excessTechnicalProvenance: "Technical Provenance",
@@ -2820,7 +2825,7 @@ const translations = {
     excessScoreContributionAria: "{label}: {value} of {maximum} points",
     excessReadinessAvailable: "Available",
     excessReadinessOpenLimited: "Open / limited",
-    excessReadinessFurtherEvidence: "Further evidence",
+    excessReadinessFurtherEvidence: "Additional decision evidence",
     remainingInventory: "Remaining inventory",
     assumptions: "Assumptions",
     pilotReviewTitle: "Pilot Review",
@@ -4407,7 +4412,16 @@ let activeColumnFilterTrigger = null;
 let activeColumnFilterScrollHandler = null;
 let activeSectionsPopover = null;
 let activeExcessCaseId = "";
-let excessDetailNavigationCleanup = null;
+const EXCESS_DETAIL_TABS = Object.freeze([
+  Object.freeze({ key: "decision", labelKey: "excessSectionDecision", iconId: "decision" }),
+  Object.freeze({ key: "value", labelKey: "excessSectionValue", iconId: "value-logic" }),
+  Object.freeze({ key: "history", labelKey: "excessSectionHistory", iconId: "history" }),
+  Object.freeze({ key: "prioritization", labelKey: "excessSectionPrioritization", iconId: "prioritization" }),
+  Object.freeze({ key: "actions", labelKey: "excessSectionActions", iconId: "action-paths" })
+]);
+const DEFAULT_EXCESS_DETAIL_TAB = "decision";
+let excessDetailTabState = { caseId: "", activeTab: DEFAULT_EXCESS_DETAIL_TAB };
+let excessDetailTabsCleanup = null;
 let currentExcessViewModel = null;
 let currentExcessVisibleRows = [];
 let currentExcessPageRows = [];
@@ -5523,7 +5537,10 @@ function setFeedback(text, type = "", options = {}) {
     feedbackResetTimer = null;
   }
   const target = $("actionFeedback");
-  target.textContent = text;
+  if (!target) return;
+  const textTarget = target.querySelector(".action-feedback-text");
+  if (textTarget) textTarget.textContent = text;
+  else target.textContent = text;
   target.classList.remove("ok", "error");
   if (type) target.classList.add(type);
   syncHeaderFeedbackIcon();
@@ -5541,7 +5558,8 @@ function syncHeaderFeedbackIcon() {
   if (!target) return;
   window.ObsoliQIcons?.enhanceShell(target);
   const icon = target.querySelector(".oq-icon[data-oq-icon='data-loaded']");
-  if (icon) icon.hidden = target.textContent.trim() !== t("dataLoaded");
+  const text = target.querySelector(".action-feedback-text")?.textContent || target.textContent;
+  if (icon) icon.hidden = text.trim() !== t("dataLoaded");
 }
 
 function resetDatasetStatusUi() {
@@ -5646,7 +5664,9 @@ function restoreDatasetUiState(snapshot = {}) {
   });
   const feedback = $("actionFeedback");
   if (feedback) {
-    feedback.textContent = snapshot.feedbackText || "";
+    const feedbackText = feedback.querySelector(".action-feedback-text");
+    if (feedbackText) feedbackText.textContent = snapshot.feedbackText || "";
+    else feedback.textContent = snapshot.feedbackText || "";
     feedback.className = snapshot.feedbackClassName || feedback.className;
     syncHeaderFeedbackIcon();
   }
@@ -7543,10 +7563,6 @@ function renderProjectedScore(field = {}) {
   return `<strong title="${html(formatCount(field.value))}">${html(formatCount(field.value))}/100</strong>`;
 }
 
-function renderExcessSectionAnchor(key) {
-  return `<span class="excess-section-anchor" data-excess-section-anchor="${html(key)}" aria-hidden="true"></span>`;
-}
-
 function renderGrossNetExplanation(core = {}) {
   const narrative = core.valueNarrative || { fields: {}, boundaryKeys: [] };
   const fields = narrative.fields || {};
@@ -7573,7 +7589,7 @@ function renderGrossNetExplanation(core = {}) {
         .replace("{net}", netValue !== null ? formatCompactMoney(netValue) : t("notAvailable"))
     : t("excessValueBasisInvalidDetail");
   return `
-    <section class="excess-detail-section excess-value-narrative${validBasis ? "" : " has-value-basis-warning"}" data-excess-detail-section="value" data-value-bridge data-value-basis-valid="${validBasis ? "true" : "false"}" data-value-basis-reason="${html(basisReasonCode)}">
+    <section class="excess-detail-section excess-value-narrative${validBasis ? "" : " has-value-basis-warning"}" data-value-bridge data-value-basis-valid="${validBasis ? "true" : "false"}" data-value-basis-reason="${html(basisReasonCode)}">
       <div class="excess-section-heading">
         <h4>${html(t("excessValueBridgeTitle"))}</h4>
         <span>${html(t("excessValueStatus"))}: <strong>${html(t(validBasis ? "excessIdentifiedPotential" : "excessValueBasisReview"))}</strong></span>
@@ -7593,7 +7609,7 @@ function renderGrossNetExplanation(core = {}) {
           const fieldValue = field?.available ? finiteNumericValue(field.value) : null;
           const zero = fieldValue === 0;
           return `
-          ${index ? `<span class="excess-value-operator" aria-hidden="true">${operator}</span>` : ""}
+          ${index ? `<span class="excess-value-operator ${html(role)}" aria-hidden="true">${operator}</span>` : ""}
           <div class="excess-value-bridge-row ${html(role)}${fieldValue !== null ? "" : " unavailable"}${zero ? " zero" : ""}" data-bridge-role="${html(role)}" data-value-available="${fieldValue !== null ? "true" : "false"}"${fieldValue !== null ? ` data-bridge-value="${html(fieldValue)}"` : ""}>
             ${renderProjectedMoney(field)}
             <span class="excess-value-label">${html(label)}</span>
@@ -7825,7 +7841,7 @@ function renderExcessActionOptions(core = {}) {
   const primary = options.filter(option => option?.isPrimary);
   const additional = options.filter(option => !option?.isPrimary);
   return `
-    <section class="excess-detail-section excess-action-options-section" data-excess-detail-section="actions">
+    <section class="excess-detail-section excess-action-options-section">
       <h4>${html(t("excessActionOptions"))}</h4>
       <div class="excess-action-options-list">
         ${primary.map(renderExcessActionOption).join("")}
@@ -8267,9 +8283,9 @@ function renderExcessOperationalEvidence(item = {}) {
   return `
     <section class="excess-detail-section excess-operational-evidence">
       <h4>${html(t("excessOperationalEvidence"))}</h4>
-      <p class="excess-operational-context">
-        ${rows.map(([label, value]) => `<span><b>${html(label)}:</b> ${html(value)}</span>`).join('<i aria-hidden="true">·</i>')}
-      </p>
+      <dl class="excess-operational-context">
+        ${rows.map(([label, value]) => `<div><dt>${html(label)}</dt><dd>${html(value)}</dd></div>`).join("")}
+      </dl>
     </section>
   `;
 }
@@ -8374,10 +8390,13 @@ function renderExcessHistoricalEvidence(core = {}) {
   const bodyKey = `excessHistoryState_${state}_body`;
   if (!evidence.metric) {
     return `
-      <section class="excess-historical-state unavailable ${html(state)}" data-excess-detail-section="history" data-history-state="unavailable" data-history-detail-state="${html(state)}">
-        <div>
-          <h4>${html(t(titleKey))}</h4>
-          <p>${html(t(bodyKey))}</p>
+      <section class="excess-historical-state unavailable ${html(state)}" data-history-state="unavailable" data-history-detail-state="${html(state)}">
+        <div class="excess-history-empty-copy">
+          <span class="excess-history-empty-icon" aria-hidden="true">${iconHtml("history", { className: "oq-icon--section" })}</span>
+          <div>
+            <h4>${html(t(titleKey))}</h4>
+            <p>${html(t(bodyKey))}</p>
+          </div>
         </div>
         ${state === "package_missing" ? `<button class="secondary" type="button" data-data-foundation-import-consumption-history>${html(t("excessImportHistory"))}</button>` : ""}
       </section>
@@ -8400,7 +8419,7 @@ function renderExcessHistoricalEvidence(core = {}) {
     ? `<p class="excess-history-limitations">${html(evidence.limitations.map(code => translatedCodeLabel(`historyReason_${code}`, code)).join(" · "))}</p>`
     : "";
   return `
-    <section class="excess-historical-state ${html(evidence.status)} ${html(state)}" data-excess-detail-section="history" data-history-state="${html(evidence.status)}" data-history-detail-state="${html(state)}">
+    <section class="excess-historical-state ${html(evidence.status)} ${html(state)}" data-history-state="${html(evidence.status)}" data-history-detail-state="${html(state)}">
       <div class="excess-history-heading">
         <div><h4>${html(t("excessHistoricalEvidence"))}</h4><small>${html(t(titleKey))}</small></div>
         <span>${html(displayHistoricalMetricStatus(evidence.status))}</span>
@@ -8453,86 +8472,139 @@ function renderExcessTechnicalProvenance(item = {}) {
   return `<div class="pilot-context-grid">${rows.map(([label, value]) => `<div><span>${html(label)}</span><strong>${html(value)}</strong></div>`).join("")}</div>`;
 }
 
-function renderExcessDetailNavigation() {
-  const sections = [
-    ["decision", "excessSectionDecision"],
-    ["value", "excessSectionValue"],
-    ["history", "excessSectionHistory"],
-    ["prioritization", "excessSectionPrioritization"],
-    ["actions", "excessSectionActions"]
-  ];
+function excessDetailSurfaceId(value = "excess-detail") {
+  const slug = String(value || "excess-detail")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "excess-detail";
+}
+
+function currentExcessDetailTab(caseId = "") {
+  const normalizedCaseId = String(caseId || "");
+  const validTab = EXCESS_DETAIL_TABS.some(tab => tab.key === excessDetailTabState.activeTab);
+  if (excessDetailTabState.caseId !== normalizedCaseId || !validTab) {
+    excessDetailTabState = { caseId: normalizedCaseId, activeTab: DEFAULT_EXCESS_DETAIL_TAB };
+  }
+  return excessDetailTabState.activeTab;
+}
+
+function renderExcessDetailTabs(activeKey, surfaceId) {
   return `
-    <nav class="excess-detail-section-nav" aria-label="${html(t("excessDetailNavigation"))}">
-      ${sections.map(([key, labelKey], index) => `
-        <button type="button" data-excess-detail-target="${html(key)}"${index === 0 ? ' class="active" aria-current="location"' : ""}>${html(t(labelKey))}</button>
-      `).join("")}
-    </nav>
+    <div class="excess-detail-section-nav" role="tablist" aria-label="${html(t("excessDetailNavigation"))}">
+      ${EXCESS_DETAIL_TABS.map(tab => {
+        const active = tab.key === activeKey;
+        return `
+          <button
+            id="${html(`${surfaceId}-tab-${tab.key}`)}"
+            type="button"
+            role="tab"
+            data-excess-detail-target="${html(tab.key)}"
+            aria-controls="${html(`${surfaceId}-panel-${tab.key}`)}"
+            aria-selected="${active ? "true" : "false"}"
+            tabindex="${active ? "0" : "-1"}"
+            class="${active ? "active" : ""}"
+          >${iconHtml(tab.iconId, { className: "oq-icon--button" })}<span>${html(t(tab.labelKey))}</span></button>
+        `;
+      }).join("")}
+    </div>
   `;
 }
 
-function setExcessDetailNavigationActive(navigation, activeKey) {
-  navigation?.querySelectorAll("[data-excess-detail-target]").forEach(button => {
-    const active = button.dataset.excessDetailTarget === activeKey;
-    button.classList.toggle("active", active);
-    if (active) button.setAttribute("aria-current", "location");
-    else button.removeAttribute("aria-current");
-  });
+function renderExcessDetailTabPanel(key, activeKey, surfaceId, bodyHtml) {
+  const active = key === activeKey;
+  return `
+    <section
+      id="${html(`${surfaceId}-panel-${key}`)}"
+      class="excess-detail-tab-panel"
+      role="tabpanel"
+      tabindex="0"
+      data-excess-detail-section="${html(key)}"
+      aria-labelledby="${html(`${surfaceId}-tab-${key}`)}"
+      aria-hidden="${active ? "false" : "true"}"
+      ${active ? "" : "hidden"}
+    >${bodyHtml}</section>
+  `;
 }
 
-function updateExcessDetailNavigation(scrollContainer) {
-  const navigation = scrollContainer?.querySelector(".excess-detail-section-nav");
-  if (!navigation) return;
-  const anchors = [...scrollContainer.querySelectorAll("[data-excess-section-anchor]")];
-  if (!anchors.length) return;
-  const activationLine = navigation.getBoundingClientRect().bottom + 12;
-  let activeKey = anchors[0].dataset.excessSectionAnchor;
-  anchors.forEach(anchor => {
-    if (anchor.getBoundingClientRect().top <= activationLine) activeKey = anchor.dataset.excessSectionAnchor;
+function setExcessDetailTabActive(surface, activeKey, options = {}) {
+  if (!surface || !EXCESS_DETAIL_TABS.some(tab => tab.key === activeKey)) return false;
+  const tabs = [...surface.querySelectorAll('[role="tab"][data-excess-detail-target]')];
+  const panels = [...surface.querySelectorAll('[role="tabpanel"][data-excess-detail-section]')];
+  if (!tabs.length || !panels.length) return false;
+  tabs.forEach(tab => {
+    const active = tab.dataset.excessDetailTarget === activeKey;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
+    tab.setAttribute("tabindex", active ? "0" : "-1");
+    tab.removeAttribute("aria-current");
   });
-  setExcessDetailNavigationActive(navigation, activeKey);
+  panels.forEach(panel => {
+    const active = panel.dataset.excessDetailSection === activeKey;
+    panel.hidden = !active;
+    panel.setAttribute("aria-hidden", active ? "false" : "true");
+  });
+  excessDetailTabState = {
+    caseId: String(surface.dataset.excessCaseId || ""),
+    activeTab: activeKey
+  };
+  if (options.resetScroll !== false) {
+    const scrollOwner = surface.querySelector(".excess-detail-scroll");
+    if (scrollOwner) scrollOwner.scrollTop = 0;
+  }
+  if (options.focus === true) {
+    const activeTab = tabs.find(tab => tab.dataset.excessDetailTarget === activeKey);
+    activeTab?.focus({ preventScroll: true });
+  }
+  return true;
 }
 
-function bindExcessDetailNavigation(root) {
-  if (typeof excessDetailNavigationCleanup === "function") excessDetailNavigationCleanup();
-  excessDetailNavigationCleanup = null;
-  const scrollContainer = root?.querySelector(".excess-detail-scroll");
-  const navigation = scrollContainer?.querySelector(".excess-detail-section-nav");
-  if (!scrollContainer || !navigation) return;
-  const clickBindings = [...navigation.querySelectorAll("[data-excess-detail-target]")].map(button => {
-    const handler = () => {
-      const key = button.dataset.excessDetailTarget;
-      const anchor = scrollContainer.querySelector(`[data-excess-section-anchor="${key}"]`);
-      if (!anchor) return;
-      const reduceMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      setExcessDetailNavigationActive(navigation, key);
-      anchor.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+function bindExcessDetailTabs(root) {
+  if (typeof excessDetailTabsCleanup === "function") excessDetailTabsCleanup();
+  excessDetailTabsCleanup = null;
+  const surfaces = root?.matches?.("[data-excess-decision-surface]")
+    ? [root]
+    : [...(root?.querySelectorAll?.("[data-excess-decision-surface]") || [])];
+  const bindings = [];
+  surfaces.forEach(surface => {
+    const navigation = surface.querySelector('[role="tablist"].excess-detail-section-nav');
+    if (!navigation) return;
+    const activateFromEvent = event => {
+      const tab = event.target.closest('[role="tab"][data-excess-detail-target]');
+      if (!tab || !navigation.contains(tab)) return;
+      setExcessDetailTabActive(surface, tab.dataset.excessDetailTarget);
     };
-    button.addEventListener("click", handler);
-    return [button, handler];
+    const handleKeydown = event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      const tabs = [...navigation.querySelectorAll('[role="tab"][data-excess-detail-target]')];
+      const currentIndex = Math.max(0, tabs.indexOf(event.target.closest('[role="tab"]')));
+      let nextIndex = currentIndex;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+      if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+      if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+      event.preventDefault();
+      setExcessDetailTabActive(surface, tabs[nextIndex].dataset.excessDetailTarget, { focus: true });
+    };
+    navigation.addEventListener("click", activateFromEvent);
+    navigation.addEventListener("keydown", handleKeydown);
+    bindings.push([navigation, "click", activateFromEvent], [navigation, "keydown", handleKeydown]);
+    const selected = navigation.querySelector('[role="tab"][aria-selected="true"]')?.dataset.excessDetailTarget || DEFAULT_EXCESS_DETAIL_TAB;
+    setExcessDetailTabActive(surface, selected, { resetScroll: false });
   });
-  let updateFrame = 0;
-  const handleScroll = () => {
-    if (updateFrame) return;
-    updateFrame = window.requestAnimationFrame(() => {
-      updateFrame = 0;
-      updateExcessDetailNavigation(scrollContainer);
-    });
+  excessDetailTabsCleanup = () => {
+    bindings.forEach(([target, eventName, handler]) => target.removeEventListener(eventName, handler));
   };
-  scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
-  excessDetailNavigationCleanup = () => {
-    clickBindings.forEach(([button, handler]) => button.removeEventListener("click", handler));
-    scrollContainer.removeEventListener("scroll", handleScroll);
-    if (updateFrame) window.cancelAnimationFrame(updateFrame);
-    updateFrame = 0;
-  };
-  updateExcessDetailNavigation(scrollContainer);
 }
 
-function renderExcessDetail(item) {
+function renderExcessDetail(item, options = {}) {
+  const surfaceId = excessDetailSurfaceId(options.surfaceId || "excess-detail");
+  const headingId = excessDetailSurfaceId(options.headingId || `${surfaceId}-heading`);
   if (!item) {
-    return `<div class="empty"><h3 id="excess-case-heading">${html(t("excessDetailsTitle"))}</h3><p>${html(t("excessNoSelection"))}</p></div>`;
+    return `<div class="empty"><h3 id="${html(headingId)}">${html(t("excessDetailsTitle"))}</h3><p>${html(t("excessNoSelection"))}</p></div>`;
   }
   const core = currentExcessDecisionCore(item);
+  const activeTab = currentExcessDetailTab(core.caseId);
   const valueBasisValid = core.valueNarrative?.validBasis === true;
   const valueBasisReason = core.valueNarrative?.reasonCode || "";
   const primaryReasons = (Array.isArray(core.whyPrioritized) ? core.whyPrioritized : []).slice(0, 3);
@@ -8543,8 +8615,7 @@ function renderExcessDetail(item) {
       ? readinessNextCheck(core.decisionReadiness.nextCheck)
       : "";
   const decisionBasis = `
-    ${renderExcessSectionAnchor("prioritization")}
-    <section class="excess-decision-basis-grid excess-prioritization-section" data-excess-detail-section="prioritization">
+    <section class="excess-decision-basis-grid excess-prioritization-section">
       <section class="excess-detail-section">
         <div class="excess-section-heading">
           <h4>${html(t("excessScoreDrivers"))}</h4>
@@ -8570,70 +8641,81 @@ function renderExcessDetail(item) {
     ${renderPilotReviewSummary()}
     ${renderPilotReviewForm(item)}
   `;
-  return `
-    <div class="excess-decision-core" data-excess-decision-core="${html(core.caseId)}">
-      <div class="excess-case-head">
-        <div class="excess-case-identity">
-          <div class="excess-case-badges">
-            <span class="excess-case-badge">${html(t("excessCaseBadge"))}</span>
-            ${actionBadge("status", core.actionStatus || "Open")}
-          </div>
-          <h3 id="excess-case-heading">${html(core.materialId || "-")}</h3>
-          <span>${html(core.materialDescription || t("notAvailable"))}${core.plant ? ` · ${html(core.plant)}` : ""}</span>
-        </div>
-        <div class="excess-case-actions">
-          <button class="secondary" type="button" data-open-excess-inventory="${html(core.caseId)}">${html(t("excessOpenInventory"))}</button>
-          <button class="primary" type="button" data-open-excess-actions="${html(core.caseId)}">${html(t("excessOpenActions"))}</button>
-        </div>
-      </div>
-      <div class="excess-inline-stats">
-        <div class="excess-header-value-basis${valueBasisValid ? "" : " warning"}" data-header-value-basis-valid="${valueBasisValid ? "true" : "false"}" data-header-value-basis-reason="${html(valueBasisReason)}">
-          <span>${html(t("colNetExcess"))}</span>
-          ${renderProjectedMoney(core.netAddressableValue)}
-          <small>${html(t("excessHeaderGross"))}: ${html(projectedMoneyText(core.grossExcessValue))}</small>
-          <small>${html(t("excessHeaderOverlap"))}: ${html(projectedMoneyText(core.overlapValue))}</small>
-          ${valueBasisValid ? "" : `<small class="excess-value-basis-warning">${html(t("excessValueBasisReview"))}</small>`}
-        </div>
-        <div data-header-opportunity-score-available="${core.opportunityScore?.available ? "true" : "false"}">
-          <span>${html(t("colOpportunityScore"))}</span>
-          ${renderProjectedScore(core.opportunityScore)}
-          <small>${html(t("excessScoreShortNote"))}</small>
-        </div>
-        <div><span>${html(t("excessResponsible"))}</span><strong>${html(core.ownerReference || t("notAvailable"))}</strong><small>${html(displayActionValue(core.ownerFunction || t("notAvailable")))}</small></div>
-        <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(core.priority || t("notAvailable")))}</strong></div>
-      </div>
+  const decisionPanel = `
+    <div class="excess-primary-decision-grid" data-decision-narrative-grid>
+      <section class="excess-primary-decision next-step" data-next-step="${html(primaryStepSource)}">
+        <h4>${html(t("excessNextReviewStep"))}</h4>
+        <p>${html(primaryStepText || t("excessNoNextReviewStep"))}</p>
+        ${core.decisionType ? `<small><span>${html(t("excessDecisionRequired"))}</span><strong>${html(displayDecisionType(core.decisionType))}</strong></small>` : ""}
+      </section>
+      <section class="excess-primary-decision why-prioritized">
+        <h4>${html(t("whyPrioritized"))}</h4>
+        <ul>${excessTextList(primaryReasons)}</ul>
+      </section>
+      ${renderExcessCauseHypothesis(core, primaryReasons)}
+      ${renderExcessDecisionReadiness(core, primaryStepText)}
     </div>
-    <div class="excess-detail-scroll">
-      ${renderExcessDetailNavigation()}
-      <div class="excess-detail-card">
-        ${renderExcessSectionAnchor("decision")}
-        <div class="excess-primary-decision-grid" data-decision-narrative-grid data-excess-detail-section="decision">
-          <section class="excess-primary-decision next-step" data-next-step="${html(primaryStepSource)}">
-            <h4>${html(t("excessNextReviewStep"))}</h4>
-            <p>${html(primaryStepText || t("excessNoNextReviewStep"))}</p>
-            ${core.decisionType ? `<small><span>${html(t("excessDecisionRequired"))}</span><strong>${html(displayDecisionType(core.decisionType))}</strong></small>` : ""}
-          </section>
-          <section class="excess-primary-decision why-prioritized">
-            <h4>${html(t("whyPrioritized"))}</h4>
-            <ul>${excessTextList(primaryReasons)}</ul>
-          </section>
-          ${renderExcessCauseHypothesis(core, primaryReasons)}
-          ${renderExcessDecisionReadiness(core, primaryStepText)}
+  `;
+  const valuePanel = `
+    ${renderGrossNetExplanation(core)}
+    ${renderExcessDisclosure("excessScenarioAssumptions", renderExcessScenarios(item))}
+  `;
+  const historyPanel = renderExcessHistoricalEvidence(core);
+  const prioritizationPanel = `
+    ${decisionBasis}
+    ${renderExcessDisclosure("excessEvidence", renderEvidenceRecords(item))}
+    ${renderExcessDisclosure("excessDataRelationship", technicalDetails)}
+  `;
+  const actionsPanel = `
+    ${renderExcessActionOptions(core)}
+    ${renderExcessWorkContext(core)}
+    ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
+    ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
+    ${renderExcessDisclosure("excessTechnicalProvenance", renderExcessTechnicalProvenance(item))}
+  `;
+  return `
+    <div class="excess-decision-surface" data-excess-decision-surface data-excess-case-id="${html(core.caseId)}" data-active-excess-tab="${html(activeTab)}">
+      <div class="excess-decision-core" data-excess-decision-core="${html(core.caseId)}">
+        <div class="excess-case-head">
+          <div class="excess-case-identity">
+            <div class="excess-case-badges">
+              <span class="excess-case-badge">${html(t("excessCaseBadge"))}</span>
+              ${actionBadge("status", core.actionStatus || "Open")}
+            </div>
+            <h3 id="${html(headingId)}">${html(core.materialId || "-")}</h3>
+            <span>${html(core.materialDescription || t("notAvailable"))}${core.plant ? ` · ${html(core.plant)}` : ""}</span>
+          </div>
+          <div class="excess-case-actions">
+            <button class="secondary" type="button" data-open-excess-inventory="${html(core.caseId)}">${iconHtml("inventory-explorer", { className: "oq-icon--button" })}<span>${html(t("excessOpenInventory"))}</span></button>
+            <button class="primary" type="button" data-open-excess-actions="${html(core.caseId)}">${iconHtml("actions", { className: "oq-icon--button" })}<span>${html(t("excessOpenActions"))}</span></button>
+          </div>
         </div>
-        ${renderExcessSectionAnchor("value")}
-        ${renderGrossNetExplanation(core)}
-        ${renderExcessSectionAnchor("history")}
-        ${renderExcessHistoricalEvidence(core)}
-        ${decisionBasis}
-        ${renderExcessSectionAnchor("actions")}
-        ${renderExcessActionOptions(core)}
-        ${renderExcessWorkContext(core)}
-        ${renderExcessDisclosure("excessScenarioAssumptions", renderExcessScenarios(item))}
-        ${renderExcessDisclosure("excessEvidence", renderEvidenceRecords(item))}
-        ${renderExcessDisclosure("excessDataRelationship", technicalDetails)}
-        ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
-        ${renderExcessDisclosure("excessPilotReviewDisclosure", pilotReviewBody)}
-        ${renderExcessDisclosure("excessTechnicalProvenance", renderExcessTechnicalProvenance(item))}
+        <div class="excess-inline-stats">
+          <div class="excess-header-value-basis${valueBasisValid ? "" : " warning"}" data-header-value-basis-valid="${valueBasisValid ? "true" : "false"}" data-header-value-basis-reason="${html(valueBasisReason)}">
+            <span>${html(t("colNetExcess"))}</span>
+            ${renderProjectedMoney(core.netAddressableValue)}
+            <small>${html(t("excessHeaderGross"))}: ${html(projectedMoneyText(core.grossExcessValue))}</small>
+            <small>${html(t("excessHeaderOverlap"))}: ${html(projectedMoneyText(core.overlapValue))}</small>
+            ${valueBasisValid ? "" : `<small class="excess-value-basis-warning">${html(t("excessValueBasisReview"))}</small>`}
+          </div>
+          <div data-header-opportunity-score-available="${core.opportunityScore?.available ? "true" : "false"}">
+            <span>${html(t("colOpportunityScore"))}</span>
+            ${renderProjectedScore(core.opportunityScore)}
+            <small>${html(t("excessScoreShortNote"))}</small>
+          </div>
+          <div><span>${html(t("excessResponsible"))}</span><strong>${html(core.ownerReference || t("notAvailable"))}</strong><small>${html(displayActionValue(core.ownerFunction || t("notAvailable")))}</small></div>
+          <div><span>${html(t("colPriority"))}</span><strong>${html(displayActionValue(core.priority || t("notAvailable")))}</strong></div>
+        </div>
+      </div>
+      <div class="excess-detail-scroll">
+        ${renderExcessDetailTabs(activeTab, surfaceId)}
+        <div class="excess-detail-card">
+          ${renderExcessDetailTabPanel("decision", activeTab, surfaceId, decisionPanel)}
+          ${renderExcessDetailTabPanel("value", activeTab, surfaceId, valuePanel)}
+          ${renderExcessDetailTabPanel("history", activeTab, surfaceId, historyPanel)}
+          ${renderExcessDetailTabPanel("prioritization", activeTab, surfaceId, prioritizationPanel)}
+          ${renderExcessDetailTabPanel("actions", activeTab, surfaceId, actionsPanel)}
+        </div>
       </div>
     </div>
   `;
@@ -8911,8 +8993,8 @@ function renderExcessPage() {
   };
   const target = $("excessPage");
   if (!target) return;
-  if (typeof excessDetailNavigationCleanup === "function") excessDetailNavigationCleanup();
-  excessDetailNavigationCleanup = null;
+  if (typeof excessDetailTabsCleanup === "function") excessDetailTabsCleanup();
+  excessDetailTabsCleanup = null;
   const toolbar = $("sharedToolbar");
   const parkingSlot = $("overviewToolbarSlot");
   if (toolbar && parkingSlot && target.contains(toolbar)) moveSharedToolbarToSlot(parkingSlot);
@@ -8958,12 +9040,12 @@ function renderExcessPage() {
         ${renderExcessPagination(rows.length, excessPageNumber, pageCount)}
       </div>
       <aside class="panel excess-detail-panel" aria-labelledby="excess-case-heading">
-        ${renderExcessDetail(activeCase)}
+        ${renderExcessDetail(activeCase, { surfaceId: "excess-page-detail", headingId: "excess-case-heading" })}
       </aside>
     </section>
     ${renderRelationshipIssueWorklist(viewModel)}
   `;
-  bindExcessDetailNavigation(target);
+  bindExcessDetailTabs(target);
   excessPilotReviewController.bind(target);
   if (currentView === "excess") {
     placeSharedToolbar("excess");
@@ -8994,7 +9076,7 @@ function renderOverviewTopHeadCell({ key, label, filterable = true }) {
       <span class="column-filter-label">${html(label)}</span>
       ${sortDirection ? `<span class="column-sort-indicator" aria-hidden="true">${sortDirection === "asc" ? "↑" : "↓"}</span>` : ""}
       <button class="column-filter-trigger${buttonActiveClass}" type="button" data-filter-trigger="true" data-column-scope="top" data-column-key="${html(key)}" aria-label="${html(`${filterTitle}: ${label}`)}" title="${html(filterTitle)}">
-        <span class="column-filter-caret" aria-hidden="true">▾</span>
+        ${iconHtml("filter", { className: "oq-icon--micro" })}
       </button>
     </div>
   `;
@@ -9031,12 +9113,12 @@ function renderTopRecoveryTable(data) {
           <div class="overview-owner-cell" role="cell" title="${html(displayActionValue(row.owner_function))}">${html(displayActionValue(row.owner_function))}</div>
           <div role="cell">${actionBadge("status", row.status)}</div>
           <div role="cell">
-            <button class="secondary overview-open-action" type="button" data-open-actions="${html(row.material_id || "")}">${html(t("openAction"))}</button>
+            <button class="secondary overview-open-action" type="button" data-open-actions="${html(row.material_id || "")}">${iconHtml("open-record", { className: "oq-icon--button" })}<span>${html(t("openAction"))}</span></button>
           </div>
         </div>
       `).join("")}
     </div>
-    <button class="overview-show-all-link" type="button" data-open-actions>${html(t("showAllRecovery"))}</button>
+    <button class="overview-show-all-link" type="button" data-open-actions>${iconHtml("actions", { className: "oq-icon--button" })}<span>${html(t("showAllRecovery"))}</span></button>
   `;
 }
 
@@ -12325,7 +12407,7 @@ function renderDiagnosticDisclosure(titleKey, bodyHtml, options = {}) {
   return `
     <details class="data-quality-diagnostic" data-diagnostic-key="${html(titleKey)}" ${options.open ? "open" : ""}>
       <summary>
-        <span>${html(t(titleKey))}</span>
+        <span class="oq-icon-label">${iconHtml("expand", { className: "oq-icon--micro" })}<span>${html(t(titleKey))}</span></span>
         ${options.meta ? `<small class="data-quality-diagnostic-meta">${html(options.meta)}</small>` : ""}
       </summary>
       <div class="data-quality-diagnostic-body">${bodyHtml}</div>
@@ -12834,15 +12916,15 @@ function remediationSummaryStats(issues, runtimeContextInput = null) {
 
 function renderRemediationSummaryCards(stats) {
   const cards = [
-    ["openDataIssues", stats.open, "all"],
-    ["criticalHighIssues", stats.criticalHigh, "critical_high"],
-    ["missingData", stats.missingValues, "missing"],
-    ["invalidData", stats.invalidValues, "invalid"],
-    ["duplicateIssues", stats.duplicates, "duplicates"]
+    ["openDataIssues", stats.open, "all", "data-quality"],
+    ["criticalHighIssues", stats.criticalHigh, "critical_high", "critical"],
+    ["missingData", stats.missingValues, "missing", "missing-data"],
+    ["invalidData", stats.invalidValues, "invalid", "invalid-data"],
+    ["duplicateIssues", stats.duplicates, "duplicates", "duplicates"]
   ];
-  return cards.map(([labelKey, value, quickKey]) => `
+  return cards.map(([labelKey, value, quickKey, iconId]) => `
     <button class="remediation-primary-metric remediation-primary-metric--filter remediation-summary-card ${filterState.remediationQuick === quickKey ? "active" : ""}" type="button" data-remediation-quick-filter="${html(quickKey)}" aria-pressed="${filterState.remediationQuick === quickKey ? "true" : "false"}">
-      <strong>${html(formatCount(value))}</strong>
+      ${iconHtml(iconId, { className: "oq-icon--kpi" })}<strong>${html(formatCount(value))}</strong>
       <span>${html(t(labelKey))}</span>
     </button>
   `).join("");
@@ -12852,9 +12934,10 @@ function renderDataQualityScoreTile(model) {
   const status = model.status || dataQualityScoreStatus(model.score);
   return `
     <button class="remediation-primary-metric remediation-primary-metric--score remediation-score-card ${html(status.className)}" type="button" data-score-diagnostic-toggle aria-label="${html(t("openScoreExplanation"))}">
+      ${iconHtml("data-quality", { className: "oq-icon--kpi" })}
       <strong>${html(`${formatCount(model.score)} %`)}</strong>
       <span>${html(`${t("dataQualityShort")} · ${t(status.key)}`)}</span>
-      <i class="metric-info-icon" aria-hidden="true">i</i>
+      <span class="metric-info-icon">${iconHtml("information", { className: "oq-icon--micro" })}</span>
     </button>
   `;
 }
@@ -12983,7 +13066,9 @@ function syncRemediationFilterDisclosureLabel() {
   const summary = document.querySelector(".remediation-mobile-filter-disclosure > summary");
   if (!summary) return;
   const label = remediationMobileFilterLabel();
-  summary.textContent = label;
+  const textTarget = summary.querySelector(".remediation-mobile-filter-label");
+  if (textTarget) textTarget.textContent = label;
+  else summary.textContent = label;
   summary.setAttribute("aria-label", label);
 }
 
@@ -12993,15 +13078,15 @@ function renderRemediationFilters() {
   return `
     <div class="remediation-filter-row">
       <div class="field wide remediation-search-field">
-        <label for="remediationSearchFilter">${html(t("issueSearch"))}</label>
+        <label class="oq-icon-label" for="remediationSearchFilter">${iconHtml("search", { className: "oq-icon--micro" })}<span>${html(t("issueSearch"))}</span></label>
         <div class="remediation-search-control">
-          <span aria-hidden="true"></span>
+          ${iconHtml("search", { className: "oq-icon--micro" })}
           <input id="remediationSearchFilter" class="remediation-filter-control" type="search" value="${html(filterState.remediationSearch)}" placeholder="${html(t("issueSearchPlaceholder"))}" aria-label="${html(t("issueSearch"))}" />
           <button type="button" data-remediation-clear-search aria-label="${html(t("clearSearch"))}" ${String(filterState.remediationSearch || "").trim() ? "" : "hidden"}>x</button>
         </div>
       </div>
       <details class="remediation-mobile-filter-disclosure" ${mobileFilterCount ? "open" : ""}>
-        <summary aria-label="${html(mobileFilterLabel)}">${html(mobileFilterLabel)}</summary>
+        <summary aria-label="${html(mobileFilterLabel)}">${iconHtml("filter", { className: "oq-icon--micro" })}<span class="remediation-mobile-filter-label">${html(mobileFilterLabel)}</span></summary>
         <div class="remediation-filter-controls">
           <div class="field">
             <label for="remediationTypeFilter">${html(t("issueType"))}</label>
@@ -13128,7 +13213,7 @@ function renderRemediationWorklistTable(issues) {
               <td class="remediation-context-cell">${html(issueContextText(issue))}</td>
               <td>${issueStatusBadge(issue.status)}</td>
               <td class="remediation-actions-cell">
-                <button class="secondary small" type="button" data-remediation-review="${html(issue.issueId)}">${html(issueIsHistorical(issue) ? t("details") : t("review"))}</button>
+                <button class="secondary small" type="button" data-remediation-review="${html(issue.issueId)}">${iconHtml("review-case", { className: "oq-icon--button" })}<span>${html(issueIsHistorical(issue) ? t("details") : t("review"))}</span></button>
               </td>
             </tr>
           `).join("")}
@@ -13160,7 +13245,7 @@ function renderRemediationWorklistCards(issues) {
             <p>${html(issueContextText(issue))}</p>
           </div>
           ${issueProgressText(issue) ? `<small class="remediation-progress">${html(`${t("resolutionProgress")}: ${issueProgressText(issue)}`)}</small>` : ""}
-          <button class="secondary small" type="button" data-remediation-review="${html(issue.issueId)}">${html(issueIsHistorical(issue) ? t("details") : t("review"))}</button>
+          <button class="secondary small" type="button" data-remediation-review="${html(issue.issueId)}">${iconHtml("review-case", { className: "oq-icon--button" })}<span>${html(issueIsHistorical(issue) ? t("details") : t("review"))}</span></button>
         </article>
       `).join("")}
     </div>
@@ -13176,7 +13261,7 @@ function renderRemediationWorklist(issues, allIssues = issues) {
         <strong>${html(hasFilters ? t("noIssuesMatchFilters") : unresolved ? t("noRemediationIssues") : t("noOpenDataIssues"))}</strong>
         <p>${html(hasFilters ? t("resetFilters") : unresolved ? t("dataRemediationSubtitle") : t("noOpenDataIssuesText"))}</p>
         <div class="empty-state-actions">
-          ${hasFilters ? `<button class="secondary" type="button" data-remediation-reset-filters>${html(t("resetFilters"))}</button>` : `<button class="secondary" type="button" data-remediation-export-log>${html(t("exportDataQualityIssueLog"))}</button>`}
+          ${hasFilters ? `<button class="secondary" type="button" data-remediation-reset-filters>${iconHtml("reset-filter", { className: "oq-icon--button" })}<span>${html(t("resetFilters"))}</span></button>` : `<button class="secondary" type="button" data-remediation-export-log>${iconHtml("export", { className: "oq-icon--button" })}<span>${html(t("exportDataQualityIssueLog"))}</span></button>`}
           ${!hasFilters && !unresolved ? `<button class="ghost" type="button" data-remediation-quick-filter="all">${html(t("showAllIssues"))}</button>` : ""}
         </div>
       </div>
@@ -13474,15 +13559,15 @@ function renderRemediationHeaderActions() {
   return `
     <div class="remediation-header-actions">
       <details class="remediation-action-menu">
-        <summary role="button" aria-haspopup="menu">${html(t("exportMenu"))}</summary>
+        <summary class="oq-icon-label" role="button" aria-haspopup="menu">${iconHtml("export", { className: "oq-icon--button" })}<span>${html(t("exportMenu"))}</span></summary>
         <div class="remediation-action-menu-list" role="menu">
           <button type="button" role="menuitem" data-remediation-export-corrected>${html(t("exportCorrectedDataset"))}</button>
           <button type="button" role="menuitem" data-remediation-export-log>${html(t("exportDataQualityIssueLog"))}</button>
         </div>
       </details>
-      ${hasActiveState ? `<button class="ghost" type="button" data-remediation-undo title="${html(t("undoRemediationTooltip"))}">↶ ${html(t("undoChange"))}</button>
+      ${hasActiveState ? `<button class="ghost" type="button" data-remediation-undo title="${html(t("undoRemediationTooltip"))}">${iconHtml("reset-filter", { className: "oq-icon--button" })}<span>${html(t("undoChange"))}</span></button>
       <details class="remediation-action-menu remediation-overflow-actions">
-        <summary class="icon-only" role="button" aria-haspopup="menu" aria-label="${html(t("moreActions"))}">⋯</summary>
+        <summary class="icon-only" role="button" aria-haspopup="menu" aria-label="${html(t("moreActions"))}" title="${html(t("moreActions"))}">${iconHtml("advanced-filter", { className: "oq-icon--button" })}</summary>
         <div class="remediation-action-menu-list align-right" role="menu">
           <button class="danger" type="button" role="menuitem" data-remediation-reset>${html(t("resetAllCorrections"))}</button>
         </div>
@@ -13588,7 +13673,7 @@ function renderDataRemediationWorkspace(model, options = {}) {
     <section class="panel data-quality-section remediation-workspace">
       <div class="panel-head remediation-head">
         <div class="panel-title">
-          <h3>${html(t("resolveDataIssues"))}</h3>
+          <h3 class="oq-icon-label">${iconHtml("review-case", { className: "oq-icon--section" })}<span>${html(t("resolveDataIssues"))}</span></h3>
           <small>${html(t("dataRemediationSubtitle"))}</small>
           ${renderDataQualityDatasetContext(options)}
         </div>
@@ -15470,6 +15555,15 @@ function relationshipCompatibilityState(readiness) {
   return { className: "warning", label: t(readiness?.labelKey || "notAssessable") };
 }
 
+function dataFoundationSourceIcon(sourceKind = "") {
+  const icons = {
+    inventory: "total-inventory",
+    materialMaster: "inventory-explorer",
+    consumptionHistory: "history"
+  };
+  return icons[sourceKind] || "information";
+}
+
 function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
   const state = options.state || dataFoundationSourceState(packageRecord);
   const reason = packageRecord && state.className === "invalid" ? packageValidationReason(packageRecord) : "";
@@ -15522,7 +15616,7 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
     ? "importConsumptionHistoryCompact"
     : "importMaterialMasterCompact";
   const action = options.actionMarkup || (!packageRecord && options.importAction
-    ? `<button class="secondary data-foundation-inline-action" type="button" ${actionKey}>${html(t(actionLabel))}</button>`
+    ? `<button class="secondary data-foundation-inline-action" type="button" ${actionKey}>${iconHtml("upload-file", { className: "oq-icon--button" })}<span>${html(t(actionLabel))}</span></button>`
     : "");
   const statusMarkup = variant === "actionable-missing"
     ? ""
@@ -15531,6 +15625,7 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
   return `
     <div class="data-foundation-source ${html(state.className)} ${html(variant)}"${accessibleState}>
       <span class="data-foundation-dot" aria-hidden="true"></span>
+      ${iconHtml(dataFoundationSourceIcon(options.sourceKind), { className: "oq-icon--section" })}
       <div class="data-foundation-source-copy">
         <strong class="data-foundation-source-title">${html(t(labelKey))}</strong>
         <small class="data-foundation-source-meta">${html(meta.length ? meta.join(" · ") : state.label)}</small>
@@ -16084,6 +16179,7 @@ function renderPackageAvailability() {
     <details class="data-foundation ${html(summary.className)}" data-data-foundation>
       <summary class="data-foundation-summary" aria-expanded="false" aria-controls="dataFoundationDetail" aria-label="${html(summaryLabel)}">
         <span class="data-foundation-summary-main">
+          ${iconHtml("total-inventory", { className: "oq-icon--section" })}
           <strong class="data-foundation-summary-title">${html(t("dataFoundation"))}</strong>
           <span class="data-foundation-summary-status">
             <span class="data-foundation-summary-primary">${html(summary.primaryText)}</span>
@@ -16091,12 +16187,13 @@ function renderPackageAvailability() {
           </span>
           <span class="data-foundation-summary-mobile">${html(summary.mobileText)}</span>
         </span>
+        ${iconHtml("expand", { className: "oq-icon--micro" })}
       </summary>
       <span class="data-foundation-scrim" data-data-foundation-close aria-hidden="true"></span>
       <div id="dataFoundationDetail" class="data-foundation-detail" role="region" aria-labelledby="dataFoundationDrawerTitle">
         <div class="data-foundation-drawer-head">
           <div>
-            <h3 id="dataFoundationDrawerTitle">${html(t("dataFoundation"))}</h3>
+            <h3 id="dataFoundationDrawerTitle" class="oq-icon-label">${iconHtml("total-inventory", { className: "oq-icon--section" })}<span>${html(t("dataFoundation"))}</span></h3>
             <p>${html(t("dataPackagesSubtitle"))}</p>
           </div>
           <button class="data-foundation-close" type="button" data-data-foundation-close aria-label="${html(t("dataFoundationClose"))}" title="${html(t("dataFoundationClose"))}">
@@ -16147,7 +16244,7 @@ function renderPackageAvailability() {
             ${renderHistoricalMetricsReadinessItem(historicalRuntimeState)}
           ` : ""}
           <details class="data-foundation-technical">
-            <summary>${html(t("technicalDetails"))}</summary>
+            <summary class="oq-icon-label">${iconHtml("expand", { className: "oq-icon--micro" })}<span>${html(t("technicalDetails"))}</span></summary>
             <div class="data-foundation-technical-grid">
               ${renderPackageTechnicalDetails(inventoryPackage, "inventoryData")}
               ${renderPackageTechnicalDetails(materialMasterPackage, "materialMaster")}
@@ -16614,7 +16711,7 @@ function inventoryRiskDetailHtml(model = {}) {
     if (!sourceCase) return "";
     currentExcessViewModel = currentExcessPageModel(enrichedRows);
     currentActiveExcessCase = sourceCase;
-    return renderExcessDetail(sourceCase);
+    return renderExcessDetail(sourceCase, { surfaceId: "inventory-risk-excess-detail" });
   }
   if (familyCase.primary_risk_family === "slow_dead") return inventoryRiskSlowDeadDetail(familyCase);
   return "";
@@ -16631,14 +16728,14 @@ function renderInventoryRiskPage() {
     state: inventoryRiskPageState
   });
   currentInventoryRiskPageModel = model;
-  if (typeof excessDetailNavigationCleanup === "function") excessDetailNavigationCleanup();
-  excessDetailNavigationCleanup = null;
+  if (typeof excessDetailTabsCleanup === "function") excessDetailTabsCleanup();
+  excessDetailTabsCleanup = null;
   root.innerHTML = inventoryRiskPageView.render(model, { detailHtml: inventoryRiskDetailHtml(model) });
   if (model.selectedCase && !inventoryRiskPageState.selectedCaseId) {
     inventoryRiskPageState.selectedCaseId = inventoryRiskCaseId(model.selectedCase);
   }
   if (model.selectedCase && inventoryRiskFamilyCase(model.selectedCase)?.primary_risk_family === "excess_demand") {
-    bindExcessDetailNavigation(root);
+    bindExcessDetailTabs(root);
     excessPilotReviewController.bind(root);
   }
   if (focusedFilter) {
@@ -19879,7 +19976,7 @@ function excelColumnWidth(value) {
 
 function isStrictPlainNumericText(value, key = "") {
   const text = String(value ?? "").trim();
-  if (!text || /[\t\r\n]/.test(text)) return false;
+  if (!text || /[\t\n]/.test(text)) return false;
   if (!/^[+-]?(?:\d+(?:[.,]\d+)?|\d{1,3}(?:[.,'\u00a0\u202f ]\d{3})+(?:[.,]\d+)?)$/.test(text)) return false;
   return Number.isFinite(toNumber(text, key));
 }
@@ -19889,7 +19986,7 @@ function sanitizeSpreadsheetCell(value, context = {}) {
   const text = String(value ?? "");
   if (!text) return "";
   const leadingWhitespace = text.match(/^\s*/)?.[0] || "";
-  if (/[\t\r\n]/.test(leadingWhitespace)) return `'${text}`;
+  if (/[\t\n]/.test(leadingWhitespace)) return `'${text}`;
   const meaningful = text.slice(leadingWhitespace.length);
   const first = meaningful[0] || "";
   if ("=+-@".includes(first) && !isStrictPlainNumericText(meaningful, context.key)) {
@@ -20183,7 +20280,7 @@ function csvCellText(value) {
 }
 
 function csvBlob(rows) {
-  const csv = rows.map(row => row.map(csvCellText).join(",")).join("\r\n");
+  const csv = rows.map(row => row.map(csvCellText).join(",")).join("\n");
   return new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
 }
 
@@ -20721,7 +20818,7 @@ function focusableElementsIn(container) {
   if (!container) return [];
   return [...container.querySelectorAll([
     "button:not([disabled])",
-    "[href]",
+    "a[href]",
     "input:not([disabled])",
     "select:not([disabled])",
     "textarea:not([disabled])",
@@ -21753,7 +21850,9 @@ function createObsoliqTestBridge() {
     getExcessRowsForTest: () => clonePlainArray(getExcessRows()),
     getExcessPresentationSummaryForTest: cases => clonePlainRecord(excessDecisionWorkspaceModel.summarize(cases || currentExcessVisibleRows)),
     getExcessDecisionCoreForTest: item => clonePlainRecord(currentExcessDecisionCore(item || currentActiveExcessCase || {})),
-    renderExcessDetailForTest: item => renderExcessDetail(item || {}),
+    renderExcessDetailForTest: item => renderExcessDetail(item || {}, { surfaceId: "test-excess-detail" }),
+    getExcessDetailTabStateForTest: () => clonePlainRecord(excessDetailTabState),
+    setExcessDetailTabForTest: (surface, key, options = {}) => setExcessDetailTabActive(surface, key, options),
     isPurchaseOrdersImportSupportedForTest: () => PURCHASE_ORDERS_IMPORT_SUPPORTED,
     renderExcessActionOptionsForTest: core => renderExcessActionOptions(core || {}),
     renderExcessHistoricalEvidenceForTest: core => renderExcessHistoricalEvidence(core || {}),

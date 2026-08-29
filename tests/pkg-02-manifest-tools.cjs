@@ -155,9 +155,18 @@ try {
 // Fixed positive path set and required anchors.
 const packageFiles = collectPackageFiles(root);
 check(BASELINE_PACKAGE_PATHS.length === 182, "Captured PKG-02A baseline must contain 182 paths");
-check(AUTHORIZED_PACKAGE_ADDITIONS.length === 27, "R0B plus R0B.1 must declare exactly 27 reviewed package additions");
-check(AUTHORIZED_PACKAGE_REMOVALS.length === 0, "No package path removals are authorized in this addendum implementation");
-check(EXPECTED_PACKAGE_PATHS.length === BASELINE_PACKAGE_PATHS.length + AUTHORIZED_PACKAGE_ADDITIONS.length, "Expected set must equal the captured baseline plus the explicit R0B delta");
+check(new Set(AUTHORIZED_PACKAGE_ADDITIONS).size === AUTHORIZED_PACKAGE_ADDITIONS.length, "Authorized package additions must be unique");
+check(JSON.stringify(sortPaths(AUTHORIZED_PACKAGE_REMOVALS)) === JSON.stringify(sortPaths([
+  "assets/icons/obsoliq/LICENSE-LUCIDE.txt",
+  "assets/icons/obsoliq/README.md",
+  "assets/icons/obsoliq/icon-manifest.json",
+  "assets/icons/obsoliq/obsoliq-icon-sprite.svg",
+  "js/ui/obsoliq-icon-system.js"
+])), "Authorized removals must equal the five reviewed Icon Pack replacements");
+check(JSON.stringify(EXPECTED_PACKAGE_PATHS) === JSON.stringify(sortPaths(new Set([
+  ...BASELINE_PACKAGE_PATHS.filter(item => !AUTHORIZED_PACKAGE_REMOVALS.includes(item)),
+  ...AUTHORIZED_PACKAGE_ADDITIONS
+]))), "Expected set must equal the captured baseline plus additions minus reviewed removals");
 check(packageFiles.length === EXPECTED_PACKAGE_PATHS.length, "Actual positive package set differs from expected paths");
 check(packageFiles.includes("prototype.html"), "Product entry must be in package scope");
 check(packageFiles.includes("scripts/generate-sha256-manifest.cjs"), "Manifest generator must be in package scope");

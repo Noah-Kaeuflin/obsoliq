@@ -30,12 +30,13 @@ const domainModules = productionModules.filter(file => file.startsWith("js/inven
 const prototype = read("prototype.html");
 const app = read("app.js");
 const navTags = [...prototype.matchAll(/<button\b[^>]*data-process="([^"]+)"[^>]*>/g)].map(match => match[1]);
+const inventoryRisksNavigation = prototype.match(/<button\b[^>]*data-process="inventory-risks"[^>]*>[\s\S]*?<\/button>/)?.[0] || "";
 
 productionModules.forEach(file => check(fs.existsSync(path.join(root, file)), `Missing IR-01 production module: ${file}`));
 check(navTags.filter(route => route === "inventory-risks").length === 1, "Prototype must contain exactly one visible inventory-risks navigation button");
 check(!navTags.some(route => ["excess-stock", "slow-dead-stock", "blocked-quality"].includes(route)), "Prototype must not expose legacy risk routes as visible navigation buttons");
 check(navTags.length === 8, `Expected eight visible navigation buttons, received ${navTags.length}`);
-check(/data-process="inventory-risks"[^>]*data-i18n="navInventoryRisks"/.test(prototype), "Inventory Risks navigation must use the localized navInventoryRisks key");
+check(/<span\b[^>]*data-i18n="navInventoryRisks"[^>]*>/.test(inventoryRisksNavigation), "Inventory Risks navigation must expose a localized navInventoryRisks label inside the button");
 check(/<section id="view-inventory-risks"/.test(prototype) && /id="inventoryRisksPage"/.test(prototype), "Prototype must own the unified Inventory Risks view root");
 productionModules.forEach(file => check(prototype.includes(`<script src="${file}"></script>`), `${file} must load from prototype.html`));
 domainModules.forEach(file => check(!/\bdocument\b|querySelector|getElementById/.test(read(file)), `${file} must remain DOM-independent`));

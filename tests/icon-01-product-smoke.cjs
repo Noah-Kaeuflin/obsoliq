@@ -133,7 +133,7 @@ async function main() {
   const expectedNavigation = {
     overview: "overview",
     "inventory-explorer": "inventory-explorer",
-    "inventory-risks": "warning",
+    "inventory-risks": "inventory-risks",
     "purchase-orders": "purchase-orders",
     actions: "actions",
     "data-quality": "data-quality",
@@ -148,11 +148,14 @@ async function main() {
   };
   const failures = [];
   if (initial.protocol !== "file:") failures.push("not-file-protocol");
-  if (initial.spriteBefore !== 1 || initial.spriteAfter !== 1 || initial.symbolCount !== 39) failures.push("sprite-mount-contract");
+  if (initial.spriteBefore !== 1 || initial.spriteAfter !== 1 || initial.symbolCount !== 43) failures.push("sprite-mount-contract");
   if (initial.unknownHas || initial.unknownRender !== null) failures.push("unknown-icon-not-rejected");
   if (initial.navigation.length !== 8 || initial.navigation.some(item => item.icon !== expectedNavigation[item.route] || !item.text)) failures.push("navigation-mapping");
   if (initial.actions.some(item => item.icon !== expectedActions[item.id] || !item.text)) failures.push("action-mapping");
-  if (initial.actions.some(item => item.width !== 16 || item.height !== 16 || item.color !== item.parentColor || item.pointerEvents !== "none")) failures.push("icon-layout-or-current-color");
+  if (initial.actions.some(item => {
+    const expectedSize = item.id === "actionFeedback" ? 14 : 16;
+    return item.width !== expectedSize || item.height !== expectedSize || item.color !== item.parentColor || item.pointerEvents !== "none";
+  })) failures.push("icon-layout-or-current-color");
   if (initial.actions.find(item => item.id === "actionFeedback")?.hidden) failures.push("loaded-status-icon-hidden");
   if (JSON.stringify(mappingBefore) !== JSON.stringify(mappingAfter) || !/Overview/.test(englishOverview || "")) failures.push("language-mapping-regression");
   if (iconNetworkRequests.length) failures.push("icon-network-request");

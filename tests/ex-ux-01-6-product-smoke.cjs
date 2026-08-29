@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium, productUrl } = require("./smoke-runtime.cjs");
-const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
+const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
 const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-6");
 const viewports = [
   { width: 1440, height: 900 },
@@ -30,6 +30,7 @@ async function main() {
   await page.evaluate(() => window.__obsoliqTestBridge.loadSample());
   await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
   const routeState = await openUnifiedExcessSegment(page);
+  await activateExcessDetailTab(page, "decision");
 
   const results = [];
   for (const viewport of viewports) {
@@ -51,6 +52,9 @@ async function main() {
       const scoreLabel = scoreHeader?.querySelector(":scope > span");
       const openingLabel = document.querySelector(".inventory-risk-table thead th:last-child .visually-hidden");
       const navButtons = [...document.querySelectorAll(".excess-detail-section-nav button")];
+      const surface = document.querySelector(".inventory-risk-detail [data-excess-decision-surface]");
+      const panels = [...surface.querySelectorAll('[role="tabpanel"][data-excess-detail-section]')];
+      const visiblePanels = panels.filter(panel => !panel.hidden && panel.getAttribute("aria-hidden") === "false");
       const cards = [...document.querySelectorAll(".inventory-risk-summary-card")];
       const readable = [...document.querySelectorAll(".excess-primary-decision p, .excess-primary-decision li, .excess-readiness-matrix-list li, .excess-detail-note, .excess-action-option-meta dd")];
       const visible = [...pageRoot.querySelectorAll("*")].filter(node => node.getClientRects().length && getComputedStyle(node).display !== "none");
@@ -99,7 +103,12 @@ async function main() {
         invalidWeightSamples,
         invalidWeightGroups,
         equationTrackCount: document.querySelectorAll(".excess-value-equation-track").length,
-        anchorCount: document.querySelectorAll(".excess-section-anchor").length,
+        panelCount: panels.length,
+        visiblePanelCount: visiblePanels.length,
+        activePanel: visiblePanels[0]?.dataset.excessDetailSection || "",
+        linkedTabs: navButtons.every(tab => document.getElementById(tab.getAttribute("aria-controls"))?.getAttribute("aria-labelledby") === tab.id),
+        legacyAnchorCount: surface.querySelectorAll("[data-excess-section-anchor]").length,
+        legacyLocationCount: navButtons.filter(tab => tab.hasAttribute("aria-current")).length,
         primaryActionFields: document.querySelectorAll(".excess-action-option.primary .excess-action-primary-fields > div").length,
         hasActionDisclosure: Boolean(document.querySelector(".excess-action-option.primary .excess-action-evidence-disclosure")),
         historicalEmptyHeight: document.querySelector(".excess-historical-state.unavailable")?.getBoundingClientRect().height || 0
@@ -115,22 +124,26 @@ async function main() {
     document.querySelector(".excess-detail-scroll").scrollTop = 0;
     window.scrollTo(0, 0);
   });
-  const landings = [];
+  const tabStates = [];
   for (const key of ["decision", "value", "history", "prioritization", "actions"]) {
-    await page.locator(`[data-excess-detail-target="${key}"]`).click();
-    await page.waitForTimeout(80);
-    landings.push(await page.evaluate(sectionKey => {
-      const navigation = document.querySelector(".excess-detail-section-nav");
-      const anchor = document.querySelector(`[data-excess-section-anchor="${sectionKey}"]`);
-      const section = document.querySelector(`[data-excess-detail-section="${sectionKey}"]`);
-      const heading = section?.querySelector("h4");
+    await activateExcessDetailTab(page, key);
+    tabStates.push(await page.evaluate(sectionKey => {
+      const surface = document.querySelector(".inventory-risk-detail [data-excess-decision-surface]");
+      const tabs = [...surface.querySelectorAll('[role="tab"][data-excess-detail-target]')];
+      const panels = [...surface.querySelectorAll('[role="tabpanel"][data-excess-detail-section]')];
+      const selected = tabs.filter(tab => tab.getAttribute("aria-selected") === "true");
+      const visible = panels.filter(panel => !panel.hidden && panel.getAttribute("aria-hidden") === "false");
+      const section = visible[0];
+      const heading = section?.querySelector("h4, h3");
       return {
         key: sectionKey,
-        current: navigation.querySelector("[aria-current='location']")?.dataset.excessDetailTarget,
-        anchorTop: anchor?.getBoundingClientRect().top,
-        navBottom: navigation.getBoundingClientRect().bottom,
-        headingTop: heading?.getBoundingClientRect().top,
-        headingVisible: Boolean(heading && heading.getBoundingClientRect().top >= navigation.getBoundingClientRect().bottom - 1)
+        selectedKey: selected[0]?.dataset.excessDetailTarget || "",
+        visibleKey: visible[0]?.dataset.excessDetailSection || "",
+        selectedCount: selected.length,
+        visibleCount: visible.length,
+        headingVisible: Boolean(heading && heading.getClientRects().length),
+        inactivePanelsHidden: panels.filter(panel => panel !== section).every(panel => panel.hidden && panel.getAttribute("aria-hidden") === "true"),
+        oneKeyboardTabStop: tabs.filter(tab => tab.tabIndex === 0).length === 1
       };
     }, key));
   }
@@ -167,12 +180,12 @@ async function main() {
     if (result.navMinHeight < 34) failures.push(`${result.width}x${result.height}:navigation-size`);
     if (result.summaryHeights.length !== 4 || result.summaryHeights.some(value => value < 64)) failures.push(`${result.width}x${result.height}:summary-height`);
     if (result.readableMinimum < 11 || result.invalidWeightCount > 0) failures.push(`${result.width}x${result.height}:typography`);
-    if (result.equationTrackCount !== 0 || result.anchorCount !== 5) failures.push(`${result.width}x${result.height}:presentation-contract`);
+    if (result.equationTrackCount !== 0 || result.panelCount !== 5 || result.visiblePanelCount !== 1 || result.activePanel !== "decision" || !result.linkedTabs || result.legacyAnchorCount || result.legacyLocationCount) failures.push(`${result.width}x${result.height}:presentation-contract`);
     if (result.primaryActionFields !== 2 || !result.hasActionDisclosure) failures.push(`${result.width}x${result.height}:primary-action`);
     if (result.width > 720 && result.historicalEmptyHeight && result.historicalEmptyHeight > 74) failures.push(`${result.width}x${result.height}:historical-density`);
   });
-  landings.forEach(landing => {
-    if (landing.current !== landing.key || !landing.headingVisible || landing.anchorTop < landing.navBottom - 1) failures.push(`${landing.key}:section-landing`);
+  tabStates.forEach(tabState => {
+    if (tabState.selectedKey !== tabState.key || tabState.visibleKey !== tabState.key || tabState.selectedCount !== 1 || tabState.visibleCount !== 1 || !tabState.headingVisible || !tabState.inactivePanelsHidden || !tabState.oneKeyboardTabStop) failures.push(`${tabState.key}:tab-activation`);
   });
   if (!/Decision/.test(english.nav) || !/Action paths/.test(english.nav)) failures.push("english-navigation");
   if (!/Unique Risk Entities/.test(english.summary) || !/Evidence Readiness/.test(english.summary) || !/Show evidence and derivation/.test(english.action)) failures.push("english-content");
@@ -183,7 +196,7 @@ async function main() {
     status: failures.length ? "failed" : "passed",
     results,
     routeState,
-    landings,
+    tabStates,
     english,
     pageErrors,
     consoleErrors,

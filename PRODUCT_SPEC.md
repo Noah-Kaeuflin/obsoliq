@@ -6,11 +6,25 @@ ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. 
 
 The product helps users move from SAP or Excel inventory data to classification, recovery potential, root cause, recommended action, owner, status tracking and exportable management reporting.
 
-### ICON-01 — File-safe Icon Foundation & Global Shell
+### ICON-SYS-01 — Consistent Product Iconography
 
-ObsoliQ uses the local Icon Pack as its binding functional icon family. The 39-symbol pack follows a 24×24 Lucide outline contract with stroke width 2, no fill and color inherited through `currentColor`. A file-safe inline Sprite runtime loads before `app.js`, mounts exactly once without network access and accepts only known manifest IDs.
+ObsoliQ uses one local, licensed 43-symbol Lucide outline family for product navigation, recurring actions, Overview KPIs, Unified Inventory Risks, Decision Workspace navigation, Data Quality and Data Foundation. The current `Bestandsrisiken` / `Inventory Risks` route uses the dedicated `inventory-risks` portfolio symbol; the existing Excess, Slow / Dead and Blocked / Quality symbols remain available for Risk Family semantics.
 
-ICON-01 is intentionally limited to the ten existing main-navigation routes and the existing Upload File, Sample Data, Inventory Export and loaded-data status elements. Mapping uses stable route and element IDs, so German/English text changes do not alter icon identity. Visible text remains the accessible name; decorative SVGs are hidden from assistive technology and cannot intercept pointer events. The Q signet, logo assets, KPI cards, Data Quality content, Data Foundation and Excess Decision Workspace remain unchanged.
+Icons are orientation aids, not decoration or a substitute for text. Normal navigation and actions retain visible translated labels; icon-only controls require an accessible name and title. Status meaning remains textual and never relies on color or shape alone. Icons use `currentColor`, fixed 14/16/18 px roles and the shared outline contract in both themes.
+
+The Icon System is entirely local and `file://` compatible. A synchronous inline Sprite loads before `app.js`; no CDN, icon font, fetch or external SVG reference is permitted. Its stable allowlisted IDs are independent of German/English labels and introduce no Analytics, Dataset, Registry, Recovery, workflow or export state.
+
+### ICON-SYS-01.1 — Semantic Icon Roles & Optical Calibration
+
+Icons remain semantic orientation aids. Unified Risk portfolio measures use the dedicated `inventory-risks`, `prioritized-cases`, `owner-coverage` and `evidence-readiness` IDs; the three separated financial measures retain `recovery-potential`, `slow-dead-stock` and `blocked-quality`. Every KPI icon sits in the same 30 px tile beside its textual label, value and status note.
+
+Case selection inside the Risk Decision List uses a Chevron because it opens the existing detail pane. Inventory and Actions workflow navigation uses the corresponding destination icon and keeps its exact-case handoff. Detail tabs retain their five established semantic IDs, while CSS-only transforms optically balance their different Lucide geometries. Risk Family segments stay deliberately text-and-count based. This presentation contract changes no KPI, count, evidence, owner, score, recovery, export or workflow calculation.
+
+### ICON-SYS-01.2 — Unified Risk KPI Scale & Legibility
+
+The Unified Risk summary uses a responsive, workspace-scoped legibility contract. Desktop cards use 38 px icon tiles with 21 px icons, 12.5 px labels, 26 px portfolio values, 28 px financial values and 11.5 px meta text. At 1200 px and below this reduces to 36/20 px tiles and icons; below 620 px it reduces to 34/18 px while preserving one-column readability. Top cards use a 92 px desktop minimum and Financial Cards use 96 px, with controlled responsive reductions.
+
+The seven semantic icon IDs, KPI values, case counts, financial separation, filters, worklist, detail selection and export behavior remain unchanged. The larger scale is implemented only through `.inventory-risk-summary` custom properties and does not alter global icon sizes, SVG geometry, Manifest or Sprite contents.
 
 ### EX-UX-01.2 — Excess Decision Core & Risk-Workbench Alignment
 
@@ -77,17 +91,27 @@ This work block adds no Portfolio chart, donut, radar, Forecast, AI score, succe
 
 The Excess page presents four equal Summary metrics for identified Net Addressable potential, Case count, average Opportunity Score and the Gross-to-Net ratio. The reset control is visible only while an Excess-local filter is active. The Worklist uses stable business columns, aligned monetary and score values, compact pagination and one clear Case action; the existing Case set, sorting and page logic remain unchanged.
 
-The bounded desktop workspace fills the available viewport and gives Worklist and Detail independent scroll ownership. A sticky navigation inside the Detail scroll links Decision, Value, History, Prioritization and Actions without introducing route or analytical state. The Next Review Step is the primary prompt, while causes, readiness limits, context and additional historical evidence use quieter supporting surfaces or disclosures.
+The bounded desktop workspace fills the available viewport and gives Worklist and Detail independent scroll ownership. EX-UX-01.5 historically linked Decision, Value, History, Prioritization and Actions through a sticky local guide; IR-DETAIL-UX-01 supersedes that interaction with the shared tab surface below. The Next Review Step is the primary prompt, while causes, readiness limits, context and additional historical evidence use quieter supporting surfaces or disclosures.
 
 The value presentation explicitly reads Gross Excess minus deductions or overlap equals Net Addressable. Inventory Value and remaining Inventory stay contextual and are not part of that equation. This closure is presentation-only: it does not change calculations, scores, Runtime evidence, Action Options, Pilot Reviews, upload, mapping, export, Registry or Package revisions.
 
 ### EX-UX-01.6 — Interaction, Semantic Color & Density Closure
 
-The Excess workspace now uses five exact Detail anchors for Decision, Value, History, Prioritization and Actions. Navigation uses native container scrolling, exposes the current location accessibly and removes its local handlers before rerendering. This interaction state remains DOM-only and does not become route, filter, Case or analytical state.
+EX-UX-01.6 established the five-part Decision, Value, History, Prioritization and Actions information architecture. Its historical anchor and local-scroll interaction is replaced by the true tab contract in IR-DETAIL-UX-01. Presentation state remains separate from route, filter, Case and analytical state.
 
 Display-level normalization suppresses exact repeated next-step and cause/readiness statements without deleting or modifying accepted projection data. The Value Bridge is a textual Gross-to-Net reconciliation rather than a success-like progress visualization. Historical empty states, Operational Context and the primary Action Option are compact, evidence remains available in native disclosures and unavailable or not-checkable states use neutral status treatment.
 
 At desktop widths above `1240px`, the Excess workspace owns the available viewport and gives Worklist and Detail independent internal scrolling without body scroll. Narrower widths keep natural page flow and responsive stacking. Summary metrics use a consistent `82px` height, Worklist values remain readable at accepted business widths and German presentation terms use Überbestand-specific wording. Calculations, scoring, accepted fields, upload, mapping, export, Registry and Package revisions are unchanged.
+
+### IR-DETAIL-UX-01 — Shared Excess Decision Surface
+
+The current Excess detail interaction supersedes the earlier anchor navigation. Standalone Excess and the embedded Excess & Demand family detail now render the same Decision Surface with five accessible tabs: Decision, Value Logic, History, Prioritization and Action Paths. One linked panel is visible at a time; click and standard Arrow/Home/End keyboard interaction keep selection, focus and visible content synchronized. The active tab persists only for the same exact case and resets to Decision when the case changes.
+
+The Decision Surface responds to its actual panel width through CSS container queries. This keeps the same accepted components legible in the standalone workspace, the Unified Inventory Risks split pane and narrow layouts without deriving composition from the browser viewport alone. Decision text remains at least 12 px, the Gross-to-Net equation remains readable, History and Score retain their accepted evidence, and Action Options remain structured decision paths rather than an unformatted text list.
+
+This is a presentation-only composition. It does not change Excess or Recovery values, Gross-to-Net order, Opportunity Score components or maxima, Decision Readiness, Historical aggregation, Action Option status, recommendation text, Case IDs, selection semantics, upload, mapping, Data Quality, export, Registry records or Package revisions.
+
+IR-DETAIL-UX-01.1 completes the embedded visual contract. Next Review Step and Decision Readiness no longer share a stretched grid row, Readiness is presented as one flatter evidence surface, and Supporting Signals plus Score contributions use the same component treatment in both hosts. Prioritization stacks Score and structured Operational Context at medium surface widths and splits only from `760px`. Missing Consumption History remains explicitly unavailable and offers the precise “Verbrauchshistorie importieren” / “Import consumption history” action; it is never interpreted as zero consumption.
 
 ### AP 16.4b.1 — Source-Bound Interpretation & History Readiness Closure
 

@@ -12,15 +12,18 @@
     const document = app.document;
 
     assert.ok(icons, "Icon API should be available before app initialization completes");
-    assert.equal(icons.ICON_IDS.length, 39, "Runtime allowlist should contain all 39 manifest IDs");
+    assert.equal(icons.ICON_IDS.length, 43, "Runtime allowlist should contain all 43 manifest IDs");
     assert.equal(document.querySelectorAll("#obsoliq-icon-sprite").length, 1, "Sprite should mount exactly once");
     icons.mount();
     icons.mount();
     assert.equal(document.querySelectorAll("#obsoliq-icon-sprite").length, 1, "Repeated mount should remain idempotent");
-    assert.equal(document.querySelectorAll("#obsoliq-icon-sprite symbol").length, 39, "Mounted sprite should contain all symbols");
+    assert.equal(document.querySelectorAll("#obsoliq-icon-sprite symbol").length, 43, "Mounted sprite should contain all symbols");
     assert.equal(icons.has("overview"), true, "Known icon should be accepted");
     assert.equal(icons.has("not-an-icon"), false, "Unknown icon should be rejected");
     assert.equal(icons.render("not-an-icon"), null, "Unknown icon rendering should fail closed");
+    assert.throws(() => icons.iconHtml("not-an-icon"), /Unknown ObsoliQ icon ID/, "Unknown iconHtml input should fail hard in test mode");
+    assert.equal(icons.hasIcon("inventory-risks"), true, "Public hasIcon alias should include Inventory Risks");
+    assert.equal(icons.iconIds, icons.ICON_IDS, "Public iconIds must expose the frozen allowlist");
     const rendered = icons.render("overview", "oq-icon-nav injected-class");
     assert.ok(rendered, "Known icon should render");
     assert.equal(rendered.classList.contains("oq-icon-nav"), true, "Allowed icon class should be retained");

@@ -26,10 +26,9 @@
     assert.ok(Boolean(app.document.querySelector('[data-inventory-risk-detail-family="excess_demand"] [data-value-bridge]')), "The selected Excess Case must render its value evidence");
   });
 
-  test("R0B binds the embedded Excess section guide inside the Unified detail pane", async assert => {
+  test("R0B binds the embedded Excess tabs inside the Unified detail pane", async assert => {
     const app = await helpers.loadSampleApp();
     app.__obsoliqTestBridge.switchInventoryRiskRouteForTest("inventory-risks", null, "excess_demand");
-    app.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} });
     const detail = app.document.querySelector('[data-inventory-risk-detail-family="excess_demand"]');
     const scrollContainer = detail.querySelector(".excess-detail-scroll");
     const navigation = detail.querySelector(".excess-detail-section-nav");
@@ -38,10 +37,11 @@
     target.click();
     await wait(40);
 
-    assert.equal(app.getComputedStyle(navigation).position, "sticky", "The embedded section guide must stay visible while detail evidence scrolls");
+    assert.equal(navigation.getAttribute("role"), "tablist", "The embedded section navigation must be a true tablist");
     assert.equal(app.getComputedStyle(scrollContainer).overflowY, "auto", "The detail evidence must own its internal scrolling");
     assert.equal(app.getComputedStyle(detail).overflowY, "hidden", "The Unified detail shell must not create a competing vertical scrollbar");
-    assert.equal(navigation.querySelector('[aria-current="location"]')?.dataset.excessDetailTarget, "value", "Clicking Value logic must update the active section contract");
-    assert.ok(scrollContainer.scrollTop > 0, "Clicking a section must move the embedded evidence pane");
+    assert.equal(navigation.querySelector('[aria-selected="true"]')?.dataset.excessDetailTarget, "value", "Clicking Value logic must update the selected tab contract");
+    assert.equal(detail.querySelectorAll('[role="tabpanel"]:not([hidden])').length, 1, "The embedded decision surface must expose exactly one visible panel");
+    assert.equal(detail.querySelector('[role="tabpanel"]:not([hidden])')?.dataset.excessDetailSection, "value", "The selected tab and visible embedded panel must agree");
   });
 })();

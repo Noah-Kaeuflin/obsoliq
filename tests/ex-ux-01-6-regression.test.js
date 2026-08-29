@@ -21,7 +21,7 @@
     });
   }
 
-  test("EX-UX-01.6 uses one anchored navigation mechanism with rerender-safe bindings", async assert => {
+  test("EX-UX-01.6 uses one true tab mechanism with rerender-safe bindings", async assert => {
     const app = await helpers.loadSampleApp();
     const bridge = app.__obsoliqTestBridge;
     bridge.switchViewForTest("excess");
@@ -30,25 +30,20 @@
 
     const scroll = app.document.querySelector(".excess-detail-scroll");
     const navigation = scroll.querySelector(".excess-detail-section-nav");
-    const anchors = [...scroll.querySelectorAll("[data-excess-section-anchor]")];
+    const panels = [...scroll.querySelectorAll("[role='tabpanel'][data-excess-detail-section]")];
     const keys = ["decision", "value", "history", "prioritization", "actions"];
-    assert.deepEqual(anchors.map(anchor => anchor.dataset.excessSectionAnchor), keys, "Exactly five ordered section anchors should exist");
-    assert.equal(navigation.querySelector("[aria-current='location']")?.dataset.excessDetailTarget, "decision", "The first location should be current at the top");
-    assert.notEqual(app.getComputedStyle(scroll).scrollPaddingTop, "48px", "The old scroll-padding offset must be absent");
-    assert.ok(parseFloat(app.getComputedStyle(anchors[0]).scrollMarginTop) >= 52, "The anchor should own the sticky navigation offset");
-
-    let invocationCount = 0;
-    let receivedOptions = null;
-    const valueAnchor = anchors[1];
-    valueAnchor.scrollIntoView = options => {
-      invocationCount += 1;
-      receivedOptions = options;
-    };
+    assert.deepEqual(panels.map(panel => panel.dataset.excessDetailSection), keys, "Exactly five ordered tab panels should exist");
+    assert.equal(navigation.getAttribute("role"), "tablist", "The local navigation should expose a tablist");
+    assert.equal(navigation.querySelector("[aria-selected='true']")?.dataset.excessDetailTarget, "decision", "Decision should be selected initially");
+    assert.equal(scroll.querySelectorAll("[data-excess-section-anchor]").length, 0, "The old section anchors must be absent");
     navigation.querySelector("[data-excess-detail-target='value']").click();
-    assert.equal(invocationCount, 1, "One click should invoke one native anchor scroll after rerenders");
-    assert.equal(receivedOptions?.block, "start", "Native scrolling should target the anchor start");
-    assert.ok(["auto", "smooth"].includes(receivedOptions?.behavior), "Motion preference should control only native scroll behavior");
-    assert.equal(navigation.querySelector("[aria-current='location']")?.dataset.excessDetailTarget, "value", "Click state and current location should agree");
+    assert.equal(navigation.querySelector("[aria-selected='true']")?.dataset.excessDetailTarget, "value", "Click state and selected tab should agree");
+    assert.equal(panels.filter(panel => !panel.hidden).length, 1, "Exactly one panel should remain visible after a rerender-safe click");
+    assert.equal(panels.find(panel => !panel.hidden)?.dataset.excessDetailSection, "value", "Value logic should be the only visible panel");
+
+    const valueTab = navigation.querySelector("[data-excess-detail-target='value']");
+    valueTab.dispatchEvent(new app.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    assert.equal(navigation.querySelector("[aria-selected='true']")?.dataset.excessDetailTarget, "history", "ArrowRight should activate the next tab");
   });
 
   test("EX-UX-01.6 keeps the six-column Worklist readable and accessible", async assert => {
@@ -155,13 +150,14 @@
     assert.equal(page.querySelectorAll(".excess-value-equation-track").length, 0, "The value bridge must not use a realization-like progress track");
     assert.ok(page.querySelector("[data-value-reconciliation]")?.textContent.includes("Brutto"), "The bridge should explain Gross-to-Net as an equation");
     assert.ok(page.querySelector(".excess-value-boundary")?.textContent.includes("noch nicht genehmigt oder realisiert"), "The identified-potential boundary should remain explicit");
-    assert.equal(page.querySelector(".excess-historical-state.unavailable button")?.textContent.trim(), "Importieren", "Historical import should use the compact contextual label");
+    assert.equal(page.querySelector(".excess-historical-state.unavailable button")?.textContent.trim(), "Verbrauchshistorie importieren", "Historical import should name the exact source package");
     assert.equal(page.querySelectorAll(".excess-action-option.primary .excess-action-primary-fields > div").length, 2, "The primary option should expose Decision Type and Next Check directly");
     assert.ok(page.querySelector(".excess-action-option.primary .excess-action-evidence-disclosure"), "Evidence and derivation should move into one disclosure");
-    assert.ok(page.querySelector(".excess-operational-context")?.textContent.includes("Kategorie:"), "Operational context should label category");
-    assert.ok(page.querySelector(".excess-operational-context")?.textContent.includes("Match:"), "Operational context should label match state");
+    const operationalTerms = [...page.querySelectorAll(".excess-operational-context > div > dt")].map(node => node.textContent.trim());
+    assert.ok(operationalTerms.includes("Kategorie"), "Operational context should label category semantically");
+    assert.ok(operationalTerms.includes("Match"), "Operational context should label match state semantically");
     assert.ok(page.querySelectorAll(".excess-summary-card")[2]?.textContent.includes("Ø Priorisierungsscore"), "German prioritization terminology should be complete");
-    assert.ok(page.textContent.includes("kein Erfolgsversprechen"), "The score disclaimer should avoid probability wording");
+    assert.ok(page.textContent.includes("keine Erfolgsprognose"), "The score disclaimer should avoid probability wording");
     assert.equal(modelSignature(bridge.currentExcessPageModelForTest()), before, "Presentation closure must not mutate the analytical model");
   });
 

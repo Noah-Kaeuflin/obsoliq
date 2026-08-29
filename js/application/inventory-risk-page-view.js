@@ -13,6 +13,10 @@
     const count = typeof options.formatCount === "function" ? options.formatCount : value => String(value ?? 0);
     const percent = typeof options.formatPercent === "function" ? options.formatPercent : value => value === null ? "-" : `${Math.round(value * 100)}%`;
 
+    function icon(iconId, className = "oq-icon--button") {
+      return root.ui?.iconSystem?.iconHtml(iconId, { className }) || "";
+    }
+
     function familyLabel(family) {
       return t(`inventoryRiskFamily_${family}`);
     }
@@ -63,7 +67,7 @@
             <h2>${escape(t("inventoryRiskTitle"))}</h2>
             <p>${escape(t("inventoryRiskSubtitle"))}</p>
           </div>
-          <button class="secondary inventory-risk-export" type="button" data-inventory-risk-export>${escape(t("inventoryRiskExport"))}</button>
+          <button class="secondary inventory-risk-export" type="button" data-inventory-risk-export>${icon("export")}<span>${escape(t("inventoryRiskExport"))}</span></button>
           <div class="inventory-risk-segments" role="tablist" aria-label="${escape(t("inventoryRiskSegmentsAria"))}">
             ${segments.map(segment => `
               <button type="button" role="tab" data-inventory-risk-segment="${escape(segment)}" aria-selected="${model.state.segment === segment ? "true" : "false"}" class="${model.state.segment === segment ? "active" : ""}">
@@ -82,7 +86,10 @@
         <section class="inventory-risk-controls" aria-label="${escape(t("inventoryRiskFiltersAria"))}">
           <label class="inventory-risk-search">
             <span>${escape(t("searchLabel"))}</span>
-            <input type="search" data-inventory-risk-filter="search" value="${escape(filters.search)}" placeholder="${escape(t("searchPlaceholder"))}">
+            <span class="inventory-risk-search-input-wrap">
+              ${icon("search", "oq-icon--micro")}
+              <input type="search" data-inventory-risk-filter="search" value="${escape(filters.search)}" placeholder="${escape(t("searchPlaceholder"))}">
+            </span>
           </label>
           <label><span>${escape(t("plantLabel"))}</span><select data-inventory-risk-filter="plant">${selectOptions(model.filterOptions.plants, filters.plant)}</select></label>
           <label><span>${escape(t("groupLabel"))}</span><select data-inventory-risk-filter="program">${selectOptions(model.filterOptions.programs, filters.program)}</select></label>
@@ -93,7 +100,7 @@
           })}</select></label>
           <label><span>${escape(t("colPriority"))}</span><select data-inventory-risk-filter="priority">${selectOptions(model.filterOptions.priorities, filters.priority, priorityLabel)}</select></label>
           <label><span>${escape(t("inventoryRiskEvidenceStatus"))}</span><select data-inventory-risk-filter="evidenceStatus">${selectOptions(model.filterOptions.evidenceStatuses, filters.evidenceStatus, evidenceLabel)}</select></label>
-          <button class="secondary compact inventory-risk-reset" type="button" data-inventory-risk-reset>${escape(t("resetFilters"))}</button>
+          <button class="secondary compact inventory-risk-reset" type="button" data-inventory-risk-reset>${icon("reset-filter")}<span>${escape(t("resetFilters"))}</span></button>
         </section>
       `;
     }
@@ -105,17 +112,17 @@
       )}</p>`;
     }
 
-    function metric(label, value, note = "", tooltip = "") {
-      return `<div class="inventory-risk-summary-card"${tooltip ? ` title="${escape(tooltip)}"` : ""}><span>${escape(label)}</span><strong>${escape(value)}</strong>${note ? `<small>${escape(note)}</small>` : ""}</div>`;
+    function metric(label, value, note = "", tooltip = "", iconId = "information") {
+      return `<article class="inventory-risk-summary-card"${tooltip ? ` title="${escape(tooltip)}"` : ""}><span class="inventory-risk-kpi-icon" aria-hidden="true">${icon(iconId, "oq-icon--kpi")}</span><div class="inventory-risk-kpi-copy"><span class="inventory-risk-kpi-label">${escape(label)}</span><strong class="inventory-risk-kpi-value">${escape(value)}</strong>${note ? `<small class="inventory-risk-kpi-meta">${escape(note)}</small>` : ""}</div></article>`;
     }
 
-    function financialMetric(label, aggregate) {
+    function financialMetric(label, aggregate, iconId) {
       const available = aggregate?.status === "available";
       const value = available ? money(aggregate.value) : t("notAvailable");
       const note = aggregate?.status === "incomplete"
         ? t("inventoryRiskFinancialIncomplete").replace("{available}", count(aggregate.availableCount)).replace("{total}", count(aggregate.applicableCount))
         : t("inventoryRiskFinancialSemanticNote");
-      return `<div class="inventory-risk-financial-card ${escape(aggregate?.status || "unavailable")}"><span>${escape(label)}</span><strong title="${available ? escape(fullMoney(aggregate.value)) : ""}">${escape(value)}</strong><small>${escape(note)}</small></div>`;
+      return `<article class="inventory-risk-financial-card ${escape(aggregate?.status || "unavailable")}"><span class="inventory-risk-kpi-icon" aria-hidden="true">${icon(iconId, "oq-icon--kpi")}</span><div class="inventory-risk-kpi-copy"><span class="inventory-risk-kpi-label">${escape(label)}</span><strong class="inventory-risk-kpi-value" title="${available ? escape(fullMoney(aggregate.value)) : ""}">${escape(value)}</strong><small class="inventory-risk-kpi-meta">${escape(note)}</small></div></article>`;
     }
 
     function renderSummary(model) {
@@ -127,20 +134,21 @@
       return `
         <section class="inventory-risk-summary" aria-label="${escape(t("inventoryRiskSummaryAria"))}">
           <div class="inventory-risk-summary-grid">
-            ${metric(t("inventoryRiskUniqueEntities"), count(summary.uniqueRiskEntities))}
-            ${metric(t("inventoryRiskPrioritizedCases"), count(summary.prioritizedCases))}
-            ${metric(t("inventoryRiskOwnerCoverage"), percent(summary.ownerCoverage))}
+            ${metric(t("inventoryRiskUniqueEntities"), count(summary.uniqueRiskEntities), "", "", "inventory-risks")}
+            ${metric(t("inventoryRiskPrioritizedCases"), count(summary.prioritizedCases), "", "", "prioritized-cases")}
+            ${metric(t("inventoryRiskOwnerCoverage"), percent(summary.ownerCoverage), "", "", "owner-coverage")}
             ${metric(
               t("inventoryRiskEvidenceReadiness"),
               evidenceAvailable ? percent(summary.evidenceReadiness) : t("notAvailable"),
               evidenceCount,
-              t("inventoryRiskEvidenceReadinessHelp")
+              t("inventoryRiskEvidenceReadinessHelp"),
+              "evidence-readiness"
             )}
           </div>
           <div class="inventory-risk-financial-summary" aria-label="${escape(t("inventoryRiskSeparatedFinancials"))}">
-            ${financialMetric(t("inventoryRiskNetAddressable"), summary.financials.netAddressable)}
-            ${financialMetric(t("inventoryRiskExposure"), summary.financials.slowDeadExposure)}
-            ${financialMetric(t("inventoryRiskBlockedValue"), summary.financials.blockedQualityValue)}
+            ${financialMetric(t("inventoryRiskNetAddressable"), summary.financials.netAddressable, "recovery-potential")}
+            ${financialMetric(t("inventoryRiskExposure"), summary.financials.slowDeadExposure, "slow-dead-stock")}
+            ${financialMetric(t("inventoryRiskBlockedValue"), summary.financials.blockedQualityValue, "blocked-quality")}
           </div>
           <p class="inventory-risk-financial-guard">${escape(t("inventoryRiskNoCombinedTotal"))}</p>
         </section>
@@ -160,7 +168,7 @@
           <td><span class="inventory-risk-priority ${escape(item.priority)}">${escape(priorityLabel(item.priority))}</span></td>
           <td><strong>${escape(owner)}</strong><small>${escape(item.owner_function || "-")}</small></td>
           <td><span class="inventory-risk-evidence ${escape(item.evidence_status)}">${escape(evidenceLabel(item.evidence_status))}</span></td>
-          <td><button class="secondary compact" type="button" data-inventory-risk-select="${escape(id)}" aria-label="${escape(t("inventoryRiskOpenCase"))}">›</button></td>
+          <td><button class="secondary compact icon-only inventory-risk-case-open" type="button" data-purpose="select-case" data-inventory-risk-select="${escape(id)}" aria-label="${escape(`${t("inventoryRiskOpenCase")} ${item.material_id || ""}`.trim())}" title="${escape(t("inventoryRiskOpenCase"))}">${icon("expand")}</button></td>
         </tr>
       `;
     }
@@ -172,7 +180,7 @@
       return `
         <section class="inventory-risk-worklist panel">
           <div class="inventory-risk-panel-head">
-            <div><h3>${escape(t("inventoryRiskWorklistTitle"))}</h3><p>${escape(t("inventoryRiskWorklistSubtitle"))}</p></div>
+            <div><h3 class="oq-icon-label">${icon("review-case", "oq-icon--section")}<span>${escape(t("inventoryRiskWorklistTitle"))}</span></h3><p>${escape(t("inventoryRiskWorklistSubtitle"))}</p></div>
             <label><span>${escape(t("rows"))}</span><select data-inventory-risk-page-size>${[10, 25, 50, 100].map(size => `<option value="${size}"${model.pageSize === size ? " selected" : ""}>${size}</option>`).join("")}</select></label>
           </div>
           <div class="inventory-risk-table-wrap">
@@ -209,7 +217,7 @@
           <div><span class="inventory-risk-family-pill blocked_quality">${escape(familyLabel("blocked_quality"))}</span><h3>${escape(item.material_id || t("notAvailable"))}</h3><p>${escape(item.material_description || "-")}</p></div>
           <span class="inventory-risk-capability limited">${escape(t("inventoryRiskCapabilityLimited"))}</span>
         </div>
-        <div class="inventory-risk-detail-actions"><button class="secondary compact" type="button" data-inventory-risk-open-inventory="${escape(caseId(item))}">${escape(t("inventoryRiskOpenInventory"))}</button><button class="secondary compact" type="button" data-inventory-risk-open-actions="${escape(caseId(item))}">${escape(t("inventoryRiskOpenActions"))}</button></div>
+        <div class="inventory-risk-detail-actions"><button class="secondary compact" type="button" data-inventory-risk-open-inventory="${escape(caseId(item))}">${icon("inventory-explorer")}<span>${escape(t("inventoryRiskOpenInventory"))}</span></button><button class="secondary compact" type="button" data-inventory-risk-open-actions="${escape(caseId(item))}">${icon("actions")}<span>${escape(t("inventoryRiskOpenActions"))}</span></button></div>
         <div class="inventory-risk-detail-kpis">
           <div><span>${escape(t("inventoryRiskBlockedValue"))}</span><strong>${escape(item.blocked_quality_value === null ? t("notAvailable") : money(item.blocked_quality_value))}</strong></div>
           <div><span>${escape(t("inventoryRiskSourceStatus"))}</span><strong>${escape(source.status_safety || source.availability || t("notAvailable"))}</strong></div>
@@ -226,7 +234,7 @@
     function renderGenericDetail(item = {}) {
       return `
         <div class="inventory-risk-detail-head"><div><span class="inventory-risk-family-pill ${escape(item.primary_risk_family)}">${escape(familyLabel(item.primary_risk_family))}</span><h3>${escape(item.material_id || t("notAvailable"))}</h3><p>${escape(item.material_description || "-")}</p></div></div>
-        <div class="inventory-risk-detail-actions"><button class="secondary compact" type="button" data-inventory-risk-open-inventory="${escape(caseId(item))}">${escape(t("inventoryRiskOpenInventory"))}</button><button class="secondary compact" type="button" data-inventory-risk-open-actions="${escape(caseId(item))}">${escape(t("inventoryRiskOpenActions"))}</button></div>
+        <div class="inventory-risk-detail-actions"><button class="secondary compact" type="button" data-inventory-risk-open-inventory="${escape(caseId(item))}">${icon("inventory-explorer")}<span>${escape(t("inventoryRiskOpenInventory"))}</span></button><button class="secondary compact" type="button" data-inventory-risk-open-actions="${escape(caseId(item))}">${icon("actions")}<span>${escape(t("inventoryRiskOpenActions"))}</span></button></div>
         <div class="inventory-risk-detail-kpis"><div><span>${escape(valueLabel(item))}</span><strong>${escape(valueFor(item) === null ? t("notAvailable") : money(valueFor(item)))}</strong></div><div><span>${escape(t("inventoryRiskEvidenceStatus"))}</span><strong>${escape(evidenceLabel(item.evidence_status))}</strong></div><div><span>${escape(t("inventoryRiskOwner"))}</span><strong>${escape(item.owner_reference || item.owner_function || t("inventoryRiskUnassigned"))}</strong></div></div>
         <section><h4>${escape(t("inventoryRiskAvailableEvidence"))}</h4>${renderList(item.evidence)}</section>
         <section><h4>${escape(t("inventoryRiskCounterEvidence"))}</h4>${renderList(item.counter_evidence)}</section>

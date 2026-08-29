@@ -58,9 +58,9 @@ testScripts.forEach(reference => validateLocalReference(path.join(root, "tests")
 check(new Set(productScripts).size === productScripts.length, "Product entry loads a script more than once");
 check(new Set(testScripts).size === testScripts.length, "Test entry loads a script more than once");
 analysisOnlyScripts.forEach(script => check(!productScripts.includes(script), `Production loads analysis-only module: ${script}`));
-check(productScripts.filter(script => script === "js/ui/obsoliq-icon-system.js").length === 1, "Icon runtime must be loaded exactly once");
+check(productScripts.filter(script => script === "js/ui/icon-system.js").length === 1, "Icon runtime must be loaded exactly once");
 check(productScripts.indexOf("js/slow-dead/slow-dead-condition-engine.js") < productScripts.indexOf("js/slow-dead/slow-dead-page-model.js"), "Condition Engine dependency order is invalid");
-check(productScripts.indexOf("js/ui/obsoliq-icon-system.js") < productScripts.indexOf("app.js"), "Icon runtime must load before app.js");
+check(productScripts.indexOf("js/ui/icon-system.js") < productScripts.indexOf("app.js"), "Icon runtime must load before app.js");
 
 const analysisListMatch = helpers.match(/const CALIBRATION_ANALYSIS_SCRIPTS = Object\.freeze\((\[[\s\S]*?\])\);/);
 check(Boolean(analysisListMatch), "Analysis bootstrap list is not statically inspectable");
@@ -85,11 +85,12 @@ const appSource = read("app.js");
 });
 
 const requiredPackageFiles = [
-  "assets/icons/obsoliq/icon-manifest.json",
-  "assets/icons/obsoliq/obsoliq-icon-sprite.svg",
-  "assets/icons/obsoliq/LICENSE-LUCIDE.txt",
-  "assets/icons/obsoliq/README.md",
-  "js/ui/obsoliq-icon-system.js",
+  "assets/icons/icon-manifest.json",
+  "assets/icons/obsoliq-icon-sprite.svg",
+  "assets/icons/LICENSE-LUCIDE.txt",
+  "assets/icons/README.md",
+  "assets/icons/navigation/inventory-risks.svg",
+  "js/ui/icon-system.js",
   ...analysisOnlyScripts,
   "tests/fixtures/slow-dead-calibration-fixtures.js",
   "tests/fixtures/slow-dead-calibration-baseline-evidence.json",

@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium, productUrl } = require("./smoke-runtime.cjs");
-const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
+const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
 const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-4");
 const viewports = [
   { width: 1440, height: 900 },
@@ -80,7 +80,7 @@ async function main() {
       const score = card?.querySelector(".excess-score-list[data-score-component-maximum-source='opportunity-score-engine']");
       const actions = card?.querySelector(".excess-action-options-section");
       const work = card?.querySelector(".excess-work-context");
-      const children = card ? [...card.children] : [];
+      const panels = [...(card?.querySelectorAll(':scope > [role="tabpanel"][data-excess-detail-section]') || [])];
       const scoreRows = score ? [...score.querySelectorAll("[data-score-component]")] : [];
       const directReadinessColumns = [...document.querySelectorAll(".excess-readiness-card > .excess-readiness-grid > div")];
       const importantNodes = [...document.querySelectorAll(
@@ -104,11 +104,16 @@ async function main() {
         readinessDisclosure: Boolean(document.querySelector("details.excess-readiness-more > summary")),
         primaryOptionOpen: Boolean(document.querySelector("article.excess-action-option.primary .excess-action-option-meta")),
         secondaryOptionsCompact: [...document.querySelectorAll("details.excess-action-option.secondary")].every(node => !node.open),
-        correctOrder: children.indexOf(narrative) < children.indexOf(value)
-          && children.indexOf(value) < children.indexOf(card?.querySelector(".excess-historical-state"))
-          && children.indexOf(card?.querySelector(".excess-historical-state")) < children.indexOf(card?.querySelector(".excess-decision-basis-grid"))
-          && children.indexOf(card?.querySelector(".excess-decision-basis-grid")) < children.indexOf(actions)
-          && children.indexOf(actions) < children.indexOf(work)
+        panelOrder: panels.map(panel => panel.dataset.excessDetailSection),
+        activePanelCount: panels.filter(panel => !panel.hidden && panel.getAttribute("aria-hidden") === "false").length,
+        panelContentMapped: Boolean(
+          narrative?.closest('[data-excess-detail-section="decision"]')
+          && value?.closest('[data-excess-detail-section="value"]')
+          && history?.closest('[data-excess-detail-section="history"]')
+          && score?.closest('[data-excess-detail-section="prioritization"]')
+          && actions?.closest('[data-excess-detail-section="actions"]')
+          && work?.closest('[data-excess-detail-section="actions"]')
+        )
       };
     }, viewport);
     results.push(result);
@@ -119,6 +124,7 @@ async function main() {
 
   await page.setViewportSize(viewports[0]);
   await installCanonicalHistoryFixture(page);
+  await activateExcessDetailTab(page, "decision");
   const readinessSummary = page.locator("details.excess-readiness-more > summary");
   await readinessSummary.focus();
   await page.keyboard.press("Shift+Tab");
@@ -151,7 +157,7 @@ async function main() {
     if (!result.scoreRows.length || !result.scoreAccessible || result.scoreRows.some(row => Math.abs(row.ratio - Math.min(1, row.contribution / row.maximum)) > 0.0002)) failures.push(`${result.width}:score-contract`);
     if (!result.readinessDirectBounded || !result.readinessDisclosure) failures.push(`${result.width}:readiness-contract`);
     if (!result.primaryOptionOpen || !result.secondaryOptionsCompact) failures.push(`${result.width}:action-option-contract`);
-    if (!result.correctOrder) failures.push(`${result.width}:visual-order`);
+    if (result.panelOrder.join(",") !== "decision,value,history,prioritization,actions" || result.activePanelCount !== 1 || !result.panelContentMapped) failures.push(`${result.width}:tab-panel-composition`);
   });
   if (!readinessFocusVisible || !readinessKeyboardOpened) failures.push("readiness-keyboard-accessibility");
   if (rendererHardcodesWeights) failures.push("score-renderer-hardcodes-weights");

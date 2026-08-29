@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium, productUrl } = require("./smoke-runtime.cjs");
-const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
+const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
 const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-3");
 const viewports = [
   { width: 1440, height: 900 },
@@ -24,6 +24,7 @@ async function main() {
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
   const routeState = await openUnifiedExcessSegment(page);
+  await activateExcessDetailTab(page, "decision");
 
   const results = [];
   for (const viewport of viewports) {
@@ -34,6 +35,7 @@ async function main() {
       const scroll = document.querySelector(".excess-detail-scroll");
       const narrative = document.querySelector("[data-decision-narrative-grid]");
       const core = document.querySelector(".excess-decision-core");
+      const surface = document.querySelector("[data-excess-decision-surface]");
       const style = getComputedStyle(narrative);
       const layoutStyle = getComputedStyle(document.querySelector(".inventory-risk-workspace"));
       const importantNodes = [...document.querySelectorAll(".excess-case-identity, .excess-primary-decision, .excess-action-option, .excess-value-narrative, .excess-work-context")];
@@ -43,8 +45,9 @@ async function main() {
         bodyOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - innerWidth,
         layoutColumns: layoutStyle.gridTemplateColumns.split(" ").filter(Boolean).length,
         narrativeColumns: style.gridTemplateColumns.split(" ").filter(Boolean).length,
-        coreOutsideScroll: core?.parentElement === detail && scroll?.parentElement === detail,
-        narrativeInsideScroll: Boolean(narrative?.closest(".excess-detail-scroll")),
+        surfaceWidth: surface?.getBoundingClientRect().width || 0,
+        coreInSharedSurface: core?.parentElement === surface && scroll?.parentElement === surface,
+        narrativeInActivePanel: Boolean(narrative?.closest('[role="tabpanel"][data-excess-detail-section="decision"]:not([hidden])')),
         internalScrollAvailable: scroll.scrollHeight >= scroll.clientHeight,
         detailFamily: detail?.dataset.inventoryRiskDetailFamily || "",
         actionOptions: document.querySelectorAll(".excess-action-option").length,
@@ -68,13 +71,13 @@ async function main() {
   results.forEach(result => {
     if (result.bodyOverflow > 2) failures.push(`${result.width}:body-overflow`);
     if (result.componentOverflow) failures.push(`${result.width}:component-overflow`);
-    if (!result.coreOutsideScroll || !result.narrativeInsideScroll) failures.push(`${result.width}:scroll-contract`);
+    if (!result.coreInSharedSurface || !result.narrativeInActivePanel) failures.push(`${result.width}:shared-surface-contract`);
     if (result.detailFamily !== "excess_demand") failures.push(`${result.width}:unified-detail-family`);
     if (!result.actionOptions) failures.push(`${result.width}:action-options`);
     if (!result.readinessStatus) failures.push(`${result.width}:readiness`);
     if (result.valuePrimaryMentionsCash) failures.push(`${result.width}:net-labelled-cash`);
-    if (result.width > 720 && result.narrativeColumns !== 2) failures.push(`${result.width}:narrative-columns`);
-    if (result.width <= 720 && result.narrativeColumns !== 1) failures.push(`${result.width}:mobile-narrative-columns`);
+    const expectedNarrativeColumns = result.surfaceWidth >= 580 ? 2 : 1;
+    if (result.narrativeColumns !== expectedNarrativeColumns) failures.push(`${result.width}:container-responsive-narrative`);
     if (result.width <= 1240 && result.layoutColumns !== 1) failures.push(`${result.width}:responsive-layout-gap`);
   });
   if (pageErrors.length) failures.push("page-errors");

@@ -52,16 +52,24 @@ The local MVP remains a file-compatible browser prototype:
 - `js/application/excess-pilot-review-service.js` owns session-only Excess Pilot Review records, case fingerprints, lifecycle reconciliation, summaries, export rows and snapshot/restore behavior.
 - `js/application/excess-pilot-review-view.js` owns Pilot Review form, stale-review notice and lifecycle summary rendering.
 - `js/application/excess-pilot-review-controller.js` owns scoped Pilot Review save/export click handling inside the Excess page.
-- `js/ui/obsoliq-icon-system.js` owns the file-safe functional icon allowlist, inline Sprite mount and stable Shell decoration.
+- `js/ui/icon-system.js` owns the file-safe semantic icon allowlist, inline Sprite mount and static/dynamic icon rendering API.
 - `app.js` coordinates UI state, dataset transactions, remediation and rendering.
 
-## ICON-01 File-safe Functional Icon Boundary
+## ICON-SYS-01 Consistent Product Iconography Boundary
 
-The ObsoliQ Icon Pack under `assets/icons/obsoliq/` is the binding functional icon source. Its 39 Lucide-derived symbols use one `0 0 24 24` outline contract, `fill="none"`, `stroke="currentColor"` and stroke width `2`; the bundled Lucide license remains beside the manifest and Sprite.
+The binding presentation flow is:
 
-Because the product starts directly through `file://`, no external SVG `<use>` reference and no `fetch()` is used. `js/ui/obsoliq-icon-system.js` contains an exact trusted inline representation of the productive Sprite, mounts it idempotently once and renders local fragment references through a frozen 39-ID allowlist. Unknown IDs fail closed and optional CSS classes are restricted to the icon system's own allowlist.
+`assets/icons/icon-manifest.json` -> trusted inline Sprite -> `js/ui/icon-system.js` -> static and dynamic UI renderers.
 
-ICON-01 maps the ten global navigation routes and the existing Upload, Sample Data, Inventory Export and loaded-data status elements by stable route or element IDs. It does not derive meaning from German or English labels. Icons are decorative (`aria-hidden="true"`, `focusable="false"`), inherit the control's current color and never replace visible text. The block does not extend into KPI cards, Data Foundation, Data Quality content, Excess Detail navigation or analytical modules.
+The Icon Pack under `assets/icons/` contains 43 Lucide-derived symbols. Every individual SVG and Sprite symbol uses one `0 0 24 24` outline contract, `fill="none"`, `stroke="currentColor"`, stroke width `2` and round line caps/joins; the bundled Lucide license remains beside the manifest and Sprite. The current Unified Inventory Risks route owns the `inventory-risks` / `Layers3` symbol, while the three legacy Risk Family symbols remain available for family and detail semantics. The semantic Indicator IDs `prioritized-cases`, `owner-coverage` and `evidence-readiness` map the corresponding portfolio measures without borrowing workflow or information icons.
+
+Because the product starts directly through `file://`, the Runtime performs no external SVG `<use>`, `fetch()` or network request. `js/ui/icon-system.js` contains an exact trusted inline representation of the productive Sprite, mounts it idempotently and renders local fragment references through a frozen 43-ID allowlist. Unknown IDs fail closed in test mode and degrade to empty decorative markup with a controlled warning in production. Optional classes are restricted to the icon system allowlist.
+
+Stable route, element and renderer semantics select icons; German or English labels do not. Decorative SVGs are hidden from assistive technology, icon-only controls retain accessible names, and translated text lives in separate label nodes. The icon layer is presentation-only: it owns no Analytics, Dataset Registry state, calculation, workflow state, Package revision or export semantics.
+
+ICON-SYS-01.1 keeps the same flow but adds a calibrated UI-role boundary: Manifest / Sprite / Helper semantic ID -> local renderer role -> optional CSS-only optical transform. Unified Risk KPI cards use one fixed icon tile and a separate copy column; case selection uses `expand` / ChevronRight, while workflow handoffs use `inventory-explorer` and `actions`. These mappings and transforms introduce no new state, analytics or calculation.
+
+ICON-SYS-01.2 adds a presentation-only scale layer after that semantic mapping: Manifest / Sprite / Helper semantic ID -> Unified Risk KPI role -> responsive CSS custom properties. The seven KPI cards own their desktop, laptop and mobile tile, icon, typography and minimum-height values locally under `.inventory-risk-summary`; global icon roles and all Analytics, Dataset, Registry, workflow and export state remain unchanged.
 
 ## EX-UX-01.4 Excess Decision Visual Presentation
 
@@ -86,19 +94,31 @@ No chart library, new state store, second calculation layer or persistence bound
 
 EX-UX-01.5 remains in the `app.js` and `styles.css` presentation boundary. The four Summary metrics, fixed Worklist columns, business pagination, Detail hierarchy and responsive workspace consume the existing Excess page projection without recalculation or mutation.
 
-The local Detail navigation is DOM-only. It scrolls the existing bounded Detail container to Decision, Value, History, Prioritization and Actions sections and derives its active marker from that container's scroll position. It does not create route, Dataset, Registry, filter or analytical state. Worklist and Detail retain independent internal scrolling on desktop and fall back to natural page flow at narrower breakpoints.
+The historical EX-UX-01.5 navigation used DOM-only container scrolling. IR-DETAIL-UX-01 supersedes that interaction with a shared ARIA tab surface described below. Worklist and Detail retain independent internal scrolling on desktop and fall back to natural page flow at narrower breakpoints.
 
 The explicit Gross minus deductions equals Net layout reads the accepted Value Narrative fields only. Inventory and remaining Inventory are contextual values outside the equation. No calculation engine, Historical Runtime, Action Option, Pilot Review, upload, parsing, mapping, export, Registry or Package revision behavior changes.
 
 ## EX-UX-01.6 Interaction And Density Closure
 
-EX-UX-01.6 stays inside the existing `app.js` rendering adapter and `styles.css` presentation boundary. Five explicit anchor elements are the single landing contract for Decision, Value, History, Prioritization and Actions. The navigation calls native `scrollIntoView`, derives `aria-current="location"` from the local Detail scroll and owns cleanup for its click listener, passive scroll listener and pending animation frame before each Excess rerender.
+EX-UX-01.6 established the five-part Decision, Value, History, Prioritization and Actions information architecture. Its historical anchor and scroll-spy interaction is superseded by IR-DETAIL-UX-01; no current Excess detail uses `scrollIntoView`, `aria-current` or section anchors for tab selection.
 
 Display deduplication compares normalized visible strings only. It limits repeated Cause signals and Readiness/Next Check copy but does not mutate `decisionCore`, `decisionReadiness`, Action Options or any model output. Evidence and secondary signals remain available through native disclosures. Semantic status colors communicate an existing status label; unavailable, not-checkable and not-recommended states remain neutral.
 
 Desktop scroll ownership is CSS-only above `1240px`: the document shell is bounded to `100dvh`, while Worklist and Detail retain independent `overflow-y: auto`. Responsive layouts at or below the breakpoint restore natural page flow. The active EX-UX closure rules remain in the existing final scoped block. Removing all older foundational selectors was deliberately deferred because equivalent rendering of every closed disclosure and Pilot state could not be established without reopening accepted behavior.
 
 No analytical engine, field contract, Registry record, Package revision, Runtime result, upload, parsing, mapping or export path is changed.
+
+## IR-DETAIL-UX-01 Shared Excess Decision Surface
+
+`renderExcessDetail()` is the single presentation adapter for both the standalone Excess workspace and the embedded `excess_demand` detail in Unified Inventory Risks. It emits one `.excess-decision-surface` with a stable case identity, a five-item ARIA `tablist` and five linked `tabpanel` elements. Click, Arrow Left/Right, Home and End update `aria-selected`, roving `tabindex`, panel `hidden` state and focus together. Exactly one panel is visible; there is no scroll observer, jump anchor or route/filter mutation.
+
+The small `excessDetailTabState` is presentation-only. It preserves the selected tab across a rerender of the same exact case and resets to Decision when the case identity changes. It is not a second analytical model and owns no Dataset, Registry, Package, selection or workflow state.
+
+The shared surface is a named inline-size CSS container. Reusable Decision, Value Logic, History, Prioritization, Action Option, Work Context and disclosure components are scoped through `.excess-decision-surface` for both hosts. Container queries at the surface boundary, rather than browser-width assumptions, switch the decision matrix, historical metrics, value bridge and action composition between wide and compact layouts. Host-specific `#excessPage` rules remain limited to page/workspace layout.
+
+Tab allocation is presentation-only: Decision contains the decision narrative and readiness, Value Logic contains Gross-to-Net and scenario assumptions, History contains exact-row Runtime evidence, Prioritization contains score and operational evidence, and Action Paths contains accepted action options and work context. All six existing disclosures remain available in the semantically related panels. Values, formulas, score components, readiness rules, evidence, statuses, IDs and handoffs remain model-owned and unchanged.
+
+IR-DETAIL-UX-01.1 closes the remaining host-style gap without adding another component layer. Reusable Cause signals, Readiness markers and pills, Score tracks, Operational Context and History empty states resolve through the existing `.excess-decision-surface` scope in both hosts. The Decision container query keeps Next Step and Readiness on separate full-width rows; Prioritization stays one column through `759px` and may split only from `760px`. Operational Context is emitted as a semantic `dl`, while `.excess-detail-scroll` remains the only detail scroll owner.
 
 ## CH-EX-01A Excess Contract And Runtime Integrity
 

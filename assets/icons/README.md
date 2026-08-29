@@ -4,22 +4,24 @@ Ein konsistentes Lucide-Outline-Set für das ObsoliQ Inventory Recovery Cockpit.
 
 ## Enthalten
 
-- `navigation/`: 10 Icons für die Hauptnavigation
+- `navigation/`: 11 Icons für aktuelle Navigation und Risk-Family-Semantik
 - `actions/`: 12 Icons für wiederkehrende Interaktionen
 - `indicators/`: 12 Icons für KPIs, Kategorien und Status
 - `detail-tabs/`: 5 Icons für den Decision Workspace
 - `obsoliq-icon-sprite.svg`: alle Icons als SVG-Sprite
 - `icon-manifest.json`: vollständige technische Zuordnung
-- `ObsoliQ_Icon_Preview.svg` und `.png`: visuelle Übersicht
+- insgesamt 40 Manifest-Einträge und 40 Sprite-Symbole
 
 ## Empfohlene Verwendung
 
-```html
-<svg class="oq-icon" aria-hidden="true">
-  <use href="./obsoliq-icon-sprite.svg#oq-overview"></use>
-</svg>
-<span>Übersicht</span>
+```javascript
+ObsoliQ.ui.iconSystem.iconHtml("overview", {
+  className: "oq-icon--nav",
+  decorative: true
+});
 ```
+
+Die Runtime lädt `js/ui/icon-system.js` vor `app.js`. Der Helper bindet eine geprüfte Inline-Kopie des Sprites synchron ein und erzeugt ausschließlich lokale Fragment-Referenzen wie `#oq-overview`. Dadurch bleiben die Icons auch beim direkten Start über `file://` ohne `fetch`, CDN oder externe SVG-Referenz verfügbar. `obsoliq-icon-sprite.svg` bleibt die autoritative Asset-Datei.
 
 ```css
 .oq-icon {
@@ -49,6 +51,7 @@ Für Navigation und beschriftete Buttons bleibt der Text sichtbar. Symbol-only-B
 | --- | --- | --- |
 | Übersicht | `oq-overview` | `LayoutDashboard` |
 | Bestands-Explorer | `oq-inventory-explorer` | `PackageSearch` |
+| Bestandsrisiken | `oq-inventory-risks` | `Layers3` |
 | Überbestand | `oq-excess-stock` | `PackagePlus` |
 | Langsam / Totbestand | `oq-slow-dead-stock` | `Clock` |
 | Gesperrt / Qualität | `oq-blocked-quality` | `ShieldAlert` |

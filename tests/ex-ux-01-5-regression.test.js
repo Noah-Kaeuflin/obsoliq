@@ -68,7 +68,7 @@
     assert.ok(app.document.querySelector(".excess-pagination")?.textContent.includes("Fälle"), "Pagination should describe business Cases instead of technical rows");
   });
 
-  test("EX-UX-01.5 provides a local five-section guide without changing the analytical model", async assert => {
+  test("EX-UX-01.5 provides five true local tabs without changing the analytical model", async assert => {
     const app = await helpers.loadSampleApp();
     const bridge = app.__obsoliqTestBridge;
     bridge.switchViewForTest("excess");
@@ -77,17 +77,18 @@
     const scroll = app.document.querySelector(".excess-detail-scroll");
     const navigation = scroll.querySelector(".excess-detail-section-nav");
     const buttons = [...navigation.querySelectorAll("[data-excess-detail-target]")];
-    const sections = [...scroll.querySelectorAll("[data-excess-detail-section]")];
+    const sections = [...scroll.querySelectorAll(":scope > .excess-detail-card > [role='tabpanel']")];
 
     assert.deepEqual(buttons.map(button => button.dataset.excessDetailTarget), ["decision", "value", "history", "prioritization", "actions"], "Local navigation should follow the accepted detail sequence");
     assert.deepEqual(sections.map(section => section.dataset.excessDetailSection), ["decision", "value", "history", "prioritization", "actions"], "Each guide item should resolve to one existing section");
-    assert.equal(buttons[0].getAttribute("aria-current"), "location", "Decision should be active at the top of the detail scroll");
-
-    const prioritization = scroll.querySelector("[data-excess-section-anchor='prioritization']");
-    prioritization.scrollIntoView({ block: "start", behavior: "auto" });
-    scroll.dispatchEvent(new app.Event("scroll"));
-    await new Promise(resolve => app.requestAnimationFrame(resolve));
-    assert.equal(navigation.querySelector("[aria-current='location']")?.dataset.excessDetailTarget, "prioritization", "Active guide state should follow the internal scroll position");
+    assert.equal(buttons[0].getAttribute("aria-selected"), "true", "Decision should be the selected tab initially");
+    assert.equal(buttons.every(button => button.getAttribute("role") === "tab"), true, "Every navigation control should expose ARIA tab semantics");
+    assert.equal(sections.every(section => section.getAttribute("role") === "tabpanel"), true, "Every detail section should expose ARIA tabpanel semantics");
+    navigation.querySelector("[data-excess-detail-target='prioritization']").click();
+    assert.equal(navigation.querySelector("[aria-selected='true']")?.dataset.excessDetailTarget, "prioritization", "Clicking a tab should update the selected ARIA state");
+    assert.equal(sections.filter(section => !section.hidden).length, 1, "Tab activation should leave exactly one visible panel");
+    assert.equal(sections.find(section => !section.hidden)?.dataset.excessDetailSection, "prioritization", "The selected tab and visible panel should agree");
+    assert.equal(scroll.querySelectorAll("[data-excess-section-anchor]").length, 0, "Legacy jump anchors should no longer exist");
     assert.equal(modelSignature(bridge.currentExcessPageModelForTest()), before, "Section navigation must remain presentation-only");
   });
 
@@ -101,8 +102,10 @@
 
     assert.equal(narrative.firstElementChild, nextStep, "Next Review Step should be the first decision block");
     assert.equal(app.getComputedStyle(nextStep).backgroundColor === app.getComputedStyle(narrative.querySelector(".why-prioritized")).backgroundColor, false, "Next Review Step should carry the primary visual emphasis");
-    assert.equal(app.getComputedStyle(narrative.querySelector(".why-prioritized")).borderTopWidth, "0px", "Secondary reasoning should not become another heavy card");
-    assert.equal(app.getComputedStyle(narrative.querySelector(".excess-readiness-card")).backgroundColor, app.getComputedStyle(narrative).backgroundColor, "Readiness should sit on the main detail surface");
+    assert.ok(parseFloat(app.getComputedStyle(narrative.querySelector(".why-prioritized")).borderTopWidth) <= 1, "Secondary reasoning should remain a restrained supporting card");
+    const readinessStyle = app.getComputedStyle(narrative.querySelector(".excess-readiness-card"));
+    assert.notEqual(readinessStyle.backgroundColor, app.getComputedStyle(nextStep).backgroundColor, "Readiness should remain visually secondary to the Next Review Step");
+    assert.ok(parseFloat(readinessStyle.borderTopWidth) <= 1, "Readiness should use only a restrained component boundary");
   });
 
   test("EX-UX-01.5 presents Gross minus deductions equals Net without a second calculation", async assert => {

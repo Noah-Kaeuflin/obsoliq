@@ -1,5 +1,114 @@
 # Changelog
 
+## 2026-08-30 - DELTA-CLOSURE-01: Icon and IR Detail Commit Closure
+
+### Changed
+
+- Migrated the seven legacy EX-UX Product-Smoke routes from hidden continuous-detail and scroll-spy assumptions to explicit five-tab navigation, linked ARIA panels and exactly one visible panel.
+- Added shared test navigation that activates the semantic panel under test and verifies synchronized selection, visibility, roving tab state and removal of legacy anchors/location semantics.
+- Updated the accepted presentation-only `app.js` hash gates, the semantic Inventory Risks localization assertion and the Package Manifest delta checks for the reviewed 90 additions and five Icon Pack replacements.
+- Synchronized the Product Specification with the authoritative 43-icon Manifest, Sprite and Runtime contract.
+- Prepared the complete Icon System and IR Detail UX delta as one explicit, reproducible local commit candidate without including audit copies, review artifacts or private data.
+
+### Preserved
+
+- Inventory, Recovery, Gross/Overlap/Net, Opportunity Score, Evidence, Readiness, Action, upload, parsing, export, Registry and Package business semantics.
+- Direct `file://` operation and the existing local-only MVP boundary.
+
+### Release Boundary
+
+- `TRUST-01` remains open and `PRODUCT_RELEASE_GATE` remains `HOLD`. No push, tag, deployment or Product Release is authorized.
+
+## 2026-08-30 - IR-DETAIL-UX-01.1: Embedded Decision Surface Visual Closure
+
+### Changed
+
+- Rebalanced the shared Decision grid so Next Step and Decision Readiness use independent full-width rows, with a flatter Readiness evidence layout.
+- Migrated residual Cause signal, Readiness marker and pill, Score track, Operational Context and History empty-state presentation to the shared `.excess-decision-surface` scope.
+- Kept Prioritization stacked through medium surface widths and introduced its two-column split only from `760px`.
+- Replaced the run-on Operational Context with a semantic definition grid and strengthened the unavailable History state with the existing local History icon and a precise Consumption History import label.
+- Cleaned visible German and English decision wording and added focused structured regression, six-viewport Product Smoke and visual screenshots.
+
+### Preserved
+
+- Excess and Recovery values, Gross/Overlap/Net semantics, Opportunity Score components and maxima, Decision Readiness rules, evidence, recommendations, Action Options, Historical Runtime and Case identity.
+- Upload, parsing, mapping, Data Quality, export, Registry, Package revisions, icon assets and direct `file://` operation.
+
+### Release Boundary
+
+- IR-DETAIL-UX-01.1 is presentation-only. `PRODUCT_RELEASE_GATE` remains `HOLD`; no commit, merge, push, tag, deployment or Product Release is authorized.
+
+## 2026-08-29 - IR-DETAIL-UX-01: Shared Excess Decision Surface, True Tabs & Container-Responsive Decision Composition
+
+### Changed
+
+- Replaced the Excess detail scroll-spy and jump anchors with five linked ARIA tabs, roving keyboard focus and exactly one visible panel.
+- Unified standalone and embedded Unified Inventory Risks Excess details behind the shared `renderExcessDetail()` decision surface.
+- Moved reusable Decision, Value Logic, History, Prioritization, Action Path and disclosure presentation onto one shared CSS surface.
+- Added panel-width container queries, stronger decision typography and structured Gross-to-Net, History, Score, Readiness and Action Option layouts.
+- Added focused structured regression, six-viewport direct-`file://` Product Smoke and visual acceptance screenshots.
+
+### Preserved
+
+- Excess and Recovery calculations, Gross-to-Net order, Opportunity Score components and maxima, Decision Readiness, Historical evidence, recommendations, Action Option states, Case IDs and exact handoffs.
+- Upload, parsing, mapping, Data Quality, export, Registry, Package revision, icon manifest and direct local-file behavior.
+
+### Release Boundary
+
+- IR-DETAIL-UX-01 is presentation-only. `PRODUCT_RELEASE_GATE` remains `HOLD`; no commit, merge, push, tag, deployment or Product Release is authorized.
+
+## 2026-08-29 - ICON-SYS-01.2: Unified Risk KPI Scale, Legibility & Responsive Density Closure
+
+### Changed
+
+- Increased Unified Risk desktop KPI tiles from 30 to 38 px and their icons from 17 to 21 px, with scoped 36/20 px laptop and 34/18 px mobile steps.
+- Increased KPI labels, portfolio values, financial values and meta text through one responsive custom-property contract; top cards now use a 92 px desktop minimum and Financial Cards 96 px.
+- Improved the legibility of the separated-financials guard while retaining its exact statement and added a subtle current-color tile border without changing Lucide geometry.
+- Added viewport-aware regression coverage, a seven-breakpoint `file://` Product Smoke and seven visual acceptance screenshots.
+
+### Preserved
+
+- All 43 semantic Icon Manifest and Sprite entries, KPI values, case counts, financial separation, filters, selection, detail handoff, export behavior, Light/Dark themes and German/English rendering.
+- ICON-SYS-01.2 is presentation-only. `PRODUCT_RELEASE_GATE` remains `HOLD`; no commit, deployment, merge, tag or push is authorized.
+
+## 2026-08-28 - ICON-SYS-01.1: Semantic Remapping, Optical Calibration & Visual Closure
+
+### Changed
+
+- Added the local Lucide Indicator IDs `prioritized-cases`, `owner-coverage` and `evidence-readiness`, increasing the synchronized Manifest, Sprite and Helper allowlist from 40 to 43 icons.
+- Remapped the Unified Risk portfolio KPIs to their exact semantics and replaced floating top-right KPI icons with consistent 30 px left-side icon tiles.
+- Moved the Risk search icon inside its input, replaced the internal case-selection Arrow with a Chevron and aligned Inventory / Actions detail handoffs with their destination icons without changing handler or case identity.
+- Removed the redundant Risk page-title icon, kept Risk Family segments text-only and optically calibrated existing main-navigation and Decision Workspace icons through CSS-only transforms.
+- Consolidated current icon presentation rules and added structured regression plus seven-breakpoint file-protocol Product Smoke coverage.
+
+### Preserved
+
+- KPI values, case counts, evidence, owner, prioritization, Recovery, Exposure, score, filtering, selection, exact-case handoff and export semantics.
+- Local `file://` execution, Light/Dark themes, German/English switching, the current eight routes and all legacy Risk Family icon IDs.
+
+### Release Boundary
+
+- ICON-SYS-01.1 is presentation-only. `PRODUCT_RELEASE_GATE` remains `HOLD`; no deployment, merge, tag, push, Registry revision or Package revision is authorized.
+
+## 2026-08-28 - ICON-SYS-01: Icon Pack Integration, Semantic Alignment & Regression Closure
+
+### Changed
+
+- Installed the complete licensed SVG Icon Pack under `assets/icons/` and expanded it to 40 manifest entries and Sprite symbols with the current `inventory-risks` / Lucide `Layers3` semantic.
+- Replaced the Shell-only helper with the public allowlisted `ObsoliQ.ui.iconSystem` API and a synchronous inline Sprite strategy that remains fully local under `file://`.
+- Integrated semantic icons into the eight current navigation routes, global actions, Overview KPIs and controls, Unified Inventory Risks, Decision Workspace, Data Quality and Data Foundation without changing route identities or business behavior.
+- Separated translated labels from decorative SVG nodes, preserved accessible names for icon-only controls and added consistent 14/16/18 px responsive icon styling for Light and Dark mode.
+- Added manifest/SVG security validation, structured icon regressions, a seven-breakpoint Product Smoke and seven visual acceptance screenshots.
+
+### Preserved
+
+- Recovery, scoring, Risk Case, Data Quality, Dataset, Registry, Package, upload, sample data, filter and export logic.
+- The current eight-route information architecture, legacy Risk Family icon IDs, the ObsoliQ Q signet and direct local-file operation.
+
+### Release Boundary
+
+- ICON-SYS-01 is presentation-only and does not authorize Product Release, deployment or a Registry/Package revision.
+
 ## 2026-08-28 - R0B: Release Integrity Closure
 
 ### Changed

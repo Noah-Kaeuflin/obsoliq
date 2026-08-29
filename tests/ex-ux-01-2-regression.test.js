@@ -121,11 +121,13 @@
     assert.equal(core.textContent.includes("Warum priorisiert"), false, "The fixed Decision Core should remain a compact Case header");
     assert.ok(app.document.querySelector(".excess-detail-scroll")?.textContent.includes("Warum priorisiert"), "Why Prioritized should remain visible at the start of the Detail scroll");
     assert.equal(nextStep?.dataset.nextStep, active.next_step || "", "Next Review Step must equal accepted current data verbatim");
-    assert.ok(core.textContent.includes("kein Erfolgsversprechen"), "Opportunity Score should not be presented as a success promise");
+    assert.ok(core.textContent.includes("keine Erfolgsprognose"), "Opportunity Score should not be presented as a success promise");
     assert.equal(core.textContent.includes("Match-Qualität"), false, "Match Quality should not be a primary stat");
     assert.ok(core.querySelector("[data-open-excess-inventory]"), "Exact Inventory navigation should be available");
     assert.ok(core.querySelector("[data-open-excess-actions]"), "Accepted Actions navigation should be available");
-    assert.equal(core.closest(".excess-detail-panel")?.querySelector(":scope > .excess-detail-scroll") !== null, true, "Only secondary Detail content should own scrolling");
+    const decisionSurface = core.closest(".excess-decision-surface");
+    assert.equal(decisionSurface?.querySelector(":scope > .excess-detail-scroll") !== null, true, "Only the shared surface's secondary Detail content should own scrolling");
+    assert.equal(core.parentElement, decisionSurface, "The fixed Case Core should remain a direct child of the shared Decision Surface");
 
     const disclosures = [...app.document.querySelectorAll(".excess-detail-disclosure")];
     assert.equal(disclosures.length, 6, "Six secondary disclosure groups should remain available");

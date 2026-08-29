@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium, productUrl } = require("./smoke-runtime.cjs");
-const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
+const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
 const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-3-1");
 const viewports = [
   { width: 1440, height: 900 },
@@ -24,6 +24,7 @@ async function main() {
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
   const routeState = await openUnifiedExcessSegment(page);
+  await activateExcessDetailTab(page, "actions");
 
   const results = [];
   for (const viewport of viewports) {

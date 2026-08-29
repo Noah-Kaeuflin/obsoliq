@@ -88,7 +88,9 @@
     assert.equal(app.getComputedStyle(worklistPanel).overflowY, "hidden", "Worklist panel should not expand the document");
     assert.equal(app.getComputedStyle(detailPanel).overflowY, "hidden", "Detail panel should not expand the document");
     assert.ok(app.document.querySelector(".excess-pagination"), "Pagination should remain outside the table scroll area");
-    assert.ok(app.document.querySelector(".excess-detail-panel > .excess-decision-core"), "Decision Core should remain outside the detail scroll area");
+    const decisionSurface = app.document.querySelector(".excess-detail-panel > .excess-decision-surface");
+    assert.ok(decisionSurface?.querySelector(":scope > .excess-decision-core"), "The shared Decision Surface should keep the fixed Case Core outside its detail scroll");
+    assert.ok(decisionSurface?.querySelector(":scope > .excess-detail-scroll"), "The shared Decision Surface should keep one bounded detail scroll owner");
     assert.equal(app.document.querySelector(".excess-detail-disclosure[open]"), null, "Secondary disclosures should be closed by default");
     assert.ok(app.document.querySelector(".scenario-detail-disclosure"), "Scenario evidence should remain available as disclosure");
   });

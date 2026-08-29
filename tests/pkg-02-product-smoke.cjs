@@ -23,7 +23,7 @@ async function main() {
   const initial = await page.evaluate(() => ({
     protocol: location.protocol,
     sampleDataLoaded: !/^0(?:\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()),
-    iconSystemAvailable: Boolean(window.ObsoliQIcons),
+    iconSystemAvailable: Boolean(window.ObsoliQ?.ui?.iconSystem && window.ObsoliQIcons),
     spriteCount: document.querySelectorAll("#obsoliq-icon-sprite").length,
     spriteSymbolCount: document.querySelectorAll("#obsoliq-icon-sprite symbol").length,
     navigationCount: document.querySelectorAll(".process-tabs button[data-process]").length,
@@ -56,7 +56,7 @@ async function main() {
   const failures = [];
   if (initial.protocol !== "file:") failures.push("not-file-protocol");
   if (!initial.sampleDataLoaded) failures.push("sample-data-not-loaded");
-  if (!initial.iconSystemAvailable || initial.spriteCount !== 1 || initial.spriteSymbolCount !== 39) failures.push("icon-runtime");
+  if (!initial.iconSystemAvailable || initial.spriteCount !== 1 || initial.spriteSymbolCount !== 43) failures.push("icon-runtime");
   if (initial.navigationCount !== 8 || initial.navigationIconCount !== 8 || !initial.visibleNavigationText) failures.push("navigation");
   if (initial.globalActionIconCount !== 4) failures.push("global-action-icons");
   if (!initial.calibrationModulesAbsent) failures.push("analysis-modules-in-product-bootstrap");

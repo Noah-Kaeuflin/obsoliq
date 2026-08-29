@@ -14,6 +14,16 @@
     "file": "navigation/inventory-explorer.svg"
   },
   {
+    "id": "inventory-risks",
+    "label": "Bestandsrisiken",
+    "labelDe": "Bestandsrisiken",
+    "labelEn": "Inventory Risks",
+    "group": "navigation",
+    "lucideIcon": "Layers3",
+    "spriteId": "oq-inventory-risks",
+    "file": "navigation/inventory-risks.svg"
+  },
+  {
     "id": "excess-stock",
     "label": "Überbestand",
     "group": "navigation",
@@ -152,6 +162,27 @@
     "group": "actions",
     "lucideIcon": "ChevronRight",
     "file": "actions/expand.svg"
+  },
+  {
+    "id": "prioritized-cases",
+    "label": "Priorisierte Fälle",
+    "group": "indicators",
+    "lucideIcon": "Flag",
+    "file": "indicators/prioritized-cases.svg"
+  },
+  {
+    "id": "owner-coverage",
+    "label": "Owner-Abdeckung",
+    "group": "indicators",
+    "lucideIcon": "UserRoundCheck",
+    "file": "indicators/owner-coverage.svg"
+  },
+  {
+    "id": "evidence-readiness",
+    "label": "Evidenzbereitschaft",
+    "group": "indicators",
+    "lucideIcon": "ShieldCheck",
+    "file": "indicators/evidence-readiness.svg"
   },
   {
     "id": "recovery-potential",

@@ -47,7 +47,7 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - Historical Unit Context for Excess quantities and monthly buckets
 - session-only Excess Work Context
 - session-only Pilot Review
-- file-safe functional icon system for global navigation and Shell actions
+- file-safe semantic icon system for navigation, actions, KPIs, Inventory Risks, Data Quality and Data Foundation
 - versioned Slow / Dead synthetic Calibration Contract, Safety Fixtures and reproducible Synthetic Contract Agreement baseline
 - versioned synthetic Calibration Metrics plus 17-scenario OFAT threshold-sensitivity artifacts without Policy recommendation or activation
 
@@ -60,6 +60,22 @@ Current cross-package relationships are limited to Inventory-to-Material-Master 
 3. No server, database or login is required for the current MVP.
 
 Supported local upload formats include `.xlsx`, `.csv` and `.tsv`. Uploaded data stays in the browser session.
+
+## Local Icon System
+
+The licensed ObsoliQ Icon Pack lives under `assets/icons/`. It contains 43 local Lucide-derived SVG symbols, including the `inventory-risks` portfolio icon and the semantic Indicators `prioritized-cases`, `owner-coverage` and `evidence-readiness`, plus the authoritative manifest, Sprite and Lucide ISC license. Runtime rendering uses `js/ui/icon-system.js` and the public `ObsoliQ.ui.iconSystem` API.
+
+For reliable direct `file://` startup, the helper synchronously mounts a trusted inline copy of the Sprite once and renders only local fragment references such as `#oq-overview`. It performs no `fetch`, network request, CDN lookup or external SVG reference. Icon IDs and optional classes are allowlisted; visible translated labels remain separate from decorative SVG markup so language switching cannot remove icons.
+
+Product icons use the shared 14/16/18 px size system, `currentColor`, a consistent Lucide outline and visible text wherever the control is not intentionally icon-only. Unified Risk KPI icons use a scoped responsive contract instead of the global icon sizes: 38 px tiles with 21 px icons on desktop, 36/20 px through laptop and tablet widths, and 34/18 px below 620 px. Their label, value and meta typography scales with the same local contract, while all other product icons remain unchanged. A Chevron selects a case inside the current workspace, while Inventory and Actions workflow buttons use their actual destination icons. Small CSS transforms optically balance Lucide geometries without modifying their SVG paths. Icon-only controls retain an accessible name and title. The ObsoliQ Q remains the sole product signet.
+
+## Excess Decision Detail
+
+Standalone Excess cases and embedded Excess & Demand family details use one shared `excess-decision-surface`. Decision, Value Logic, History, Prioritization and Action Paths are accessible tabs with one visible panel at a time, roving keyboard focus and Arrow, Home and End navigation. The selected tab is presentation-only, remains stable while the same case rerenders and resets to Decision when the exact case changes.
+
+The surface responds to its own available width through CSS container queries, so the detail composition remains usable inside the Unified Inventory Risks split pane as well as on the standalone Excess workspace. All displayed values, scores, evidence, readiness states and action options continue to come from the existing Excess projection; the tabs do not calculate or reclassify business data.
+
+The embedded presentation uses the same complete component styling as the standalone workspace. Next Step and Decision Readiness occupy independent full-width rows, Score and Operational Context remain stacked until the surface is genuinely wide, Operational Context is a semantic definition grid, and unavailable Consumption History uses a precise local import action. These refinements are presentation-only and retain the existing single detail-scroll owner.
 
 ## Tests
 
@@ -122,7 +138,7 @@ Every packaged CSV, JSON, sample-data source and fixture has a fail-closed prove
 | --- | --- | --- |
 | `artifacts/ap-16-4d-3b-metrics.json` | synthetic | Deterministic output from synthetic Slow/Dead calibration fixtures. |
 | `artifacts/ap-16-4d-3b-sensitivity.csv` | synthetic | Deterministic OFAT output from synthetic calibration fixtures. |
-| `assets/icons/obsoliq/icon-manifest.json` | structural-template | Icon identifiers and metadata only; no business or personal records. |
+| `assets/icons/icon-manifest.json` | structural-template | Icon identifiers and metadata only; no business or personal records. |
 | `data/sample_existing_excel_export.csv` | synthetic | Generated SAP-like demonstration rows with fictitious material identifiers. |
 | `data/sample_inventory.csv` | synthetic | Small hand-authored demonstration inventory with fictitious identifiers. |
 | `sample-data.js` | synthetic | Embedded generated demonstration dataset with fictitious identifiers. |
@@ -158,7 +174,7 @@ inventory-recovery-mvp/
 - `app.js` contains the current application orchestration.
 - `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence, Slow / Dead evidence, Slow / Dead page presentation and Pilot Review.
 - `tests/` contains the file-based structured test package.
-- `assets/` contains local UI assets, including the licensed ObsoliQ functional Icon Pack under `assets/icons/obsoliq/`.
+- `assets/` contains local UI assets, including the licensed ObsoliQ functional Icon Pack under `assets/icons/`.
 - `data/` is reserved for anonymized sample or test fixtures only.
 - `scripts/` contains portable manifest generation, verification and review-bundle tooling.
 - `artifacts/` contains controlled deterministic analysis artifacts and the generated portable review bundle; obsolete extracted review directories and screenshots are not part of PKG-02.
