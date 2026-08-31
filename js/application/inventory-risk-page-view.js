@@ -60,6 +60,12 @@
 
     function renderHeader(model) {
       const segments = ["all", "excess_demand", "slow_dead", "blocked_quality", "prioritized"];
+      const segmentCount = segment => {
+        const availability = model.familyAvailability?.[segment];
+        return availability && !["available", "limited"].includes(availability.status)
+          ? t("notAvailable")
+          : count(model.counts[segment] || 0);
+      };
       return `
         <section class="inventory-risk-header panel">
           <div class="inventory-risk-header-copy">
@@ -71,7 +77,7 @@
             ${segments.map(segment => `
               <button type="button" role="tab" data-inventory-risk-segment="${escape(segment)}" aria-selected="${model.state.segment === segment ? "true" : "false"}" class="${model.state.segment === segment ? "active" : ""}">
                 <span>${escape(t(`inventoryRiskSegment_${segment}`))}</span>
-                <strong>${escape(count(model.counts[segment] || 0))}</strong>
+                <strong>${escape(segmentCount(segment))}</strong>
               </button>
             `).join("")}
           </div>
@@ -192,7 +198,10 @@
 
     function renderWorklist(model) {
       if (!model.pageRows.length) {
-        return `<section class="inventory-risk-worklist panel"><div class="empty-state">${escape(t(`inventoryRiskEmpty_${model.emptyState}`))}</div></section>`;
+        const importHistory = model.state.segment === "slow_dead" && model.emptyState === "risk_family_unavailable"
+          ? `<button class="secondary" type="button" data-inventory-risk-import-history>${icon("upload-file")}<span>${escape(t("importConsumptionHistory"))}</span></button>`
+          : "";
+        return `<section class="inventory-risk-worklist panel"><div class="empty-state"><p>${escape(t(`inventoryRiskEmpty_${model.emptyState}`))}</p>${importHistory}</div></section>`;
       }
       return `
         <section class="inventory-risk-worklist panel">

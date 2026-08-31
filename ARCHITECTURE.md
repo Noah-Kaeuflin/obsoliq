@@ -598,7 +598,7 @@ AP 16.1.1.1 hardens this boundary: callers must pass an explicit final Quality S
 
 Package ownership is invariant. If a Package already exists, app-level finalization and the physical Registry module both reject attempts to reuse its `packageId` for another `datasetId` or another `packageType`. Failed ownership checks occur before active-package switching or retention enforcement.
 
-Relationship Keys are derived only from the approved active Mapping. Fields with missing status, ignored state, protected state, proposed-only targets, derived definitions or invalid source-column identity are excluded. Package validation checks every Relationship Key against that approved Mapping set and the Package's physical `sourceColumnMetadata`. A relationship-capable mapping must prove source identity through `sourceIndex` plus a matching `sourceKey`, original header or normalized source key; ambiguous duplicate headers without `sourceIndex` are rejected.
+Relationship Keys are derived only from the approved active Mapping. Fields with missing status, ignored state, protected state, proposed-only targets, derived definitions or invalid source-column identity are excluded. Package validation checks every Relationship Key against that approved Mapping set and the Package's physical `sourceColumnMetadata`. A relationship-capable mapping must prove the exact current four-part identity: canonical field, numeric integer `sourceIndex`, duplicate-aware `sourceKey` and matching `sourceColumn`. Header-only fallback and source-index coercion are rejected.
 
 The dataset-changing sequence is:
 
@@ -688,6 +688,22 @@ The Registry does not perform analytical joins, predictions, UI rendering or wor
 Registry records are retained in memory for the session only. Inactive Inventory Snapshot records are bounded by the configured retention limit; the active Package is protected from pruning. Failed transactions restore the prior Registry snapshot and therefore do not consume revisions, leave phantom records or trigger retention pruning.
 
 The physical Registry contract is covered by structured tests in `tests/registry.test.js`, including ownership rejection, active-package retention protection, relationship-key validation and a 10,000-row transaction/retention gate.
+
+## TRUST-01 Integrity Boundary
+
+TRUST-01 reuses the existing Source Model, Mapping Engine, Input Trust Service, package-specific Builders, Package Import Service, Registry and Dataset transaction boundary. `app.js` remains orchestration and presentation adaptation; no parallel productive Trust Engine or permissive identity helper is retained.
+
+The strict source path is:
+
+Physical Source Metadata -> Reviewed Mapping with exact identity -> Source-bound Policy merge -> Input Trust -> Builder -> Mapping/Policy/Semantic signature invariants -> Runtime transaction -> Package finalization -> Registry.
+
+Invalid identity, stale confirmation, unsafe number interpretation or any signature mismatch exits before Package identity allocation. Failures after an application mutation restore the authoritative Runtime and Registry snapshot. The Historical coordinator increments a monotone generation epoch on restore to reject stale completions while restoring the previous analytical result and signature.
+
+Package ownership remains specialized: Inventory owns financial analytics, Material Master owns context-only enrichment, and Consumption History owns temporal/movement evidence. Neither Material Master nor History imports can mutate Inventory financial truth. Derived Historical and Slow / Dead Runtime never create Package revisions.
+
+Unified Risk rendering consumes explicit family availability. Missing History produces an unavailable Slow / Dead segment and import action; rendering does not trigger analysis. Genuine zero is possible only after an accepted `available` or `limited` runtime result.
+
+Client data remains in memory for the browser session. Product scripts do not persist imported rows to Web Storage, IndexedDB, Cache Storage or Service Worker state and do not send them through external requests. This is a local package/client-data boundary, not a complete security architecture; `SEC-001` resource limits remain outside TRUST-01.
 
 ## Known Technical Limitations
 

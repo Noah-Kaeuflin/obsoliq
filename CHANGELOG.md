@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-08-31 - TRUST-01: Source-Bound Input Trust And Release-Governance Closure
+
+### Fixed
+
+- Enforced exact, non-coercing Physical Source Identity across Mapping, Input Trust, normalization, package builders, Relationship Keys and Package commit.
+- Added duplicate-aware `sourceKey` to automatic Mapping and Mapping signatures; removed permissive header fallback and parallel identity helpers.
+- Blocked mixed-locale required numeric sources without an explicit source-bound override and blocked Mapping, Normalization Policy and History Semantic signature drift before Registry mutation.
+- Preserved genuine numeric zero while presenting missing Slow / Dead History and financial exposure as `n. v.` / `n/a` rather than a calculated zero.
+
+### Verified
+
+- Added focused source-bound, numeric, package-signature, missing-zero and exact Before/After rollback-hash tests.
+- Added a direct `file://` TRUST-01 Product Smoke for DE/EN, Light/Dark, responsive viewports, browser storage, external requests, XSS/formula/prototype-pollution boundaries and leading-zero identifiers.
+- Re-ran the complete browser, Product-Smoke, static-contract, syntax, manifest, provenance, license and SHA checks against the current worktree candidate.
+
+### Release Boundary
+
+- TRUST-01 technical source acceptance does not authorize Product Release. A clean TRUST-only commit cannot be separated from inherited overlapping worktree changes, so Fresh-Commit and Fresh-Bundle gates remain blocked.
+- `PRODUCT_RELEASE_GATE` remains `HOLD`; no push, tag, merge, deployment or publication was performed.
+
 ## 2026-08-30 - IR-WORKSPACE-UX-02: Risk Portfolio Density, Summary Grouping & Decision-Focus Closure
 
 ### Changed

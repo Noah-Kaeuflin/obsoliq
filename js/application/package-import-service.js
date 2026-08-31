@@ -298,9 +298,25 @@
         buildTimestamp: timestamp
       });
       const packageValidation = buildResult.validation || buildResult.packageValidation || {};
+      const builtMapping = packageValidation.mappingValidation?.mapping || approvedMapping || [];
+      const mappingSignature = mappingEngine.columnMappingSignature(
+        builtMapping,
+        mappingOptionsFor(packageType, source.sourceColumnMetadata)
+      );
+      if (buildResult.buildMetadata?.mappingSignature !== mappingSignature) {
+        return freezeResult({
+          ok: false,
+          errorCode: "MAPPING_SIGNATURE_MISMATCH",
+          packageValidation: {
+            status: "invalid",
+            statusKey: "mapping_signature_mismatch",
+            blockingErrors: [{ key: "mappingSignatureMismatch", code: "mappingSignatureMismatch", severity: "error", count: 1 }],
+            warnings: []
+          }
+        });
+      }
       if (interpretationResult
-        && buildResult.buildMetadata?.semanticPolicySignature
-        && interpretationResult.semanticPolicySignature !== buildResult.buildMetadata.semanticPolicySignature) {
+        && interpretationResult.semanticPolicySignature !== buildResult.buildMetadata?.semanticPolicySignature) {
         return freezeResult({
           ok: false,
           errorCode: "HISTORY_SEMANTIC_SIGNATURE_MISMATCH",
@@ -339,8 +355,9 @@
           rows: source.rows
         },
         mapping: {
-          columnMapping: buildResult.validation.mappingValidation.mapping,
-          mappingValidation: buildResult.validation.mappingValidation,
+          columnMapping: builtMapping,
+          mappingValidation: packageValidation.mappingValidation,
+          mappingSignature,
           baseColumnMapping: []
         },
         buildData: {

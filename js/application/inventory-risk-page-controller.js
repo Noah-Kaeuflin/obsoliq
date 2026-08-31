@@ -11,6 +11,7 @@
     const onExport = typeof options.onExport === "function" ? options.onExport : () => {};
     const onOpenInventory = typeof options.onOpenInventory === "function" ? options.onOpenInventory : () => {};
     const onOpenActions = typeof options.onOpenActions === "function" ? options.onOpenActions : () => {};
+    const onImportHistory = typeof options.onImportHistory === "function" ? options.onImportHistory : () => {};
     let bound = false;
 
     function statePatch(patch = {}) {
@@ -63,6 +64,12 @@
       if (exportButton) {
         event.preventDefault();
         onExport();
+        return;
+      }
+      const importHistoryButton = event.target.closest("[data-inventory-risk-import-history]");
+      if (importHistoryButton) {
+        event.preventDefault();
+        onImportHistory();
         return;
       }
       const inventoryButton = event.target.closest("[data-inventory-risk-open-inventory]");

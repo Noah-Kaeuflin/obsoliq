@@ -72,6 +72,7 @@
     }
 
     function trustStateFor({ mappingValidation = {}, normalization = {}, mappingDiagnostics = [], schemaDrift = null } = {}) {
+      if (mappingValidation.valid === false) return "blocked";
       const diagnostics = [
         ...(normalization.diagnostics || []),
         ...(mappingDiagnostics || [])
@@ -92,6 +93,7 @@
         semanticSchemaSignature: result.schemaProfile?.semanticSignature || null,
         physicalSchemaSignature: result.schemaProfile?.physicalSignature || null,
         schemaDrift: result.schemaDrift || null,
+        normalizationPolicySignature: normalizationPolicySignature(result.normalizationPolicy || {}),
         normalizationSummary: result.normalizationSummary || null,
         diagnosticCount: (result.diagnostics || []).length,
         blockingDiagnosticCount: (result.diagnostics || []).filter(diagnostic => diagnostic.severity === "error").length,
@@ -99,6 +101,7 @@
         mappingEvidenceSummary: (result.mappingEvidence || []).map(entry => ({
           sourceIndex: entry.sourceIndex,
           sourceColumn: entry.sourceColumn,
+          sourceKey: entry.sourceKey || "",
           selectedCanonicalField: entry.selectedCanonicalField || "",
           confidence: entry.confidence,
           typeEvidence: entry.profileEvidence?.typeEvidence || "",
@@ -124,23 +127,18 @@
 
     function sourceMetaForMappingEntry(mappingEntry = {}, sourceColumnMetadata = []) {
       const metadata = Array.isArray(sourceColumnMetadata) ? sourceColumnMetadata : [];
-      const sourceIndex = mappingEntry.sourceIndex;
-      if (typeof sourceIndex === "number" && Number.isInteger(sourceIndex) && sourceIndex >= 0) {
-        return metadata.find(meta => meta.sourceIndex === sourceIndex) || null;
-      }
-      return metadata.find(meta => meta.sourceKey === mappingEntry.sourceColumn)
-        || metadata.find(meta => meta.originalHeader === mappingEntry.sourceColumn)
-        || null;
+      const identity = root.data?.sourceModel?.physicalSourceIdentityForMappingEntry(mappingEntry, metadata);
+      return identity ? metadata.find(meta => meta.sourceIndex === identity.sourceIndex) || null : null;
     }
 
     function sourceIdentityForMappingEntry({ mappingEntry = {}, sourceColumnMetadata = [] } = {}) {
       const meta = sourceMetaForMappingEntry(mappingEntry, sourceColumnMetadata);
-      const sourceIndex = meta?.sourceIndex ?? mappingEntry.sourceIndex;
-      if (typeof sourceIndex !== "number" || !Number.isInteger(sourceIndex) || sourceIndex < 0) return null;
-      const sourceKey = String(meta?.sourceKey || mappingEntry.sourceKey || mappingEntry.sourceColumn || "").trim();
-      const sourceColumn = String(mappingEntry.sourceColumn || meta?.originalHeader || meta?.sourceKey || "").trim();
-      if (!sourceKey || !sourceColumn) return null;
-      return { sourceIndex, sourceKey, sourceColumn };
+      if (!meta) return null;
+      return {
+        sourceIndex: meta.sourceIndex,
+        sourceKey: meta.sourceKey,
+        sourceColumn: mappingEntry.sourceColumn
+      };
     }
 
     function policyHasSourceIdentity(policy = {}) {
@@ -182,7 +180,7 @@
         && proposed.sourceColumn === override.sourceColumn;
     }
 
-    function proposedPolicyForEvidence(entry = {}) {
+    function proposedPolicyForEvidence(entry = {}, sourceColumnMetadata = []) {
       const fieldKey = entry.selectedCanonicalField || "";
       if (!fieldKey) return null;
       const profile = entry.profileEvidence || {};
@@ -190,12 +188,9 @@
       const detectedLocale = profile.detectedLocale || "";
       const identity = sourceIdentityForMappingEntry({
         mappingEntry: entry,
-        sourceColumnMetadata: entry.sourceColumnMetadata || []
-      }) || {
-        sourceIndex: Number.isFinite(Number(entry.sourceIndex)) ? Number(entry.sourceIndex) : null,
-        sourceColumn: entry.sourceColumn || "",
-        sourceKey: entry.sourceKey || entry.sourceColumn || ""
-      };
+        sourceColumnMetadata
+      });
+      if (!identity) return null;
       const policy = {
         canonicalField: fieldKey,
         sourceIndex: identity.sourceIndex,
@@ -265,11 +260,11 @@
       return stableJson(policy || {});
     }
 
-    function proposedNormalizationPolicies(mappingEvidence = [], normalizationPolicy = {}) {
+    function proposedNormalizationPolicies(mappingEvidence = [], normalizationPolicy = {}, sourceColumnMetadata = []) {
       const basePolicy = normalizationPolicy && typeof normalizationPolicy === "object" ? normalizationPolicy : {};
       const fields = { ...(basePolicy.fields || {}) };
       mappingEvidence.forEach(entry => {
-        const proposal = proposedPolicyForEvidence(entry);
+        const proposal = proposedPolicyForEvidence(entry, sourceColumnMetadata);
         if (!proposal) return;
         const [fieldKey, policy] = proposal;
         fields[fieldKey] = {
@@ -283,8 +278,8 @@
       };
     }
 
-    function reviewedMappingFromEvidence(mappingEvidence = [], normalizationPolicy = {}) {
-      const policies = proposedNormalizationPolicies(mappingEvidence, normalizationPolicy);
+    function reviewedMappingFromEvidence(mappingEvidence = [], normalizationPolicy = {}, sourceColumnMetadata = []) {
+      const policies = proposedNormalizationPolicies(mappingEvidence, normalizationPolicy, sourceColumnMetadata);
       return mappingEvidence.map(entry => {
         const fieldKey = entry.selectedCanonicalField || "";
         const policy = fieldKey ? policies.fields?.[fieldKey] || null : null;
@@ -334,14 +329,16 @@
         columnProfiles: schemaProfile.columns,
         schemaWarnings: schemaDrift?.warnings || []
       });
-      const canonicalRows = mappedRowsForTrust({
-        headers,
-        rows,
-        mapping: mappingValidation.mapping,
-        sourceColumnMetadata,
-        mappingPolicy,
-        fieldDefinitions: activeFieldDefinitions
-      });
+      const canonicalRows = mappingValidation.valid
+        ? mappedRowsForTrust({
+          headers,
+          rows,
+          mapping: mappingValidation.mapping,
+          sourceColumnMetadata,
+          mappingPolicy,
+          fieldDefinitions: activeFieldDefinitions
+        })
+        : [];
       const effectiveNormalizationPolicy = normalizationPolicy && typeof normalizationPolicy === "object"
         ? normalizationPolicy
         : {};
@@ -355,7 +352,13 @@
         localeOptions: effectiveNormalizationPolicy.localeOptions || {}
       });
       const mappingDiagnostics = diagnosticsFromMappingEvidence(mappingEvidence, schemaProfile, activeFieldDefinitions);
+      const mappingValidationDiagnostics = (mappingValidation.errors || []).map(error => ({
+        ...cloneData(error),
+        code: error.key || "mapping_invalid",
+        severity: "error"
+      }));
       const diagnostics = [
+        ...mappingValidationDiagnostics,
         ...mappingDiagnostics,
         ...(normalization.diagnostics || [])
       ];
@@ -386,11 +389,11 @@
       const result = assessInputTrust(input);
       const blockingDiagnostics = (result.diagnostics || []).filter(diagnostic => diagnostic.severity === "error");
       const reviewDiagnostics = (result.diagnostics || []).filter(diagnostic => diagnostic.severity === "warning");
-      const proposedPolicies = proposedNormalizationPolicies(result.mappingEvidence || [], result.normalizationPolicy || input.normalizationPolicy || {});
+      const proposedPolicies = proposedNormalizationPolicies(result.mappingEvidence || [], result.normalizationPolicy || input.normalizationPolicy || {}, input.sourceColumnMetadata || []);
       return freezeResult({
         ...result,
         proposedMapping: cloneData(input.mapping || []),
-        reviewedMapping: reviewedMappingFromEvidence(result.mappingEvidence || [], proposedPolicies),
+        reviewedMapping: reviewedMappingFromEvidence(result.mappingEvidence || [], proposedPolicies, input.sourceColumnMetadata || []),
         proposedNormalizationPolicies: proposedPolicies,
         columnProfiles: cloneData(result.schemaProfile?.columns || []),
         schemaFingerprint: cloneData(result.schemaProfile?.semanticSignature || null),

@@ -2291,7 +2291,7 @@ const translations = {
     importMaterialMasterCompact: "Import",
     materialMasterImported: "Material Master imported",
     materialMasterImportFailed: "Material Master import failed",
-    importConsumptionHistory: "Import Consumption History",
+    importConsumptionHistory: "Import consumption history",
     importConsumptionHistoryCompact: "Import",
     consumptionHistoryImported: "Consumption History imported",
     consumptionHistoryImportFailed: "Consumption History import failed",
@@ -9640,41 +9640,9 @@ function importableNonDerivedCanonicalField(fieldKey) {
   );
 }
 
-function sourceIdentityCandidateValues(entry) {
-  return [
-    entry?.sourceColumn,
-    entry?.sourceKey,
-    entry?.sourceColumnKey,
-    entry?.sourceColumnId,
-    entry?.originalHeader,
-    entry?.normalizedSourceColumn
-  ]
-    .map(value => String(value ?? "").trim())
-    .filter(Boolean);
-}
-
-function sourceMetaMatchesMappingEntry(entry, meta) {
-  if (!entry || !meta) return false;
-  const normalized = String(entry.normalizedSourceColumn || "").trim();
-  const sourceValues = new Set(sourceIdentityCandidateValues(entry));
-  return Boolean(
-    sourceValues.has(String(meta.sourceKey || "").trim())
-    || sourceValues.has(String(meta.originalHeader || "").trim())
-    || (normalized && normalized === String(meta.normalizedOriginalHeader || "").trim())
-    || (normalized && normalized === sourceTechnicalKey(meta.sourceKey, meta.sourceIndex, [meta]))
-  );
-}
-
 function mappingEntryHasValidSourceIdentity(entry, metadata = sourceColumnMetadata) {
   const sourceMetadata = Array.isArray(metadata) ? metadata : [];
-  const sourceValues = sourceIdentityCandidateValues(entry);
-  if (!sourceValues.length || !sourceMetadata.length) return false;
-  if (isValidSourceIndex(entry?.sourceIndex)) {
-    const sourceMeta = sourceMetadata.find(meta => meta.sourceIndex === entry.sourceIndex);
-    return sourceMetaMatchesMappingEntry(entry, sourceMeta);
-  }
-  const matches = sourceMetadata.filter(meta => sourceMetaMatchesMappingEntry(entry, meta));
-  return matches.length === 1;
+  return Boolean(ObsoliQModules.data.sourceModel.physicalSourceIdentityForMappingEntry(entry, sourceMetadata));
 }
 
 /** @param {Array<object>} columnMapping @returns {Set<string>} approved non-derived Mapping fields only */
@@ -16695,7 +16663,8 @@ function ensureInventoryRiskPageController() {
     onStateChange: updateInventoryRiskPageState,
     onExport: () => showDownloadDialog("inventoryRisks"),
     onOpenInventory: openInventoryForInventoryRiskCase,
-    onOpenActions: openActionsForInventoryRiskCase
+    onOpenActions: openActionsForInventoryRiskCase,
+    onImportHistory: () => selectPackageTypeForUpload(CONSUMPTION_HISTORY_PACKAGE_TYPE)
   });
   inventoryRiskPageController.bind();
 }
@@ -17651,13 +17620,7 @@ function sourceIdentityForPolicyEntry(entry = {}, metadata = sourceColumnMetadat
     });
     if (identity) return identity;
   }
-  const meta = sourceMetaForColumn(entry.sourceColumn, entry.sourceIndex, metadata);
-  const sourceIndex = meta?.sourceIndex ?? entry.sourceIndex;
-  if (!isValidSourceIndex(sourceIndex)) return null;
-  const sourceKey = String(meta?.sourceKey || entry.sourceKey || entry.sourceColumn || "").trim();
-  const sourceColumn = String(entry.sourceColumn || meta?.originalHeader || sourceKey || "").trim();
-  if (!sourceKey || !sourceColumn) return null;
-  return { sourceIndex, sourceKey, sourceColumn };
+  return ObsoliQModules.data.sourceModel.physicalSourceIdentityForMappingEntry(entry, metadata);
 }
 
 function policyHasPhysicalSourceIdentity(policy = {}) {

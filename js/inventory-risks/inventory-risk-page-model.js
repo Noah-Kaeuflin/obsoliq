@@ -110,11 +110,16 @@
       .sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" }));
   }
 
-  function strictFinancialSummary(rows = [], family, field) {
+  function strictFinancialSummary(rows = [], family, field, familyAvailability = {}) {
     const applicable = rows.filter(item => item.case_kind === "portfolio"
       ? Boolean(item.family_case_ids?.[family])
       : item.primary_risk_family === family);
-    if (!applicable.length) return { status: "unavailable", value: null, applicableCount: 0, availableCount: 0 };
+    if (!applicable.length) {
+      const runtimeStatus = familyAvailability?.[family]?.status || "unavailable";
+      return ["available", "limited"].includes(runtimeStatus)
+        ? { status: "available", runtimeStatus, value: 0, applicableCount: 0, availableCount: 0 }
+        : { status: "unavailable", runtimeStatus, value: null, applicableCount: 0, availableCount: 0 };
+    }
     const values = applicable.map(item => contract.nullableNumber(item[field]));
     const available = values.filter(value => value !== null);
     return {
@@ -125,7 +130,7 @@
     };
   }
 
-  function summary(rows = []) {
+  function summary(rows = [], familyAvailability = {}) {
     const uniqueEntityCount = new Set(rows.map(item => item.inventory_entity_key)).size;
     const ownerAssigned = rows.filter(item => ownerToken(item) !== "unassigned").length;
     const evidenceRows = rows.filter(item => item.case_kind === "portfolio");
@@ -138,9 +143,9 @@
       evidenceTotalCount: evidenceRows.length,
       evidenceReadiness: evidenceRows.length ? evidenceReady / evidenceRows.length : null,
       financials: {
-        netAddressable: strictFinancialSummary(rows, "excess_demand", "net_addressable_value"),
-        slowDeadExposure: strictFinancialSummary(rows, "slow_dead", "inventory_exposure"),
-        blockedQualityValue: strictFinancialSummary(rows, "blocked_quality", "blocked_quality_value")
+        netAddressable: strictFinancialSummary(rows, "excess_demand", "net_addressable_value", familyAvailability),
+        slowDeadExposure: strictFinancialSummary(rows, "slow_dead", "inventory_exposure", familyAvailability),
+        blockedQualityValue: strictFinancialSummary(rows, "blocked_quality", "blocked_quality_value", familyAvailability)
       }
     };
   }
@@ -166,7 +171,9 @@
       analyticsRevision: runtime.analyticsRevision || "",
       state: { ...state, page },
       counts: { all: 0, excess_demand: 0, slow_dead: 0, blocked_quality: 0, prioritized: 0, ...(runtime.counts || {}) },
-      summary: summary(filteredRows),
+      familyAvailability: { ...(runtime.familyAvailability || {}) },
+      segmentAvailability,
+      summary: summary(filteredRows, runtime.familyAvailability),
       allSegmentRows: baseRows,
       filteredRows,
       pageRows,

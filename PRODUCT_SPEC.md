@@ -1734,7 +1734,25 @@ Evidence Readiness equals readiness-capable currently filtered Portfolio Cases d
 
 Blocked / Quality is a limited exposure and evidence model, not a complete Recovery Engine. Release, rework, supplier-return, approval and success-probability data is not available, so no unsupported recoverable quantity or recoverable value is claimed.
 
-R0A is complete. R0B establishes local Runtime, test, manifest and Git reproducibility; it is not a Product Release. `TRUST-01` remains open unless independently proven, and the Product Release Gate remains `HOLD`.
+R0A is complete. R0B establishes local Runtime, test, manifest and Git reproducibility; it is not a Product Release. At that historical R0B boundary `TRUST-01` remained open. The current technical TRUST result is documented below, while Product Release remains `HOLD`.
+
+## TRUST-01 Source-Bound Trust State
+
+The current technical implementation binds each analytical Mapping and field policy to one physical source identity: `canonicalField`, strict numeric integer `sourceIndex`, duplicate-aware `sourceKey` and matching `sourceColumn`. Reviewed Mapping is the only commit-capable Mapping truth. Preview, Dataset Builder, Dataset Meta and Package records must reproduce the same Mapping and Normalization Policy signatures.
+
+Reopening an unchanged Mapping preserves its signatures. Remapping to another physical source, including a same-label duplicate, clears top-level and field-level confirmation and prevents Apply until the current source is re-evaluated and freshly confirmed. Proposals remain evidence and cannot bypass the reviewed Mapping boundary.
+
+Unsafe required financial interpretation is fail-closed. Missing, ambiguous, invalid, mixed-locale, mixed-currency, double-scaled, non-finite and overflow input remains unavailable; validated numeric zero remains available. Display-currency changes remain presentation-only and cannot alter source values, trust states, signatures or Package revisions.
+
+The Package contracts remain isolated:
+
+- Inventory Snapshot owns financial KPIs, Recovery and Inventory Data Quality.
+- Material Master requires Material ID, preserves identifiers as text and only fills approved missing context without overwriting Inventory-owned or protected fields.
+- Consumption History requires Material ID, quantity and date/period evidence, preserves zero and negative movement evidence, and cannot mutate Inventory Recovery, Actions, Data Quality or Pilot Review.
+
+Without accepted Consumption History, Slow / Dead Runtime is unavailable rather than a calculated zero. The Unified Risk segment shows `n. v.` / `n/a` and retains the existing History import action. A zero case count or zero exposure is shown only for an `available` or `limited` current calculation.
+
+TRUST-01 technical source acceptance is separate from release governance. A clean TRUST-only commit cannot be separated from the inherited worktree, therefore Fresh-Commit and Fresh-Bundle acceptance remain blocked. Product Release remains `HOLD` and the next authorized activity is independent review.
 
 ## Current Assumptions
 
@@ -1762,6 +1780,6 @@ This closure adds no new product feature, chart, forecast, persistence, approval
 
 ## Recommended Next Work Block
 
-`TRUST-01`: independently close the source-bound input trust and release-governance gate. R0B may create a reproducible local candidate, but it does not authorize publication, deployment, tagging or Product Release.
+Recommended product scope after independent TRUST review: `RECOVERY-LOOP-01 — Excess-to-PO Recovery`.
 
-Subsequent roadmap remains Purchase Order and deeper Quality-specific intelligence after the trust gate.
+Current authorized scope: `REVIEW_REQUIRED`. No publication, deployment, tagging or Product Release is authorized by TRUST-01.

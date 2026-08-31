@@ -7,8 +7,10 @@
 
   const canonical = root.core?.canonical;
   const valueUtils = root.core?.valueUtils;
+  const sourceModel = root.data?.sourceModel;
   if (!canonical) throw new Error("ObsoliQ input normalization engine requires the canonical module.");
   if (!valueUtils) throw new Error("ObsoliQ input normalization engine requires the value-utils module.");
+  if (!sourceModel) throw new Error("ObsoliQ input normalization engine requires the source-model module.");
 
   const {
     inventoryFieldDefinitions,
@@ -53,10 +55,10 @@
   }
 
   function sourceMetaForEntry(entry = {}, sourceColumnMetadata = []) {
-    return sourceColumnMetadata.find(meta => meta.sourceIndex === entry.sourceIndex)
-      || sourceColumnMetadata.find(meta => meta.sourceKey === entry.sourceColumn)
-      || sourceColumnMetadata.find(meta => meta.originalHeader === entry.sourceColumn)
-      || null;
+    const identity = sourceModel.physicalSourceIdentityForMappingEntry(entry, sourceColumnMetadata);
+    return identity
+      ? sourceColumnMetadata.find(meta => meta.sourceIndex === identity.sourceIndex) || null
+      : null;
   }
 
   function headerHintsByField({ columnMapping = [], sourceColumnMetadata = [] } = {}) {
@@ -86,6 +88,16 @@
       ...(normalizationPolicy.defaultFieldPolicy || {}),
       ...((normalizationPolicy.fields || {})[fieldKey] || {})
     };
+  }
+
+  function hasConflictingLocaleEvidence(profile = {}) {
+    const localeEvidenceKinds = [
+      profile.germanLikeCount,
+      profile.englishLikeCount,
+      profile.swissLikeCount,
+      profile.spaceLikeCount
+    ].filter(count => Number(count) > 0).length;
+    return profile.status === "mixed" || localeEvidenceKinds > 1;
   }
 
   function diagnosticSeverity(parseResult, fieldKey, fieldDefinitions, mappingPolicy = {}) {
@@ -145,7 +157,10 @@
       Object.keys(next).forEach(fieldKey => {
         const definition = fieldDefinition(fieldKey, fieldDefinitions);
         if (!definition || !isNumericField(fieldKey, fieldDefinitions)) return;
-        const parseResult = parseLocalizedNumericValue({
+        const fieldPolicy = policyForField(fieldKey, normalizationPolicy);
+        const unresolvedMixedLocale = hasConflictingLocaleEvidence(profilesByField[fieldKey])
+          && !String(fieldPolicy.localeOverride || "").trim();
+        const parsedValue = parseLocalizedNumericValue({
           rawValue: next[fieldKey],
           fieldDefinition: {
             ...definition,
@@ -154,8 +169,16 @@
           },
           localeProfile: profilesByField[fieldKey],
           headerHints: hintsByField[fieldKey],
-          normalizationPolicy: policyForField(fieldKey, normalizationPolicy)
+          normalizationPolicy: fieldPolicy
         });
+        const parseResult = unresolvedMixedLocale && parsedValue.status !== "missing"
+          ? {
+            ...parsedValue,
+            status: "ambiguous",
+            normalizedValue: null,
+            warnings: [...new Set([...(parsedValue.warnings || []), "mixed_numeric_locale"])]
+          }
+          : parsedValue;
         const severity = diagnosticSeverity(parseResult, fieldKey, fieldDefinitions, mappingPolicy);
         numericParseResults[fieldKey] = {
           status: parseResult.status,
@@ -187,7 +210,7 @@
         if (parseResult.status !== "missing" || severity !== "info") {
           const diagnostic = {
             severity,
-            code: codeForStatus(parseResult.status),
+            code: unresolvedMixedLocale ? "mixed_numeric_locale" : codeForStatus(parseResult.status),
             status: parseResult.status,
             rowNumber: row?.__sourceRowIndex ?? rowIndex + 1,
             field: fieldKey,

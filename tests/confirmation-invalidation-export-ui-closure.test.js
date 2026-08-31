@@ -109,6 +109,7 @@
     assert.equal(Boolean(remappedPolicy.fields.stock_value.userConfirmed), false, "Field confirmation must be cleared for the changed source");
     assert.ok(app.document.querySelector("[data-input-trust-confirm]"), "New review-required interpretation should require fresh UI confirmation");
     assert.equal(app.document.querySelector("[data-input-trust-confirm]").checked, false, "Fresh UI confirmation should start unchecked after remapping");
+    assert.equal(app.document.querySelector("#mappingApplyButton").disabled, true, "Apply must remain blocked until the remapped physical source is freshly confirmed");
 
     clickControl(app, "[data-input-trust-confirm]", assert, "Fresh Input Trust confirmation checkbox should exist");
     clickControl(app, "#mappingApplyButton", assert, "Remapped Apply button should become usable after fresh confirmation");

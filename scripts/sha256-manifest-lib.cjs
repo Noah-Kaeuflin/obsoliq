@@ -284,6 +284,14 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "tests/ir-detail-ux-01-regression.test.js",
   "tests/ir-detail-ux-01-1-product-smoke.cjs",
   "tests/ir-detail-ux-01-1-regression.test.js",
+  "TRUST_01_VERIFICATION.md",
+  "tests/run-trust-01-targeted.cjs",
+  "tests/trust-01-missing-zero-contract.test.js",
+  "tests/trust-01-product-smoke.cjs",
+  "tests/trust-01-source-bound-input-trust.test.js",
+  "tests/trust-01-static-contract.cjs",
+  "tests/trust-01-targeted.html",
+  "tests/trust-01-transaction-rollback.test.js",
   "tests/ir-workspace-ux-02-product-smoke.cjs",
   "tests/ir-workspace-ux-02-regression.test.js"
 ]);

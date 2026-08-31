@@ -66,34 +66,11 @@
     );
   }
 
-  function sourceIdentityValues(entry) {
-    return [
-      entry?.sourceColumn,
-      entry?.sourceKey,
-      entry?.sourceColumnKey,
-      entry?.sourceColumnId,
-      entry?.originalHeader,
-      entry?.normalizedSourceColumn
-    ].map(value => String(value ?? "").trim()).filter(Boolean);
-  }
-
-  function sourceMetaMatches(entry, meta) {
-    if (!entry || !meta) return false;
-    const values = new Set(sourceIdentityValues(entry));
-    const normalized = String(entry.normalizedSourceColumn || "").trim();
-    return Boolean(
-      values.has(String(meta.sourceKey || "").trim())
-      || values.has(String(meta.originalHeader || "").trim())
-      || (normalized && normalized === String(meta.normalizedOriginalHeader || "").trim())
-      || (normalized && normalized === sourceModel.sourceTechnicalKey(meta.sourceKey, meta.sourceIndex, [meta]))
-    );
-  }
-
   function sourceMetaForEntry(entry, sourceColumnMetadata = []) {
-    if (!sourceModel.isValidSourceIndex(entry?.sourceIndex)) return null;
-    const meta = sourceModel.sourceMetaForColumn(entry.sourceColumn, entry.sourceIndex, sourceColumnMetadata);
-    if (!meta || meta.sourceIndex !== entry.sourceIndex) return null;
-    return sourceMetaMatches(entry, meta) ? meta : null;
+    const identity = sourceModel.physicalSourceIdentityForMappingEntry(entry, sourceColumnMetadata);
+    return identity
+      ? sourceColumnMetadata.find(meta => meta.sourceIndex === identity.sourceIndex) || null
+      : null;
   }
 
   function validMappingEntries(columnMapping = [], sourceColumnMetadata = []) {

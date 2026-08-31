@@ -57,6 +57,7 @@
     ];
     const base = {
       sourceColumn: "Safety Stock Target",
+      sourceKey: "Safety Stock Target",
       normalizedSourceColumn: "safety_stock_target",
       selectedCanonicalField: "safety_stock_target",
       status: "mapped"
@@ -65,7 +66,7 @@
       assert.equal(bridge.mappingEntryHasValidSourceIdentityForTest({ ...base, sourceIndex }, metadata), false, `sourceIndex ${String(sourceIndex)} should be invalid`);
     });
     assert.equal(bridge.mappingEntryHasValidSourceIdentityForTest({ ...base, sourceIndex: 0 }, metadata), true, "numeric sourceIndex 0 should be valid");
-    assert.equal(bridge.mappingEntryHasValidSourceIdentityForTest({ ...base, sourceColumn: "Safety Stock Target__2", sourceIndex: 1 }, metadata), true, "numeric sourceIndex 1 should be valid");
+    assert.equal(bridge.mappingEntryHasValidSourceIdentityForTest({ ...base, sourceColumn: "Safety Stock Target__2", sourceKey: "Safety Stock Target__2", sourceIndex: 1 }, metadata), true, "numeric sourceIndex 1 should be valid");
   });
 
   test("Phase 0 duplicate physical headers remain distinguishable", async assert => {
@@ -196,7 +197,7 @@
     });
     assert.equal(missing.ok, false, "Missing material_id mapping should fail");
     assert.equal(protectedResult.ok, false, "Protected source column should not satisfy material_id");
-    assert.ok(missing.packageValidation.blockingErrors.some(error => error.key === "materialMasterMissingMaterialIdMapping"), "Missing material_id diagnostic should be returned");
+    assert.ok(missing.packageValidation.blockingErrors.some(error => error.key === "mappingMissingRequired" && error.field === "material_id"), "Missing material_id must be blocked at the source-bound Mapping gate");
   });
 
   test("Repeated Material Master imports use unique IDs and keep Inventory active", async assert => {

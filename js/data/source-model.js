@@ -24,12 +24,27 @@
     const sourceMetadata = Array.isArray(metadata) ? metadata : [];
     if (sourceIndex !== null && sourceIndex !== undefined) {
       if (!isValidSourceIndex(sourceIndex)) return null;
-      const byIndex = sourceMetadata.find(meta => meta.sourceIndex === sourceIndex);
-      if (byIndex) return byIndex;
+      return sourceMetadata.find(meta => meta.sourceIndex === sourceIndex) || null;
     }
     return sourceMetadata.find(meta => meta.sourceKey === sourceColumn)
       || sourceMetadata.find(meta => meta.originalHeader === sourceColumn)
       || null;
+  }
+
+  function physicalSourceIdentityForMappingEntry(mappingEntry = {}, metadata = []) {
+    const sourceMetadata = Array.isArray(metadata) ? metadata : [];
+    if (!isValidSourceIndex(mappingEntry.sourceIndex)) return null;
+    const meta = sourceMetadata.find(candidate => candidate.sourceIndex === mappingEntry.sourceIndex) || null;
+    if (!meta) return null;
+    const sourceKey = String(mappingEntry.sourceKey || "").trim();
+    const sourceColumn = String(mappingEntry.sourceColumn || "").trim();
+    if (!sourceKey || sourceKey !== String(meta.sourceKey || "").trim()) return null;
+    if (!sourceColumn || sourceColumn !== String(meta.sourceKey || "").trim()) return null;
+    return Object.freeze({
+      sourceIndex: meta.sourceIndex,
+      sourceKey: meta.sourceKey,
+      sourceColumn
+    });
   }
 
   function sourceOriginalHeader(sourceColumn, sourceIndex = null, metadata = []) {
@@ -113,6 +128,9 @@
     const secondDuplicate = sourceMetaForColumn("Safety Stock Target", 2, duplicate.sourceColumnMetadata);
     console.assert(secondDuplicate?.sourceKey === "Safety Stock Target__2", "Source model self-test failed: sourceIndex lookup");
     console.assert(sourceMetaForColumn("Safety Stock Target", "2", duplicate.sourceColumnMetadata) === null, "Source model self-test failed: string sourceIndex rejected");
+    console.assert(sourceMetaForColumn("Safety Stock Target", 99, duplicate.sourceColumnMetadata) === null, "Source model self-test failed: explicit unknown sourceIndex must not fall back");
+    console.assert(physicalSourceIdentityForMappingEntry({ sourceIndex: 2, sourceKey: "Safety Stock Target__2", sourceColumn: "Safety Stock Target__2" }, duplicate.sourceColumnMetadata)?.sourceIndex === 2, "Source model self-test failed: exact physical identity");
+    console.assert(physicalSourceIdentityForMappingEntry({ sourceIndex: 2, sourceKey: "Safety Stock Target", sourceColumn: "Safety Stock Target__2" }, duplicate.sourceColumnMetadata) === null, "Source model self-test failed: wrong sourceKey rejected");
 
     const identity = buildParsedSourceDataset(["Material"], [["MAT-1"], ["MAT-2"]]);
     console.assert(identity.rows[0].__sourceRowIndex === 1 && identity.rows[1].__sourceRowIndex === 2, "Source model self-test failed: source row identity");
@@ -124,6 +142,7 @@
     version: "1",
     buildSourceColumnMetadata,
     isValidSourceIndex,
+    physicalSourceIdentityForMappingEntry,
     sourceMetaForColumn,
     sourceOriginalHeader,
     sourceTechnicalKey,

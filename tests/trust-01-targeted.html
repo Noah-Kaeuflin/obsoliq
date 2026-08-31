@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ObsoliQ TRUST-01 Targeted Tests</title>
+</head>
+<body>
+  <button id="runTestsButton" type="button">Run tests</button>
+  <div id="summary"></div>
+  <ol id="results"></ol>
+  <iframe id="appFrame" title="ObsoliQ prototype test frame"></iframe>
+  <script src="test-runner.js"></script>
+  <script src="app-template.js"></script>
+  <script src="test-helpers.js"></script>
+  <script src="trust-01-source-bound-input-trust.test.js"></script>
+  <script src="trust-01-transaction-rollback.test.js"></script>
+  <script src="trust-01-missing-zero-contract.test.js"></script>
+  <script>
+    document.getElementById("runTestsButton").addEventListener("click", () => window.ObsoliQTests.run());
+    window.addEventListener("load", () => window.ObsoliQTests.run());
+  </script>
+</body>
+</html>

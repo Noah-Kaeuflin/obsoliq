@@ -22,6 +22,7 @@
     safeImportFieldKey
   } = canonical;
   const isValidSourceIndex = sourceModel.isValidSourceIndex;
+  const physicalSourceIdentityForMappingEntry = sourceModel.physicalSourceIdentityForMappingEntry;
 
   const DEFAULT_MAPPING_POLICY = Object.freeze({
     requiredFields: Object.freeze(["material_id", "stock_value"]),
@@ -237,11 +238,19 @@
   }
 
   function refreshColumnMappingStatuses(mapping = [], options = {}) {
-    const { fieldDefinitions, protectedFieldKeys } = mappingOptions(options);
+    const { fieldDefinitions, protectedFieldKeys, sourceColumnMetadata } = mappingOptions(options);
     const next = cloneColumnMapping(mapping);
     const canonicalCounts = new Map();
 
     next.forEach(entry => {
+      const meta = isValidSourceIndex(entry.sourceIndex)
+        ? sourceColumnMetadata.find(candidate => candidate.sourceIndex === entry.sourceIndex) || null
+        : null;
+      if (!Object.prototype.hasOwnProperty.call(entry, "sourceKey")
+        && meta
+        && entry.sourceColumn === meta.sourceKey) {
+        entry.sourceKey = meta.sourceKey;
+      }
       const proposal = entry.proposedCanonicalField || "";
       const proposedMatchType = entry.proposedMatchType || entry.matchType || (proposal
         ? determineMappingMatchType(entry.sourceColumn, proposal, { ...options, sourceIndex: entry.sourceIndex })
@@ -325,6 +334,7 @@
       return {
         sourceIndex,
         sourceColumn,
+        sourceKey: sourceColumnMetadata[sourceIndex]?.sourceKey || sourceColumn,
         normalizedSourceColumn,
         proposedCanonicalField: definition ? canonicalField : "",
         proposedMatchType: matchType,
@@ -346,6 +356,7 @@
     return refreshColumnMappingStatuses(mapping, options).map(entry => [
       entry.sourceColumn,
       entry.sourceIndex,
+      entry.sourceKey || "",
       entry.selectedCanonicalField || "",
       entry.ignored ? "ignored" : "mapped",
       entry.manual ? "manual" : "auto"
@@ -381,6 +392,21 @@
     const protectedMappings = refreshed.filter(entry => entry.protected);
     const errors = [];
     const warnings = [];
+
+    if (options.sourceColumnMetadata) {
+      refreshed.forEach(entry => {
+        if (!entry.selectedCanonicalField || entry.ignored || entry.protected) return;
+        if (!physicalSourceIdentityForMappingEntry(entry, options.sourceColumnMetadata)) {
+          errors.push({
+            key: "mappingInvalidSourceIdentity",
+            field: entry.selectedCanonicalField,
+            sourceColumn: entry.sourceColumn,
+            sourceIndex: entry.sourceIndex,
+            sourceKey: entry.sourceKey || ""
+          });
+        }
+      });
+    }
 
     normalizedPolicy.requiredFields.forEach(fieldKey => {
       if (!selectedFields.has(fieldKey)) {
@@ -497,20 +523,43 @@
     const sourceColumnMetadata = options.sourceColumnMetadata;
 
     const approved = refreshColumnMappingStatuses(mapping, options);
+    if (sourceColumnMetadata.length) {
+      const invalidIdentity = approved.find(entry => (
+        entry.selectedCanonicalField
+        && !entry.ignored
+        && !entry.protected
+        && !physicalSourceIdentityForMappingEntry(entry, sourceColumnMetadata)
+      ));
+      if (invalidIdentity) {
+        throw new Error(`Invalid Physical Source Identity for ${invalidIdentity.selectedCanonicalField}.`);
+      }
+    }
+    const reservedCanonicalTargets = new Set(approved
+      .filter(entry => entry.selectedCanonicalField && !entry.ignored && !entry.protected)
+      .map(entry => entry.selectedCanonicalField));
     const seen = {};
     const pairs = headers.map((sourceColumn, sourceIndex) => {
       const entry = approved.find(candidate => (
         isValidSourceIndex?.(candidate.sourceIndex)
         && candidate.sourceIndex === sourceIndex
       ))
-        || approved.find(candidate => candidate.sourceColumn === sourceColumn)
-        || createAutomaticColumnMapping({
-          headers: [sourceColumn],
-          rows: [rows[0] || {}],
-          sourceColumnMetadata: sourceColumnMetadata.slice(sourceIndex, sourceIndex + 1),
-          policy: options.policy
-        })[0];
+        || {
+          sourceIndex,
+          sourceColumn,
+          sourceKey: sourceColumnMetadata.find(meta => meta.sourceIndex === sourceIndex)?.sourceKey || sourceColumn,
+          selectedCanonicalField: "",
+          ignored: true,
+          protected: false
+        };
       const base = mappingTargetKey(entry, options);
+      if (!entry.selectedCanonicalField && reservedCanonicalTargets.has(base)) {
+        seen[base] = Math.max(seen[base] || 0, 1) + 1;
+        return { sourceColumn, key: `${base}_${seen[base]}` };
+      }
+      if (entry.selectedCanonicalField && reservedCanonicalTargets.has(base)) {
+        seen[base] = Math.max(seen[base] || 0, 1);
+        return { sourceColumn, key: base };
+      }
       seen[base] = (seen[base] || 0) + 1;
       return {
         sourceColumn,

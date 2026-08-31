@@ -680,7 +680,7 @@ AP 16.1.1 narrows this contract: relationship keys may be derived only from cano
 
 AP 16.1.1.1 makes the rule enforceable: a relationship key must come from a mapping entry where `status === "mapped"`, `ignored !== true`, `protected !== true`, `selectedCanonicalField` is present and the physical source column identity is valid. Missing status values, `canonicalField` fallbacks and proposed-but-unapproved fields are excluded. Package validation rejects any relationship key absent from the Package's approved Mapping.
 
-Physical Source Identity requires Package `sourceColumnMetadata`. A mapped source proves identity when its `sourceIndex` matches a metadata entry and the entry's source key, original header or normalized source key matches the Mapping entry. If no `sourceIndex` is supplied, exactly one metadata entry must match; ambiguous duplicate physical headers are rejected. A Mapping capability exists only when its canonical field and physical source-column identity are both valid.
+Physical Source Identity requires Package `sourceColumnMetadata` and the exact four-part tuple `canonicalField`, `sourceIndex`, `sourceKey`, `sourceColumn`. `sourceIndex` must be a JavaScript number, an integer and at least zero. It is valid only for the current parsed source. `sourceKey` and `sourceColumn` must both match the duplicate-aware `sourceKey` at that exact metadata index. Missing, coerced, negative, fractional, stale or header-only identities are invalid. A Mapping capability exists only when its canonical field and all physical source identity parts are valid.
 
 For the active Inventory Snapshot, current groups are:
 
@@ -1345,6 +1345,24 @@ The financial fields are not interchangeable:
 | Blocked / Quality | Blocked / Quality Value | `blocked_quality_value` |
 
 No Unified total may add these heterogeneous semantics. Missing evidence in one semantic makes that semantic aggregate unavailable or incomplete; it does not become zero and does not contaminate another family amount.
+
+## TRUST-01 Transaction, Signature And Missing-Zero Contract
+
+The Mapping signature covers the reviewed applied Mapping, including duplicate-aware `sourceKey`. The Normalization Policy signature covers the deterministic effective policy produced by `mergeNormalizationPolicies(proposedNormalizationPolicies, normalizationPolicyOverrides)` plus current review confirmation. Inventory Dataset Builder, Dataset Meta and Package metadata must reproduce both signatures exactly. Material Master and Consumption History Package Mapping must reproduce the Builder Mapping signature; Consumption History additionally requires exact Interpretation/Builder Semantic Policy signature equality before Registry commit.
+
+Remapping a canonical field to a different physical source invalidates `confirmed`, `userConfirmed`, `reviewConfirmed`, `confirmationMode`, `confirmedAt` and `reviewConfirmedAt`; the reason is `source_identity_changed`. Previous overrides cannot transfer to the new source. Apply remains blocked until current-source trust is accepted.
+
+Every failed Dataset or Package transaction restores Raw Source, metadata, normalized and analytical rows, Dataset Meta, Mapping and Policy, financial results, Actions, Data Quality, filters, reviews, Historical/Slow-Dead Runtime and Registry ownership/sequence/retention. Historical Runtime may advance only its monotone generation epoch during restore so stale asynchronous completion cannot become current. No failure may consume a Dataset ID, Package ID or revision.
+
+Slow / Dead presentation follows runtime truth:
+
+| Runtime state | Count / exposure presentation |
+| --- | --- |
+| `not_calculated`, `calculating`, `unavailable`, `error` | `n. v.` / `n/a`; never numeric zero |
+| `available` or `limited`, zero cases | genuine `0` |
+| `available` or `limited`, cases present | exact current value |
+
+Unavailable Slow / Dead financial exposure remains `null` and exports empty. A genuine completed zero remains numeric `0` and exports as zero.
 
 Portfolio Evidence is conservative across Primary and Secondary Family Cases. Unknown and empty evidence fail closed to unavailable. Evidence Readiness is:
 

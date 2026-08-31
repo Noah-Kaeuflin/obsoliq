@@ -136,7 +136,7 @@ R0A closed the verified numeric, transaction, identity and evidence-aggregation 
 
 Evidence Readiness is the number of readiness-capable, currently filtered Portfolio Cases divided by all currently filtered Portfolio Cases. The UI exposes numerator and denominator; an empty denominator is unavailable rather than `0%`.
 
-R0B closes local Runtime, test, manifest and Git reproducibility only. It does not authorize a product release. Unless independently verified otherwise, `TRUST-01` remains open, the Product Release Gate remains `HOLD`, and a local Closure commit is only a reproducible local candidate.
+R0B closes local Runtime, test, manifest and Git reproducibility only. At that historical boundary `TRUST-01` remained open. The current TRUST-01 technical result and its blocked Fresh-Commit/Fresh-Bundle gates are documented below; Product Release remains `HOLD`.
 
 ### Packaged data provenance
 
@@ -244,3 +244,15 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - synchronous 50,000-row historical metric calculation may still occupy the main browser thread during the controlled build
 
 See `PRODUCT_SPEC.md` and `CHANGELOG.md` for current scope and accepted limitations.
+
+## TRUST-01 Source Trust Boundary
+
+TRUST-01 hardens the existing import architecture; it does not add a second Trust Engine. Analytical mappings and normalization policies are bound to the exact current physical source identity: canonical field, numeric integer `sourceIndex`, duplicate-aware `sourceKey` and matching `sourceColumn`. Invalid identity, stale confirmation, mixed locale, mixed currency, double scaling or signature drift blocks commit and retains the last valid Dataset and Package state.
+
+Inventory Snapshot, Material Master and Consumption History keep separate Package contracts. Only Inventory drives financial KPIs and Recovery; Material Master remains fill-missing-only context enrichment; Consumption History remains isolated evidence for Historical and Slow / Dead Runtime.
+
+Missing evidence is not zero. Without accepted Consumption History, Slow / Dead is displayed as `n. v.` / `n/a` with the existing import action. A visible numeric `0` is allowed only after a current successful calculation produced a genuine zero result.
+
+TRUST-01 covers local Package and client-data boundaries only. Imported business rows are session-only, the productive runtime has no external fetch or storage path, and direct `file://` operation remains the supported execution model. XLSX/ZIP/inflate resource limits (`SEC-001`), production observability, broader browser compatibility and enterprise security remain outside this scope.
+
+The current technical changes are not a Product Release authorization. The mixed pre-existing worktree prevents a clean TRUST-only candidate commit, so Fresh-Commit and Fresh-Bundle gates remain blocked. `PRODUCT_RELEASE_GATE` remains `HOLD`; no push, tag, merge, deployment or publication is authorized.
