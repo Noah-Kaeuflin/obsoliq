@@ -14,13 +14,13 @@ const expectedIcons = [
   "blocked-quality"
 ];
 const breakpoints = [
-  { width: 1536, height: 864, tile: 38, icon: 21, label: 12.5, value: 26, financialValue: 28, meta: 11.5, topHeight: 92, financialHeight: 96, topColumns: 4, financialColumns: 3 },
-  { width: 1440, height: 900, tile: 38, icon: 21, label: 12.5, value: 26, financialValue: 28, meta: 11.5, topHeight: 92, financialHeight: 96, topColumns: 4, financialColumns: 3 },
-  { width: 1366, height: 768, tile: 38, icon: 21, label: 12.5, value: 26, financialValue: 28, meta: 11.5, topHeight: 92, financialHeight: 96, topColumns: 4, financialColumns: 3 },
-  { width: 1200, height: 800, tile: 36, icon: 20, label: 12, value: 25, financialValue: 26, meta: 11, topHeight: 88, financialHeight: 92, topColumns: 4, financialColumns: 3 },
-  { width: 900, height: 900, tile: 36, icon: 20, label: 12, value: 25, financialValue: 26, meta: 11, topHeight: 88, financialHeight: 92, topColumns: 2, financialColumns: 2 },
-  { width: 720, height: 900, tile: 36, icon: 20, label: 12, value: 25, financialValue: 26, meta: 11, topHeight: 88, financialHeight: 92, topColumns: 2, financialColumns: 2 },
-  { width: 390, height: 844, tile: 34, icon: 18, label: 12, value: 24, financialValue: 25, meta: 11, topHeight: 84, financialHeight: 88, topColumns: 1, financialColumns: 1 }
+  { width: 1536, height: 864, tile: 30, icon: 17, label: 10.5, value: 20, financialValue: 21, meta: 9.5, topHeight: 72, financialHeight: 72, topColumns: 4, financialColumns: 3 },
+  { width: 1440, height: 900, tile: 30, icon: 17, label: 10.5, value: 20, financialValue: 21, meta: 9.5, topHeight: 72, financialHeight: 72, topColumns: 4, financialColumns: 3 },
+  { width: 1366, height: 768, tile: 30, icon: 17, label: 10.5, value: 20, financialValue: 21, meta: 9.5, topHeight: 72, financialHeight: 72, topColumns: 4, financialColumns: 3 },
+  { width: 1200, height: 800, tile: 30, icon: 17, label: 10.5, value: 19, financialValue: 20, meta: 9.5, topHeight: 70, financialHeight: 70, topColumns: 4, financialColumns: 3 },
+  { width: 900, height: 900, tile: 30, icon: 17, label: 10.5, value: 19, financialValue: 20, meta: 9.5, topHeight: 70, financialHeight: 70, topColumns: 2, financialColumns: 2 },
+  { width: 720, height: 900, tile: 30, icon: 17, label: 10.5, value: 19, financialValue: 20, meta: 9.5, topHeight: 70, financialHeight: 70, topColumns: 2, financialColumns: 2 },
+  { width: 390, height: 844, tile: 28, icon: 16, label: 10, value: 19, financialValue: 20, meta: 9.5, topHeight: 68, financialHeight: 68, topColumns: 2, financialColumns: 2 }
 ];
 
 async function setTheme(page, dark) {
@@ -107,7 +107,7 @@ async function measure(page, expected) {
       topGrid,
       financialGrid,
       financialFonts: financialCards.map(card => parseFloat(getComputedStyle(card.querySelector(".inventory-risk-kpi-value")).fontSize)),
-      guardFont: parseFloat(getComputedStyle(document.querySelector(".inventory-risk-financial-guard")).fontSize),
+      guardFont: parseFloat(getComputedStyle(document.querySelector(".inventory-risk-summary-group.financial .inventory-risk-summary-group-head span")).fontSize),
       worklistVisible: Boolean(worklistRect && worklistRect.height > 100 && worklistRect.top < innerHeight)
     };
   }, expected);
@@ -196,7 +196,7 @@ async function main() {
     if (result.financialFonts.some(font => font + 0.01 < result.financialValue)) failures.push(`financial-font-${result.width}`);
     if (result.topHeights.some(height => height + 0.5 < result.topHeight) || result.financialHeights.some(height => height + 0.5 < result.financialHeight)) failures.push(`card-height-${result.width}`);
     if (result.topGrid !== result.topColumns || result.financialGrid !== result.financialColumns) failures.push(`grid-${result.width}`);
-    if (result.guardFont + 0.01 < (result.width <= 620 ? 11 : 11.5)) failures.push(`guard-font-${result.width}`);
+    if (result.guardFont + 0.01 < 9.5) failures.push(`guard-font-${result.width}`);
   }
   if (!measurements.find(result => result.width === 1366)?.worklistVisible) failures.push("worklist-1366");
   if (JSON.stringify(finalSnapshot.counts) !== JSON.stringify(baseline.counts) || JSON.stringify(darkSnapshot.counts) !== JSON.stringify(baseline.counts)) failures.push("count-drift");

@@ -41,11 +41,12 @@ async function main() {
         search: visible('[data-inventory-risk-filter="search"]'),
         plant: visible('[data-inventory-risk-filter="plant"]'),
         program: visible('[data-inventory-risk-filter="program"]'),
-        owner: visible('[data-inventory-risk-filter="owner"]'),
-        familySubtype: visible('[data-inventory-risk-filter="familySubtype"]'),
-        priority: visible('[data-inventory-risk-filter="priority"]'),
-        evidenceStatus: visible('[data-inventory-risk-filter="evidenceStatus"]')
+        owner: Boolean(document.querySelector('[data-inventory-risk-filter="owner"]')),
+        familySubtype: Boolean(document.querySelector('[data-inventory-risk-filter="familySubtype"]')),
+        priority: Boolean(document.querySelector('[data-inventory-risk-filter="priority"]')),
+        evidenceStatus: Boolean(document.querySelector('[data-inventory-risk-filter="evidenceStatus"]'))
       },
+      advancedFiltersClosed: !document.querySelector(".inventory-risk-more-filters")?.open,
       summaryCards: document.querySelectorAll(".inventory-risk-summary-card").length,
       financialCards: document.querySelectorAll(".inventory-risk-financial-card").length,
       headers,
@@ -69,6 +70,7 @@ async function main() {
   const ownerFilter = page.locator('[data-inventory-risk-filter="owner"]');
   const ownerOptions = await ownerFilter.locator("option").count();
   if (ownerOptions > 1) {
+    await page.locator(".inventory-risk-more-filters > summary").click();
     await ownerFilter.selectOption({ index: 1 });
     await page.waitForTimeout(100);
   }
@@ -140,9 +142,10 @@ async function main() {
   assertUnifiedExcessRoute(routeState, failed);
   if (desktop.worklistStart > 540) failed.push("worklistStart");
   if (desktop.visibleRows < 6) failed.push("visibleRows");
-  if (desktop.worklistRatio < 0.56 || desktop.worklistRatio > 0.59) failed.push("split");
+  if (desktop.worklistRatio < 0.44 || desktop.worklistRatio > 0.48) failed.push("split");
   if (desktop.bodyOverflow > 2 || widths.some(item => item.overflow > 2)) failed.push("overflow");
   if (!Object.values(desktop.filters).every(Boolean)) failed.push("visibleFilters");
+  if (!desktop.advancedFiltersClosed) failed.push("advancedFiltersDefaultState");
   if (desktop.summaryCards !== 4 || desktop.financialCards !== 3) failed.push("summary");
   if (desktop.headers.some(label => /Match|Datenverknüpfung/.test(label)) || !desktop.headers.some(label => /Priorität|Priority/.test(label))) failed.push("worklistColumns");
   if (!desktop.decisionCoreVisible || !desktop.whyVisible || !desktop.nextStepVisible) failed.push("decisionCore");

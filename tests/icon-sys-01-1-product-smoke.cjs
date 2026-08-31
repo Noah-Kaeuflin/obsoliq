@@ -160,7 +160,7 @@ async function main() {
       return {
         width,
         height,
-        expectedTileSize: width <= 620 ? 34 : width <= 1200 ? 36 : 38,
+        expectedTileSize: width <= 620 ? 28 : 30,
         overflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - innerWidth,
         tiles,
         summaryColumns: Math.abs(firstTop - secondTop) < 2 ? 2 : 1,
@@ -214,7 +214,7 @@ async function main() {
   if (JSON.stringify(baseline.financialIcons) !== JSON.stringify(["recovery-potential", "slow-dead-stock", "blocked-quality"])) failures.push("financial-mapping");
   if (runtime.titleIconCount || runtime.segmentIconCount) failures.push("visual-reduction");
   if (runtime.searchIconCount !== 1 || runtime.searchLabelIconCount) failures.push("search-icon-placement");
-  const runtimeTileSize = runtime.viewportWidth <= 620 ? 34 : runtime.viewportWidth <= 1200 ? 36 : 38;
+  const runtimeTileSize = runtime.viewportWidth <= 620 ? 28 : 30;
   if (runtime.kpiTiles.length !== 7 || runtime.kpiTiles.some(tile => Math.abs(tile.width - runtimeTileSize) > 0.5 || Math.abs(tile.height - runtimeTileSize) > 0.5 || tile.iconPosition === "absolute")) failures.push("kpi-layout");
   if (runtime.openCaseIcon !== "expand" || !runtime.openCaseAria || !runtime.openCaseTitle) failures.push("worklist-chevron-accessibility");
   if (detailActions.inventory !== "inventory-explorer" || detailActions.actions !== "actions" || detailActions.actionsText.includes("→")) failures.push("detail-actions");
@@ -225,7 +225,7 @@ async function main() {
   if (!english.title.includes("Inventory Risks") || JSON.stringify(english.summaryIcons) !== JSON.stringify(baseline.summaryIcons)) failures.push("i18n");
   if (JSON.stringify(afterI18nTheme.values) !== JSON.stringify(baseline.values) || JSON.stringify(afterI18nTheme.counts) !== JSON.stringify(baseline.counts)) failures.push("semantic-value-drift");
   if (responsive.some(item => item.overflow > 2 || item.tiles.some(tile => Math.abs(tile.width - item.expectedTileSize) > 0.5 || Math.abs(tile.height - item.expectedTileSize) > 0.5) || !item.searchIconInside || item.searchPadding < 34 || !item.openCaseVisible || item.valueClipped)) failures.push("responsive-layout");
-  if (responsive.find(item => item.width === 900)?.summaryColumns !== 2 || responsive.find(item => item.width === 390)?.summaryColumns !== 1) failures.push("responsive-grid");
+  if (responsive.find(item => item.width === 900)?.summaryColumns !== 2 || responsive.find(item => item.width === 390)?.summaryColumns !== 2) failures.push("responsive-grid");
   if (remoteRequests.length) failures.push("remote-requests");
   if (failedRequests.length) failures.push("failed-requests");
   if (pageErrors.length) failures.push("page-errors");

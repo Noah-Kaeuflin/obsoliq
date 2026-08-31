@@ -67,7 +67,7 @@ The licensed ObsoliQ Icon Pack lives under `assets/icons/`. It contains 43 local
 
 For reliable direct `file://` startup, the helper synchronously mounts a trusted inline copy of the Sprite once and renders only local fragment references such as `#oq-overview`. It performs no `fetch`, network request, CDN lookup or external SVG reference. Icon IDs and optional classes are allowlisted; visible translated labels remain separate from decorative SVG markup so language switching cannot remove icons.
 
-Product icons use the shared 14/16/18 px size system, `currentColor`, a consistent Lucide outline and visible text wherever the control is not intentionally icon-only. Unified Risk KPI icons use a scoped responsive contract instead of the global icon sizes: 38 px tiles with 21 px icons on desktop, 36/20 px through laptop and tablet widths, and 34/18 px below 620 px. Their label, value and meta typography scales with the same local contract, while all other product icons remain unchanged. A Chevron selects a case inside the current workspace, while Inventory and Actions workflow buttons use their actual destination icons. Small CSS transforms optically balance Lucide geometries without modifying their SVG paths. Icon-only controls retain an accessible name and title. The ObsoliQ Q remains the sole product signet.
+Product icons use the shared 14/16/18 px size system, `currentColor`, a consistent Lucide outline and visible text wherever the control is not intentionally icon-only. Unified Risk KPI icons use a compact workspace-scoped contract instead of the global icon sizes: 30 px tiles with 17 px icons on desktop and laptop widths, reducing to 28/16 px below 620 px. Their label, value and meta typography scales with the same local contract, while all other product icons remain unchanged. A Chevron selects a case inside the current workspace, while Inventory and Actions workflow buttons use their actual destination icons. Small CSS transforms optically balance Lucide geometries without modifying their SVG paths. Icon-only controls retain an accessible name and title. The ObsoliQ Q remains the sole product signet.
 
 ## Excess Decision Detail
 
@@ -76,6 +76,14 @@ Standalone Excess cases and embedded Excess & Demand family details use one shar
 The surface responds to its own available width through CSS container queries, so the detail composition remains usable inside the Unified Inventory Risks split pane as well as on the standalone Excess workspace. All displayed values, scores, evidence, readiness states and action options continue to come from the existing Excess projection; the tabs do not calculate or reclassify business data.
 
 The embedded presentation uses the same complete component styling as the standalone workspace. Next Step and Decision Readiness occupy independent full-width rows, Score and Operational Context remain stacked until the surface is genuinely wide, Operational Context is a semantic definition grid, and unavailable Consumption History uses a precise local import action. These refinements are presentation-only and retain the existing single detail-scroll owner.
+
+## Inventory Risks Workspace
+
+The Unified Inventory Risks page uses a compact operational hierarchy: page header and segments, three always-visible filters, an optional Further Filters disclosure, grouped Portfolio and Financial Impact summaries, then the viewport-bound Risk Decision List and selected Case detail. Reset is disabled until a filter is active, and an active advanced filter keeps its disclosure open after rerender.
+
+At desktop widths above `1240px`, Worklist and Detail are equal-height panes. The Worklist table and the selected Case detail each own exactly one internal vertical scroll; their outer panels remain clipped. At 1440 x 900 the workspace begins within the first 470 px and exposes at least six complete Worklist cases while Case header, statistics, tabs and Next Step remain simultaneously visible. Narrower layouts stack both panes and retain natural document scrolling.
+
+Portfolio counts and the three financial semantics remain unchanged and separate. The compact Readiness pill in Next Step mirrors the existing Decision Readiness status; it does not calculate a new status. This workspace closure changes no Risk Case, score, value, evidence, filter, export, Registry or Package semantics.
 
 ## Tests
 

@@ -22,7 +22,7 @@ Case selection inside the Risk Decision List uses a Chevron because it opens the
 
 ### ICON-SYS-01.2 — Unified Risk KPI Scale & Legibility
 
-The Unified Risk summary uses a responsive, workspace-scoped legibility contract. Desktop cards use 38 px icon tiles with 21 px icons, 12.5 px labels, 26 px portfolio values, 28 px financial values and 11.5 px meta text. At 1200 px and below this reduces to 36/20 px tiles and icons; below 620 px it reduces to 34/18 px while preserving one-column readability. Top cards use a 92 px desktop minimum and Financial Cards use 96 px, with controlled responsive reductions.
+The Unified Risk summary uses a compact, workspace-scoped legibility contract. Desktop cards use 30 px icon tiles with 17 px icons, 10.5 px labels, 20 px portfolio values, 21 px financial values and 9.5 px meta text. At 1200 px and below values reduce to 19/20 px with a 70 px minimum card height; below 620 px tiles reduce to 28/16 px and cards use a two-column 68 px layout, falling back to one column only below 360 px.
 
 The seven semantic icon IDs, KPI values, case counts, financial separation, filters, worklist, detail selection and export behavior remain unchanged. The larger scale is implemented only through `.inventory-risk-summary` custom properties and does not alter global icon sizes, SVG geometry, Manifest or Sprite contents.
 
@@ -112,6 +112,16 @@ The Decision Surface responds to its actual panel width through CSS container qu
 This is a presentation-only composition. It does not change Excess or Recovery values, Gross-to-Net order, Opportunity Score components or maxima, Decision Readiness, Historical aggregation, Action Option status, recommendation text, Case IDs, selection semantics, upload, mapping, Data Quality, export, Registry records or Package revisions.
 
 IR-DETAIL-UX-01.1 completes the embedded visual contract. Next Review Step and Decision Readiness no longer share a stretched grid row, Readiness is presented as one flatter evidence surface, and Supporting Signals plus Score contributions use the same component treatment in both hosts. Prioritization stacks Score and structured Operational Context at medium surface widths and splits only from `760px`. Missing Consumption History remains explicitly unavailable and offers the precise “Verbrauchshistorie importieren” / “Import consumption history” action; it is never interpreted as zero consumption.
+
+### IR-WORKSPACE-UX-02 — Risk Portfolio Density & Decision Focus
+
+The Unified Inventory Risks workspace presents a compact page header with five existing Risk segments, a primary Search/Plant/Program filter row and a native Further Filters disclosure for Owner, Family/Subtype, Priority and Evidence Status. Reset remains unavailable until at least one existing filter is active. All controls retain their accepted filter keys and semantics.
+
+The seven existing KPI cards are grouped into Portfolio and Financial Impact without changing their values. Net Addressable, Slow / Dead Inventory Exposure and Blocked / QI Value remain separate and are never combined into a Unified recovery total.
+
+At desktop widths above `1240px`, the Risk Decision List and selected Case detail are equal-height, viewport-bound panes with exactly one internal Worklist scroll and one internal Detail scroll. At 1440 x 900 the workspace starts between approximately 430 and 470 px, exposes at least six complete cases and keeps Case identity, inline statistics, all five tabs and Next Step visible together. Narrower screens stack the panes and keep primary controls and paired KPI cards readable.
+
+The compact status in the Next-Step header mirrors the existing Decision Readiness result. Why Prioritized and Cause Hypothesis are visually flattened only inside the embedded detail. Risk Cases, counts, financial values, scores, evidence, readiness rules, Action Options, Case IDs, filters, exports, Registry state, Package revisions and local `file://` operation remain unchanged.
 
 ### AP 16.4b.1 — Source-Bound Interpretation & History Readiness Closure
 

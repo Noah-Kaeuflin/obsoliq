@@ -1,5 +1,7 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+const { spawnSync } = require("child_process");
 const vm = require("vm");
 
 const root = path.resolve(__dirname, "..");
@@ -131,6 +133,96 @@ check(!JSON.stringify({ invalidRunner, invalidMetrics, invalidSensitivity }).inc
 
 check(runner.stableJson(fixtures) === fixturesBefore, "Fixtures were mutated");
 check(runner.stableJson(engine.DEFAULT_SLOW_DEAD_CONDITION_POLICY) === policyBefore, "Productive Policy was mutated");
+
+const generatorRelativePath = "tests/generate-num-cal-mig-01-verification.cjs";
+const generatorPath = path.join(root, generatorRelativePath);
+const reportPath = path.join(root, "NUM_CAL_MIG_01_VERIFICATION.md");
+const generatorSource = read(generatorRelativePath);
+const generator = require(generatorPath);
+const canonicalReportBuffer = fs.readFileSync(reportPath);
+const renderedReportBuffer = Buffer.from(generator.renderReport(), "utf8");
+const canonicalRepositoryLine = "- Repository: `<repository-root>`";
+const repositoryLines = generator.renderReport().split("\n").filter(line => line.startsWith("- Repository: "));
+
+check(generatorSource.includes("const physicalRoot = path.resolve(__dirname, \"..\");"), "Generator does not keep an explicit physical I/O root");
+check(generator.reportRepositoryLocator === "<repository-root>", "Generator does not expose the canonical report locator");
+check(repositoryLines.length === 1 && repositoryLines[0] === canonicalRepositoryLine, "Canonical Repository metadata line changed");
+check(!generator.renderReport().includes(root.replace(/\\/g, "/")), "Physical repository root leaked into the canonical report");
+check(generatorSource.includes("expectedBuffer?.equals(renderedBuffer)"), "Generator no longer performs a raw Buffer byte comparison");
+check(generatorSource.includes("expectedSha256 === renderedSha256"), "Generator no longer verifies the full report SHA-256");
+check(canonicalReportBuffer.equals(renderedReportBuffer), "Canonical report is not byte-identical before portability checks");
+
+const reportBeforeCheck = fs.readFileSync(reportPath);
+const reportStatBeforeCheck = fs.statSync(reportPath);
+const absoluteCheck = spawnSync(process.execPath, [generatorPath, "--check"], {
+  cwd: os.tmpdir(),
+  encoding: "utf8",
+  windowsHide: true
+});
+const reportAfterCheck = fs.readFileSync(reportPath);
+const reportStatAfterCheck = fs.statSync(reportPath);
+check(absoluteCheck.status === 0, "Absolute generator invocation from an unrelated CWD failed");
+check(reportBeforeCheck.equals(reportAfterCheck) && reportStatBeforeCheck.mtimeMs === reportStatAfterCheck.mtimeMs, "--check wrote the canonical report");
+
+const portableFiles = [
+  generatorRelativePath,
+  "NUM_CAL_MIG_01_VERIFICATION.md",
+  "js/core/value-utils.js",
+  "js/slow-dead/slow-dead-condition-engine.js",
+  "js/slow-dead/slow-dead-calibration-contract.js",
+  "js/slow-dead/slow-dead-calibration-runner.js",
+  "js/slow-dead/slow-dead-calibration-metrics.js",
+  "js/slow-dead/slow-dead-threshold-sensitivity.js",
+  "tests/fixtures/slow-dead-calibration-fixtures.js",
+  "AP_16_4D_3A_FIXTURE_BASELINE.md",
+  "AP_16_4D_3B_CALIBRATION_METRICS_AND_SENSITIVITY.md",
+  "artifacts/ap-16-4d-3b-metrics.json",
+  "artifacts/ap-16-4d-3b-sensitivity.csv"
+];
+const portableParent = fs.mkdtempSync(path.join(os.tmpdir(), "obsoliq NUM ä portability-"));
+const portableRoot = path.join(portableParent, "second checkout with spaces");
+
+try {
+  portableFiles.forEach(relativePath => {
+    const source = path.join(root, relativePath);
+    const target = path.join(portableRoot, relativePath);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+  });
+
+  const portableGeneratorPath = path.join(portableRoot, generatorRelativePath);
+  const portableReportPath = path.join(portableRoot, "NUM_CAL_MIG_01_VERIFICATION.md");
+  const portableGenerator = require(portableGeneratorPath);
+  const portableRenderedBuffer = Buffer.from(portableGenerator.renderReport(), "utf8");
+  check(portableRoot.includes(" ") && portableRoot.includes("ä"), "Portable test root lacks required space/Unicode coverage");
+  check(portableRenderedBuffer.equals(renderedReportBuffer), "A second physical root changed rendered report bytes");
+
+  const portableReportBefore = fs.readFileSync(portableReportPath);
+  const portableStatBefore = fs.statSync(portableReportPath);
+  const portableCheck = spawnSync(process.execPath, [portableGeneratorPath, "--check"], {
+    cwd: os.tmpdir(),
+    encoding: "utf8",
+    windowsHide: true
+  });
+  const portableReportAfter = fs.readFileSync(portableReportPath);
+  const portableStatAfter = fs.statSync(portableReportPath);
+  check(portableCheck.status === 0, "Second-root --check failed");
+  check(portableReportBefore.equals(portableReportAfter) && portableStatBefore.mtimeMs === portableStatAfter.mtimeMs, "Second-root --check wrote the report");
+
+  const tamperedReport = portableReportBefore.toString("utf8").replace(canonicalRepositoryLine, "- Repository: `C:/tampered/root`");
+  fs.writeFileSync(portableReportPath, tamperedReport, "utf8");
+  const tamperedBefore = fs.readFileSync(portableReportPath);
+  const tamperedCheck = spawnSync(process.execPath, [portableGeneratorPath, "--check"], {
+    cwd: os.tmpdir(),
+    encoding: "utf8",
+    windowsHide: true
+  });
+  const tamperedAfter = fs.readFileSync(portableReportPath);
+  check(tamperedCheck.status !== 0, "--check ignored a changed Repository metadata line");
+  check(tamperedBefore.equals(tamperedAfter), "Failing --check rewrote the tampered report");
+} finally {
+  fs.rmSync(portableParent, { recursive: true, force: true });
+}
 
 const report = {
   status: failures.length ? "failed" : "passed",

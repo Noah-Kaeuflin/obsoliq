@@ -176,7 +176,7 @@ async function main() {
     if (result.width > 1240 && result.stacked) failures.push(`${result.width}x${result.height}:unexpected-stack`);
     if (result.width <= 1240 && !result.stacked) failures.push(`${result.width}x${result.height}:missing-stack`);
     if (result.worklistScroll !== "auto" || result.detailScroll !== "auto" || result.worklistPanelOverflow !== "hidden" || result.detailPanelOverflow !== "hidden") failures.push(`${result.width}x${result.height}:scroll-ownership`);
-    if (!/Score/.test(result.scoreText || "") || !result.scoreNotClipped || !/Case öffnen|Open case/.test(result.openingText || "") || !result.openingLabelHidden) failures.push(`${result.width}x${result.height}:worklist-header`);
+    if (!/Score/.test(result.scoreText || "") || !result.scoreNotClipped || !/Risikofall öffnen|Case öffnen|Open risk case|Open case/.test(result.openingText || "") || !result.openingLabelHidden) failures.push(`${result.width}x${result.height}:worklist-header`);
     if (result.navMinHeight < 34) failures.push(`${result.width}x${result.height}:navigation-size`);
     if (result.summaryHeights.length !== 4 || result.summaryHeights.some(value => value < 64)) failures.push(`${result.width}x${result.height}:summary-height`);
     if (result.readableMinimum < 11 || result.invalidWeightCount > 0) failures.push(`${result.width}x${result.height}:typography`);

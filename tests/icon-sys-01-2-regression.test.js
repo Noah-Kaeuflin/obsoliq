@@ -54,12 +54,12 @@
     const value = topCard.querySelector(".inventory-risk-kpi-value");
     const financialValue = financialCard.querySelector(".inventory-risk-kpi-value");
     const meta = document.querySelector(".inventory-risk-kpi-meta");
-    const guard = document.querySelector(".inventory-risk-financial-guard");
+    const guard = document.querySelector(".inventory-risk-summary-group.financial .inventory-risk-summary-group-head span");
     const expected = app.innerWidth <= 620
-      ? { tile: 34, icon: 18, label: 12, value: 24, financialValue: 25, meta: 11, topHeight: 84, financialHeight: 88, guard: 11 }
+      ? { tile: 28, icon: 16, label: 10, value: 19, financialValue: 20, meta: 9.5, topHeight: 68, financialHeight: 68, guard: 9.5 }
       : app.innerWidth <= 1200
-        ? { tile: 36, icon: 20, label: 12, value: 25, financialValue: 26, meta: 11, topHeight: 88, financialHeight: 92, guard: 11.5 }
-        : { tile: 38, icon: 21, label: 12.5, value: 26, financialValue: 28, meta: 11.5, topHeight: 92, financialHeight: 96, guard: 11.5 };
+        ? { tile: 30, icon: 17, label: 10.5, value: 19, financialValue: 20, meta: 9.5, topHeight: 70, financialHeight: 70, guard: 9.5 }
+        : { tile: 30, icon: 17, label: 10.5, value: 20, financialValue: 21, meta: 9.5, topHeight: 72, financialHeight: 72, guard: 9.5 };
 
     assert.equal(Math.round(tile.getBoundingClientRect().width), expected.tile, "KPI tile width must follow the active responsive contract");
     assert.equal(Math.round(tile.getBoundingClientRect().height), expected.tile, "KPI tile height must follow the active responsive contract");

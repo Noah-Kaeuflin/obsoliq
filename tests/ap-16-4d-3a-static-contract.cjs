@@ -52,7 +52,8 @@ const acceptedProductAppBaselines = [
   "ae449f0dc762604f2bf50bcbb10f54ef8ad06d2b70667ecce2b78a50f15bc0dd",
   "bbceecd4193bf49e1afe3678d657008bdb2abae73abb8e93daba8e7209e6c1ee",
   "4ea020bcb84f35079dd99b870e84185e6b68ba5450fa71f2cc748ba97e0a5a17",
-  "981e25e5d7fffdf0c82b0703286c9080dba232977d36d21ee3d3cad5f0dd5cff"
+  "981e25e5d7fffdf0c82b0703286c9080dba232977d36d21ee3d3cad5f0dd5cff",
+  "0db57eddbef7e345b7e88df495711fe846e94babc0ff49dbd754dda70c5c4b53"
 ];
 check(acceptedProductAppBaselines.includes(sha256("app.js")), "app.js differs from the accepted Calibration or authorized IR-01 product baseline");
 check(sha256("js/slow-dead/slow-dead-condition-engine.js") === "7c7a4e3e51b39d89e12daf93dadb20908a87234061677a3fcf4aa8784469e03f", "Productive Slow / Dead Condition Engine differs from the accepted pre-migration baseline");

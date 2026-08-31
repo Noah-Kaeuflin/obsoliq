@@ -29,6 +29,9 @@ const productionModules = [
 const domainModules = productionModules.filter(file => file.startsWith("js/inventory-risks/"));
 const prototype = read("prototype.html");
 const app = read("app.js");
+const view = read("js/application/inventory-risk-page-view.js");
+const styles = read("styles.css");
+const structuredTests = read("tests/tests.html");
 const navTags = [...prototype.matchAll(/<button\b[^>]*data-process="([^"]+)"[^>]*>/g)].map(match => match[1]);
 const inventoryRisksNavigation = prototype.match(/<button\b[^>]*data-process="inventory-risks"[^>]*>[\s\S]*?<\/button>/)?.[0] || "";
 
@@ -46,12 +49,19 @@ check(/"blocked-quality": "blocked_quality"/.test(app), "Blocked / Quality route
 check(/navInventoryRisks:\s*"Bestandsrisiken"/.test(app) && /navInventoryRisks:\s*"Inventory Risks"/.test(app), "German and English navigation labels must both exist");
 check(["all", "excess_demand", "slow_dead", "blocked_quality", "prioritized"].every(segment => app.includes(`inventoryRiskSegment_${segment}`)), "All five localized segment keys must exist");
 check(/inventoryRiskNoCombinedTotal/.test(app), "The explicit no-combined-total financial guard must exist");
+check(/IR-WORKSPACE-UX-02-VIEW-1/.test(view), "Inventory Risk view must expose the IR-WORKSPACE-UX-02 presentation version");
+check(/<details class="inventory-risk-more-filters"/.test(view), "Inventory Risk advanced filters must use the progressive disclosure");
+check(/inventoryRiskPortfolioSummary/.test(view) && /inventoryRiskFinancialSummary/.test(view), "Inventory Risk summary must retain the Portfolio and Financial Impact groups");
+check(/--inventory-risk-workspace-height:\s*clamp\(300px,\s*calc\(100dvh - 465px\),\s*680px\)/.test(styles), "Desktop Inventory Risk workspace must remain viewport-bound");
+check(/\.inventory-risk-table-wrap\s*\{[\s\S]*?overflow:\s*auto/.test(styles), "Inventory Risk Worklist must retain one internal scroll owner");
+check(/ir-workspace-ux-02-regression\.test\.js/.test(structuredTests), "IR-WORKSPACE-UX-02 structured regression suite must be registered");
+check(fs.existsSync(path.join(root, "tests/ir-workspace-ux-02-product-smoke.cjs")), "IR-WORKSPACE-UX-02 Product Smoke must exist");
 check(!/tests\/|test-runner|__OBSOLIQ_TEST_RESULTS__/.test(prototype), "Production bootstrap must not load or execute tests");
 
 const context = { window: {} };
 vm.runInNewContext(read("tests/app-template.js"), context, { filename: "tests/app-template.js" });
 check(context.window.__OBSOLIQ_APP_HTML === prototype, "Structured-test app template must exactly mirror prototype.html");
-check(/ir-01-regression\.test\.js/.test(read("tests/tests.html")), "IR-01 structured regression suite must be registered");
+check(/ir-01-regression\.test\.js/.test(structuredTests), "IR-01 structured regression suite must be registered");
 
 const report = { status: failures.length ? "failed" : "passed", checks, visibleNavigation: navTags, productionModules, failures };
 console.log(JSON.stringify(report, null, 2));

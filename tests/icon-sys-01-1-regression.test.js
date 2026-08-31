@@ -56,7 +56,7 @@
     const card = document.querySelector(".inventory-risk-summary-card");
     const tile = card.querySelector(".inventory-risk-kpi-icon");
     const tileStyle = app.getComputedStyle(tile);
-    const expectedTileSize = app.innerWidth <= 620 ? 34 : app.innerWidth <= 1200 ? 36 : 38;
+    const expectedTileSize = app.innerWidth <= 620 ? 28 : 30;
     assert.equal(app.getComputedStyle(card).display, "grid", "KPI cards must use the icon-and-copy grid");
     assert.equal(Math.round(parseFloat(tileStyle.width)), expectedTileSize, "KPI icon tile width must follow the current responsive contract");
     assert.equal(Math.round(parseFloat(tileStyle.height)), expectedTileSize, "KPI icon tile height must follow the current responsive contract");

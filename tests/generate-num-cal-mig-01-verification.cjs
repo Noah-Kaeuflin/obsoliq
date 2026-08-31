@@ -3,11 +3,12 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const root = path.resolve(__dirname, "..");
-const reportPath = path.join(root, "NUM_CAL_MIG_01_VERIFICATION.md");
+const physicalRoot = path.resolve(__dirname, "..");
+const reportRepositoryLocator = "<repository-root>";
+const reportPath = path.join(physicalRoot, "NUM_CAL_MIG_01_VERIFICATION.md");
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(root, relativePath), "utf8");
+  return fs.readFileSync(path.join(physicalRoot, relativePath), "utf8");
 }
 
 function loadRuntime() {
@@ -75,7 +76,7 @@ function migrationMatrix(runtime) {
 }
 
 function sha256(relativePath) {
-  return crypto.createHash("sha256").update(fs.readFileSync(path.join(root, relativePath))).digest("hex");
+  return crypto.createHash("sha256").update(fs.readFileSync(path.join(physicalRoot, relativePath))).digest("hex");
 }
 
 function artifactTable() {
@@ -89,7 +90,7 @@ function artifactTable() {
     "| Artefakt | Bytes | SHA-256 Run 1 | SHA-256 Run 2 | Byteidentisch |",
     "| --- | ---: | --- | --- | --- |",
     ...paths.map(relativePath => {
-      const bytes = fs.statSync(path.join(root, relativePath)).size;
+      const bytes = fs.statSync(path.join(physicalRoot, relativePath)).size;
       const hash = sha256(relativePath);
       return `| \`${relativePath}\` | ${bytes} | \`${hash}\` | \`${hash}\` | Ja |`;
     })
@@ -175,7 +176,7 @@ IR-01 IMPLEMENTATION: NOT_AUTHORIZED
 
 ## Workspace and Scope
 
-- Repository: \`${root.replace(/\\/g, "/")}\`
+- Repository: \`${reportRepositoryLocator}\`
 - Branch: \`fix/ex-ux-01-3-excess-decision-narrative\`
 - Initial and final HEAD: \`aae61092d3fc6a9ba7f1018d711fd387ab99ad5e\`
 - Verification date: \`2026-08-26\`
@@ -305,9 +306,23 @@ function main() {
   }
   if (process.argv.includes("--check")) {
     const exists = fs.existsSync(reportPath);
-    const byteIdentical = exists && fs.readFileSync(reportPath, "utf8") === report;
-    console.log(JSON.stringify({ status: byteIdentical ? "passed" : "failed", reportPath, exists, byteIdentical }, null, 2));
-    if (!byteIdentical) process.exit(1);
+    const expectedBuffer = exists ? fs.readFileSync(reportPath) : null;
+    const renderedBuffer = Buffer.from(report, "utf8");
+    const byteIdentical = Boolean(expectedBuffer?.equals(renderedBuffer));
+    const expectedSha256 = expectedBuffer ? crypto.createHash("sha256").update(expectedBuffer).digest("hex") : null;
+    const renderedSha256 = crypto.createHash("sha256").update(renderedBuffer).digest("hex");
+    const hashIdentical = expectedSha256 === renderedSha256;
+    const passed = exists && byteIdentical && hashIdentical;
+    console.log(JSON.stringify({
+      status: passed ? "passed" : "failed",
+      reportPath,
+      exists,
+      byteIdentical,
+      hashIdentical,
+      expectedSha256,
+      renderedSha256
+    }, null, 2));
+    if (!passed) process.exit(1);
     return;
   }
   process.stdout.write(report);
@@ -315,4 +330,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { loadRuntime, migrationMatrix, renderReport };
+module.exports = { loadRuntime, migrationMatrix, renderReport, reportRepositoryLocator };

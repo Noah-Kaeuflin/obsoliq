@@ -14,7 +14,7 @@ IR-01 IMPLEMENTATION: NOT_AUTHORIZED
 
 ## Workspace and Scope
 
-- Repository: `C:/Users/Noah/Documents/Codex/2026-06-24/da-s/outputs/inventory-recovery-mvp`
+- Repository: `<repository-root>`
 - Branch: `fix/ex-ux-01-3-excess-decision-narrative`
 - Initial and final HEAD: `aae61092d3fc6a9ba7f1018d711fd387ab99ad5e`
 - Verification date: `2026-08-26`

@@ -3,7 +3,7 @@
 
   const root = global.ObsoliQ = global.ObsoliQ || {};
   root.application = root.application || {};
-  const VERSION = "IR-01C-VIEW-1";
+  const VERSION = "IR-WORKSPACE-UX-02-VIEW-1";
 
   function createInventoryRiskPageView(options = {}) {
     const t = typeof options.t === "function" ? options.t : key => key;
@@ -63,7 +63,6 @@
       return `
         <section class="inventory-risk-header panel">
           <div class="inventory-risk-header-copy">
-            <span class="inventory-risk-eyebrow">${escape(t("inventoryRiskEyebrow"))}</span>
             <h2>${escape(t("inventoryRiskTitle"))}</h2>
             <p>${escape(t("inventoryRiskSubtitle"))}</p>
           </div>
@@ -82,6 +81,11 @@
 
     function renderFilters(model) {
       const filters = model.state.filters;
+      const activeFilterKeys = Object.entries(filters)
+        .filter(([key, value]) => key === "search" ? String(value || "").trim() : value !== "all")
+        .map(([key]) => key);
+      const advancedFilterKeys = ["owner", "familySubtype", "priority", "evidenceStatus"];
+      const activeAdvancedCount = activeFilterKeys.filter(key => advancedFilterKeys.includes(key)).length;
       return `
         <section class="inventory-risk-controls" aria-label="${escape(t("inventoryRiskFiltersAria"))}">
           <label class="inventory-risk-search">
@@ -93,14 +97,19 @@
           </label>
           <label><span>${escape(t("plantLabel"))}</span><select data-inventory-risk-filter="plant">${selectOptions(model.filterOptions.plants, filters.plant)}</select></label>
           <label><span>${escape(t("groupLabel"))}</span><select data-inventory-risk-filter="program">${selectOptions(model.filterOptions.programs, filters.program)}</select></label>
-          <label><span>${escape(t("inventoryRiskOwner"))}</span><select data-inventory-risk-filter="owner">${selectOptions(model.filterOptions.owners, filters.owner, value => value === "unassigned" ? t("inventoryRiskUnassigned") : value)}</select></label>
-          <label><span>${escape(t("inventoryRiskFamilySubtype"))}</span><select data-inventory-risk-filter="familySubtype">${selectOptions(model.filterOptions.familySubtypes, filters.familySubtype, value => {
-            const [family, subtype] = value.split(":");
-            return `${familyLabel(family)} · ${subtypeLabel(subtype)}`;
-          })}</select></label>
-          <label><span>${escape(t("colPriority"))}</span><select data-inventory-risk-filter="priority">${selectOptions(model.filterOptions.priorities, filters.priority, priorityLabel)}</select></label>
-          <label><span>${escape(t("inventoryRiskEvidenceStatus"))}</span><select data-inventory-risk-filter="evidenceStatus">${selectOptions(model.filterOptions.evidenceStatuses, filters.evidenceStatus, evidenceLabel)}</select></label>
-          <button class="secondary compact inventory-risk-reset" type="button" data-inventory-risk-reset>${icon("reset-filter")}<span>${escape(t("resetFilters"))}</span></button>
+          <details class="inventory-risk-more-filters"${activeAdvancedCount ? " open" : ""}>
+            <summary>${icon("advanced-filter")}<span>${escape(t("inventoryRiskMoreFilters"))}</span>${activeAdvancedCount ? `<strong>${escape(count(activeAdvancedCount))}</strong>` : ""}</summary>
+            <div class="inventory-risk-advanced-filter-grid">
+              <label><span>${escape(t("inventoryRiskOwner"))}</span><select data-inventory-risk-filter="owner">${selectOptions(model.filterOptions.owners, filters.owner, value => value === "unassigned" ? t("inventoryRiskUnassigned") : value)}</select></label>
+              <label><span>${escape(t("inventoryRiskFamilySubtype"))}</span><select data-inventory-risk-filter="familySubtype">${selectOptions(model.filterOptions.familySubtypes, filters.familySubtype, value => {
+                const [family, subtype] = value.split(":");
+                return `${familyLabel(family)} · ${subtypeLabel(subtype)}`;
+              })}</select></label>
+              <label><span>${escape(t("colPriority"))}</span><select data-inventory-risk-filter="priority">${selectOptions(model.filterOptions.priorities, filters.priority, priorityLabel)}</select></label>
+              <label><span>${escape(t("inventoryRiskEvidenceStatus"))}</span><select data-inventory-risk-filter="evidenceStatus">${selectOptions(model.filterOptions.evidenceStatuses, filters.evidenceStatus, evidenceLabel)}</select></label>
+            </div>
+          </details>
+          <button class="secondary compact inventory-risk-reset" type="button" data-inventory-risk-reset${activeFilterKeys.length ? "" : " disabled"}>${icon("reset-filter")}<span>${escape(t("resetFilters"))}</span></button>
         </section>
       `;
     }
@@ -133,24 +142,32 @@
         .replace("{total}", count(summary.evidenceTotalCount));
       return `
         <section class="inventory-risk-summary" aria-label="${escape(t("inventoryRiskSummaryAria"))}">
-          <div class="inventory-risk-summary-grid">
-            ${metric(t("inventoryRiskUniqueEntities"), count(summary.uniqueRiskEntities), "", "", "inventory-risks")}
-            ${metric(t("inventoryRiskPrioritizedCases"), count(summary.prioritizedCases), "", "", "prioritized-cases")}
-            ${metric(t("inventoryRiskOwnerCoverage"), percent(summary.ownerCoverage), "", "", "owner-coverage")}
-            ${metric(
-              t("inventoryRiskEvidenceReadiness"),
-              evidenceAvailable ? percent(summary.evidenceReadiness) : t("notAvailable"),
-              evidenceCount,
-              t("inventoryRiskEvidenceReadinessHelp"),
-              "evidence-readiness"
-            )}
+          <div class="inventory-risk-summary-group portfolio">
+            <div class="inventory-risk-summary-group-head"><strong>${escape(t("inventoryRiskPortfolioSummary"))}</strong></div>
+            <div class="inventory-risk-summary-grid">
+              ${metric(t("inventoryRiskUniqueEntities"), count(summary.uniqueRiskEntities), "", "", "inventory-risks")}
+              ${metric(t("inventoryRiskPrioritizedCases"), count(summary.prioritizedCases), "", "", "prioritized-cases")}
+              ${metric(t("inventoryRiskOwnerCoverage"), percent(summary.ownerCoverage), "", "", "owner-coverage")}
+              ${metric(
+                t("inventoryRiskEvidenceReadiness"),
+                evidenceAvailable ? percent(summary.evidenceReadiness) : t("notAvailable"),
+                evidenceCount,
+                t("inventoryRiskEvidenceReadinessHelp"),
+                "evidence-readiness"
+              )}
+            </div>
           </div>
-          <div class="inventory-risk-financial-summary" aria-label="${escape(t("inventoryRiskSeparatedFinancials"))}">
-            ${financialMetric(t("inventoryRiskNetAddressable"), summary.financials.netAddressable, "recovery-potential")}
-            ${financialMetric(t("inventoryRiskExposure"), summary.financials.slowDeadExposure, "slow-dead-stock")}
-            ${financialMetric(t("inventoryRiskBlockedValue"), summary.financials.blockedQualityValue, "blocked-quality")}
+          <div class="inventory-risk-summary-group financial">
+            <div class="inventory-risk-summary-group-head">
+              <strong>${escape(t("inventoryRiskFinancialSummary"))}</strong>
+              <span title="${escape(t("inventoryRiskNoCombinedTotal"))}">${escape(t("inventoryRiskFinancialGuardShort"))}</span>
+            </div>
+            <div class="inventory-risk-financial-summary" aria-label="${escape(t("inventoryRiskSeparatedFinancials"))}">
+              ${financialMetric(t("inventoryRiskNetAddressable"), summary.financials.netAddressable, "recovery-potential")}
+              ${financialMetric(t("inventoryRiskExposure"), summary.financials.slowDeadExposure, "slow-dead-stock")}
+              ${financialMetric(t("inventoryRiskBlockedValue"), summary.financials.blockedQualityValue, "blocked-quality")}
+            </div>
           </div>
-          <p class="inventory-risk-financial-guard">${escape(t("inventoryRiskNoCombinedTotal"))}</p>
         </section>
       `;
     }

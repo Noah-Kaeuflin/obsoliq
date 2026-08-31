@@ -61,7 +61,7 @@ async function main() {
     visibleRoutes: [...document.querySelectorAll(".process-tabs button[data-process]")].map(button => button.dataset.process),
     segments: [...document.querySelectorAll("[data-inventory-risk-segment]")].map(button => ({ key: button.dataset.inventoryRiskSegment, count: Number(button.querySelector("strong")?.textContent || 0) })),
     limitedCapabilityVisible: Boolean(document.querySelector('[data-inventory-risk-segment="blocked_quality"]')),
-    financialGuard: document.querySelector(".inventory-risk-financial-guard")?.textContent || ""
+    financialGuard: document.querySelector(".inventory-risk-summary-group.financial .inventory-risk-summary-group-head span")?.textContent || ""
   }));
 
   const segmentChecks = [];
@@ -123,7 +123,7 @@ async function main() {
   if (initial.segments.length !== 5 || initial.segments.some(item => !["all", "excess_demand", "slow_dead", "blocked_quality", "prioritized"].includes(item.key))) failures.push("segment-contract");
   if (!initial.segments.find(item => item.key === "excess_demand")?.count) failures.push("sample-excess-cases-missing");
   if (!initial.segments.find(item => item.key === "blocked_quality")?.count) failures.push("sample-blocked-quality-cases-missing");
-  if (!/nicht.*addiert|not added|not.*combined/i.test(initial.financialGuard)) failures.push("financial-semantic-guard-missing");
+  if (!/keine.*addition|nicht.*addiert|not added|not.*combined/i.test(initial.financialGuard)) failures.push("financial-semantic-guard-missing");
   segmentChecks.forEach(result => {
     if (!result.active) failures.push(`${result.segment}:not-active`);
     const segmentCount = initial.segments.find(item => item.key === result.segment)?.count || 0;

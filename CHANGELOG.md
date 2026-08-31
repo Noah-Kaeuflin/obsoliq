@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-08-30 - IR-WORKSPACE-UX-02: Risk Portfolio Density, Summary Grouping & Decision-Focus Closure
+
+### Changed
+
+- Compressed the Unified Inventory Risks header, segment row and primary filter toolbar; moved Owner, Family/Subtype, Priority and Evidence Status into a native Further Filters disclosure.
+- Grouped the unchanged seven KPI cards into a four-card Portfolio group and a three-card Financial Impact group with the existing no-combined-total boundary.
+- Bound the desktop Worklist and selected Case detail to equal viewport-aware heights with one internal scroll owner each and at least six complete Worklist cases at 1440 x 900.
+- Tightened the embedded Case header, statistics, tabs and Next Step; mirrored existing Decision Readiness in the Next-Step header and flattened Why Prioritized / Cause Hypothesis presentation.
+- Closed visible German terminology, retained English switching and added focused structured regression, direct-`file://` Product Smoke and Light/Dark responsive screenshots.
+
+### Preserved
+
+- Risk Case counts and identities, Family and Portfolio composition, filters, KPI and financial values, scores, evidence, Readiness rules, Action Options, exact handoffs and export contents.
+- Upload, parsing, sample data, Historical Runtime, Registry, Package revisions, local icons and direct `file://` operation.
+
+### Release Boundary
+
+- IR-WORKSPACE-UX-02 is presentation-only. `PRODUCT_RELEASE_GATE` remains `HOLD`; no commit, merge, push, tag, deployment or Product Release is authorized.
+
 ## 2026-08-30 - DELTA-CLOSURE-01: Icon and IR Detail Commit Closure
 
 ### Changed

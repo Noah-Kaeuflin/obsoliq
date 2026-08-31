@@ -120,6 +120,16 @@ Tab allocation is presentation-only: Decision contains the decision narrative an
 
 IR-DETAIL-UX-01.1 closes the remaining host-style gap without adding another component layer. Reusable Cause signals, Readiness markers and pills, Score tracks, Operational Context and History empty states resolve through the existing `.excess-decision-surface` scope in both hosts. The Decision container query keeps Next Step and Readiness on separate full-width rows; Prioritization stays one column through `759px` and may split only from `760px`. Operational Context is emitted as a semantic `dl`, while `.excess-detail-scroll` remains the only detail scroll owner.
 
+## IR-WORKSPACE-UX-02 Risk Portfolio Density And Scroll Ownership
+
+`js/application/inventory-risk-page-view.js` remains the presentation adapter for the Unified Inventory Risks Page Model. It now groups Search, Plant and Program as persistent primary controls and moves Owner, Family/Subtype, Priority and Evidence Status into a native presentation-only `details` disclosure. Existing `data-inventory-risk-filter` attributes and controller events remain the sole filter path; the disclosure derives its open state and active count from the existing page state.
+
+The seven unchanged summary cards are composed into two visual groups: four Portfolio measures and three separate Financial Impact measures. The full no-combined-total statement remains available as a title on the compact guard. There is no new total, aggregate, analytical build or state owner.
+
+Above `1240px`, `.inventory-risk-workspace` consumes the remaining viewport height and gives equal height to Worklist and Detail. `.inventory-risk-table-wrap` is the Worklist scroll owner; `.excess-detail-scroll` is the embedded Excess detail scroll owner; both outer panels use `overflow: hidden`. Narrower widths restore stacked panes and bounded internal scrolling. The embedded Next-Step Readiness pill is a direct rendering of the existing `decisionReadiness.status`, and the flattened Why/Cause presentation changes no Decision Surface allocation or model output.
+
+Focused structured and direct-`file://` Product Smokes assert summary grouping, progressive-filter state, six visible desktop cases, pane-height equality, scroll ownership, five tabs with one visible panel, localized labels and model/Registry immutability.
+
 ## CH-EX-01A Excess Contract And Runtime Integrity
 
 `js/excess/excess-decision-workspace-model.js` is the single owner of Gross-to-Net Availability and reconciliation. `valueNarrative()` projects the three required monetary fields and calls `validateGrossNetValueBasis()` once. Decision Readiness and `app.js` renderers consume that result. The fixed Case Header no longer owns competing numeric fallbacks: Gross, overlap and Net are references to the same projected field values, while Opportunity Score has a separate null-safe Availability projection.

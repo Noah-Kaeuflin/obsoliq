@@ -225,6 +225,7 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "ICON_SYS_01_2_VERIFICATION.md",
   "IR_DETAIL_UX_01_VERIFICATION.md",
   "IR_DETAIL_UX_01_1_VERIFICATION.md",
+  "IR_WORKSPACE_UX_02_VERIFICATION.md",
   "assets/icons/LICENSE-LUCIDE.txt",
   "assets/icons/README.md",
   "assets/icons/actions/advanced-filter.svg",
@@ -282,7 +283,9 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "tests/ir-detail-ux-01-product-smoke.cjs",
   "tests/ir-detail-ux-01-regression.test.js",
   "tests/ir-detail-ux-01-1-product-smoke.cjs",
-  "tests/ir-detail-ux-01-1-regression.test.js"
+  "tests/ir-detail-ux-01-1-regression.test.js",
+  "tests/ir-workspace-ux-02-product-smoke.cjs",
+  "tests/ir-workspace-ux-02-regression.test.js"
 ]);
 const AUTHORIZED_PACKAGE_REMOVALS = Object.freeze([
   "assets/icons/obsoliq/icon-manifest.json",
