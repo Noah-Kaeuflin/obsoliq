@@ -8,7 +8,7 @@ Current technical source acceptance is `PASS`. Overall `TRUST_01_GATE` is `BLOCK
 
 ## 2. Repository Identity
 
-- Repository: `C:\Users\Noah\Documents\Codex\2026-06-24\da-s\outputs\inventory-recovery-mvp`
+- Repository: `<repository-root>`
 - OS: Windows NT `10.0.26200.0`
 - PowerShell: `7.6.4`
 - Node: `v24.19.0`

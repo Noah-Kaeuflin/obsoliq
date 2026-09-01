@@ -2,7 +2,7 @@
 
 Verification date: 2026-08-28 (Europe/Berlin)
 Scope: `R0A - IR/Data/Numeric Safety Fixes`
-Repository: `C:\Users\Noah\Documents\Codex\2026-06-24\da-s\outputs\inventory-recovery-mvp`
+Repository: `<repository-root>`
 
 ## 1. Baseline and Scope
 

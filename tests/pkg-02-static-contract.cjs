@@ -1,6 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const {
+  HOST_PATH_SCANNER_VERSION,
+  assertNoActionableHostPaths,
+  scanHostPathRecords
+} = require("../scripts/build-pkg-02-review-bundle.cjs");
 
 const root = path.resolve(__dirname, "..");
 const failures = [];
@@ -101,6 +106,132 @@ const requiredPackageFiles = [
   "artifacts/ap-16-4d-3b-sensitivity.csv"
 ];
 requiredPackageFiles.forEach(relativePath => check(fs.existsSync(path.join(root, relativePath)), `Required package file missing: ${relativePath}`));
+
+function slash(...parts) {
+  return parts.join("/");
+}
+
+function win(...parts) {
+  return parts.join("\\");
+}
+
+function encodedDrive(doubleEncoded = false) {
+  return ["C", String.fromCharCode(37), doubleEncoded ? "253A" : "3A"].join("");
+}
+
+function hostPathFixture(id, text, relativePath = "fixture.txt", options = {}) {
+  return scanHostPathRecords([{ path: relativePath, data: Buffer.from(text, "utf8") }], { surfaceId: `STATIC:${id}`, ...options });
+}
+
+function isSingleActionable(result) {
+  return result.actionableHostPathOccurrences === 1
+    && result.unclassifiedFindings === 0
+    && result.unclassifiedNestedEncodings === 0
+    && result.decodeErrors === 0
+    && result.scanCoverageGaps === 0;
+}
+
+function isBlocked(records, options = {}) {
+  try {
+    assertNoActionableHostPaths(records, { surfaceId: "STATIC:TAMPER", ...options });
+    return false;
+  } catch (error) {
+    return error?.code === "PKG_HOST_PATH_LEAK";
+  }
+}
+
+const positiveHostPathCases = [
+  ["P01", win("C:", "Users", "Noah", "repo"), "fixture.txt"],
+  ["P02", slash("C:", "Users", "Noah", "repo"), "fixture.txt"],
+  ["P03", JSON.stringify({ root: win("C:", "Users", "Noah", "repo") }), "fixture.json"],
+  ["P04", `{"root":"${["C", "\\u003a", "\\\\Users", "\\\\Noah", "\\\\repo"].join("")}"}`, "fixture.json"],
+  ["P05", `root: ${win("C:", "Users", "Noah", "repo").replaceAll("\\", "\\\\")}`, "fixture.md"],
+  ["P06", `[root](${slash("file:", "", "", "C:", "Users", "Noah", "repo")})`, "fixture.md"],
+  ["P07", `${win("", "", "?", "C:", "Users", "Noah", "repo")}`, "fixture.txt"],
+  ["P08", `${win("", "", "server", "share", "repo")}`, "fixture.txt"],
+  ["P09", slash("file:", "", "", "C:", "Users", "Noah", "repo"), "fixture.txt"],
+  ["P10", slash("file:", "", "", encodedDrive(), "Users", "Noah", "repo"), "fixture.txt"],
+  ["P11", slash("file:", "", "server", "share", "repo"), "fixture.txt"],
+  ["P12", slash("", "home", "noah", "repo"), "fixture.txt"],
+  ["P13", slash("", "Users", "noah", "repo"), "fixture.txt"],
+  ["P14", slash("", "workspace", "session", "repo"), "fixture.txt"],
+  ["P15", slash("", "tmp", "build", "repo"), "fixture.txt"],
+  ["P16", slash("", "private", "tmp", "build", "repo"), "fixture.txt"],
+  ["P17", slash("", "var", "folders", "xy", "build", "repo"), "fixture.txt"],
+  ["P18", win("C:", "Users", "Noah Kaueflin", "Project Space"), "fixture.txt"],
+  ["P19", win("C:", "Users", `N${String.fromCodePoint(0x00f6)}ah`, "Projekt"), "fixture.txt"],
+  ["P20", ["C:", "&#92;Users", "&#92;Noah", "&#92;repo"].join(""), "fixture.html"]
+];
+for (const [id, value, relativePath] of positiveHostPathCases) {
+  check(isSingleActionable(hostPathFixture(id, value, relativePath)), `PVHPC01R1 positive host-path case failed: ${id}`);
+}
+
+const negativeHostPathCases = [
+  "Arrow/Home/End",
+  "Press Home/End",
+  "Home/End",
+  "A/B/C",
+  "C:",
+  "C++",
+  "12:30",
+  "https://example.com/Users/noah",
+  "https://example.com/home/noah",
+  "//cdn.example.com/assets/app.js",
+  "/assets/icon.svg",
+  "/api/v1/users",
+  "data:image/png;base64,...",
+  "blob:https://example.com/id",
+  "<repository-root>",
+  "<external-evidence-root>",
+  "${REPOSITORY_ROOT}",
+  "%REPOSITORY_ROOT%"
+];
+negativeHostPathCases.forEach((value, index) => {
+  const result = hostPathFixture(`N${index + 1}`, value);
+  check(result.actionableHostPathOccurrences === 0 && result.unclassifiedNestedEncodings === 0 && result.decodeErrors === 0, `PVHPC01R1 negative host-path case failed: N${index + 1}`);
+});
+
+const containedUsers = hostPathFixture("B01", slash("C:", "Users", "Noah", "repo"));
+check(containedUsers.actionableHostPathOccurrences === 1, "PVHPC01R1 contained Users path must count once");
+const crossViewValue = JSON.stringify({ root: win("C:", "Users", "Noah", "repo") });
+const crossView = hostPathFixture("B02", crossViewValue, "fixture.json", { exactRoots: [slash("C:", "Users", "Noah", "repo")] });
+check(crossView.actionableHostPathOccurrences === 1 && crossView.crossViewDuplicatesSuppressed > 0, "PVHPC01R1 same raw span must deduplicate across views");
+check(hostPathFixture("B03", `${slash("C:", "Users", "Noah", "a")} and ${slash("D:", "Users", "Noah", "b")}`).actionableHostPathOccurrences === 2, "PVHPC01R1 two source spans in one line must count twice");
+const nineRecords = Array.from({ length: 9 }, (_, index) => ({ path: `report-${index}.md`, data: Buffer.from(slash("C:", "Users", "Noah", `repo-${index}`), "utf8") }));
+check(scanHostPathRecords(nineRecords, { surfaceId: "STATIC:B04" }).actionableHostPathOccurrences === 9, "PVHPC01R1 nine report spans must count nine times");
+check(hostPathFixture("B05", `| root | ${slash("C:", "Users", "Noah", "repo")} |`, "fixture.md").actionableHostPathOccurrences === 1, "PVHPC01R1 table paths remain actionable");
+check(hostPathFixture("B06", `\`\`\`text\n${slash("C:", "Users", "Noah", "repo")}\n\`\`\``, "fixture.md").actionableHostPathOccurrences === 1, "PVHPC01R1 code-fence paths remain actionable");
+check(hostPathFixture("B07", `<!-- ${slash("C:", "Users", "Noah", "repo")} -->`, "fixture.md").actionableHostPathOccurrences === 1, "PVHPC01R1 comment paths remain actionable");
+check(hostPathFixture("B08", `[root](${slash("file:", "", "", "C:", "Users", "Noah", "repo")})`, "fixture.md").actionableHostPathOccurrences === 1, "PVHPC01R1 link-target paths remain actionable");
+check(hostPathFixture("B09", slash("C:", "Users", "Noah", "archive")).actionableHostPathOccurrences === 1, "PVHPC01R1 archive-only paths remain actionable");
+const archiveName = slash("C:", "Users", "Noah", "entry.txt");
+check(scanHostPathRecords([{ path: archiveName, data: Buffer.from("safe", "utf8") }], { surfaceId: "STATIC:B10", includePathNames: true }).actionableHostPathOccurrences === 1, "PVHPC01R1 archive metadata paths remain actionable");
+const doubleEncoded = hostPathFixture("B11", slash("file:", "", "", encodedDrive(true), "Users", "Noah", "repo"));
+check(doubleEncoded.actionableHostPathOccurrences + doubleEncoded.unclassifiedNestedEncodings === 1, "PVHPC01R1 nested path encoding must fail closed");
+const tenRecords = [...nineRecords, { path: "report-9.md", data: Buffer.from(slash("C:", "Users", "Noah", "repo-9"), "utf8") }];
+check(scanHostPathRecords(tenRecords, { surfaceId: "STATIC:B12" }).actionableHostPathOccurrences === 10, "PVHPC01R1 tenth report must expand the actionable set");
+const utf16Value = win("C:", "Users", "Noah", "utf16");
+const utf16Bytes = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(utf16Value, "utf16le")]);
+check(scanHostPathRecords([{ path: "fixture.txt", data: utf16Bytes }], { surfaceId: "STATIC:B13" }).actionableHostPathOccurrences === 1, "PVHPC01R1 supported UTF-16 BOM path must remain actionable");
+
+check(isBlocked(tenRecords), "PVHPC01R1 tamper: tenth report must block");
+check(isBlocked([{ path: "fixture.txt", data: Buffer.from(win("C:", "Users", "Noah", "repo"), "utf8") }], { exceptions: [{ path: "shifted" }] }), "PVHPC01R1 tamper: shifted exception must not bypass the guard");
+check(isBlocked([{ path: "fixture.txt", data: Buffer.from(win("C:", "Users", "Noah", "repo"), "utf8") }], { allowlist: ["*"] }), "PVHPC01R1 tamper: broad allowlist must not bypass the guard");
+check(isBlocked([{ path: "fixture.txt", data: Buffer.from(slash("file:", "", "", encodedDrive(true), "Users", "Noah", "repo"), "utf8") }]), "PVHPC01R1 tamper: double-escaped path must block");
+check(isBlocked([{ path: "fixture.txt", data: utf16Bytes }]), "PVHPC01R1 tamper: UTF-BOM path must block");
+check(isBlocked([{ path: "archive.txt", data: Buffer.from(slash("C:", "Users", "Noah", "archive"), "utf8") }]), "PVHPC01R1 tamper: archive-only leak must block");
+check(isBlocked([{ path: "artifact.zip", data: Buffer.from(win("C:", "Users", "Noah", "builder-output"), "latin1") }]), "PVHPC01R1 tamper: manipulated builder output must block");
+check(isBlocked([{ path: "fixture.json", data: Buffer.from(JSON.stringify({ root: win("C:", "Users", "Noah", "decoded") }), "utf8") }]), "PVHPC01R1 tamper: decode-only path must block");
+
+check(HOST_PATH_SCANNER_VERSION === "PVHPC01R1_HOST_PATH_SCANNER_V1", "PVHPC01R1 durable guard scanner version mismatch");
+check(typeof scanHostPathRecords === "function" && typeof assertNoActionableHostPaths === "function", "PVHPC01R1 durable scanner exports are missing");
+const builderSource = read("scripts/build-pkg-02-review-bundle.cjs");
+check(["SOURCE_PAYLOAD", "BUILD_SNAPSHOT", "PRODUCT_BUNDLE:ZIP_INPUT", "PRODUCT_BUNDLE:RAW", "PRODUCT_BUNDLE:ENTRIES", "PRODUCT_BUNDLE:EXTRACTED", "PRODUCT_BUNDLE:CHECKSUM_SIDECAR"].every(marker => builderSource.includes(marker)), "PVHPC01R1 durable guard is not wired to every required package surface");
+const manifestRecords = read("SHA256SUMS.txt").split(/\r?\n/).filter(Boolean).map(line => line.match(/^[0-9a-f]{64}  (.+)$/)?.[1]).filter(Boolean).map(relativePath => ({ path: relativePath, data: fs.readFileSync(path.join(root, ...relativePath.split("/"))) }));
+const completeSourceScan = scanHostPathRecords([...manifestRecords, { path: "SHA256SUMS.txt", data: fs.readFileSync(path.join(root, "SHA256SUMS.txt")) }], { surfaceId: "STATIC:SOURCE_PAYLOAD", exactRoots: [root] });
+check(manifestRecords.length === 278 && completeSourceScan.actionableHostPathOccurrences === 0 && completeSourceScan.unclassifiedFindings === 0 && completeSourceScan.unclassifiedNestedEncodings === 0 && completeSourceScan.decodeErrors === 0 && completeSourceScan.scanCoverageGaps === 0, "PVHPC01R1 complete source payload host-path scan is not green");
+const safeGuardResult = assertNoActionableHostPaths([{ path: "safe.txt", data: Buffer.from("<repository-root>", "utf8") }], { surfaceId: "STATIC:SAFE" });
+check(safeGuardResult.actionableHostPathOccurrences === 0 && safeGuardResult.invalidExceptionBindings === 0 && safeGuardResult.approvedSecurityFixtureOccurrences === 0, "PVHPC01R1 safe placeholder or exception contract is invalid");
 
 console.log(JSON.stringify({
   status: failures.length ? "failed" : "passed",

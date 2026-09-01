@@ -3,7 +3,7 @@
 ## Repository Identity
 
 - Product: ObsoliQ Inventory Recovery Cockpit
-- Repository root: `C:/Users/Noah/Documents/Codex/2026-06-24/da-s/outputs/inventory-recovery-mvp`
+- Repository root: `<repository-root>`
 - Branch: `feature/ir-01-unified-inventory-risks`
 - Commit before and after: `559e0cda070bdf5a77d7d66e671838ec899c786c`
 - Runtime entry: `prototype.html`

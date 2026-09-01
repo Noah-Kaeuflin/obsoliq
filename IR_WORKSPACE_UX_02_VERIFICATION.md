@@ -7,7 +7,7 @@ Release gate: `HOLD`
 ## Repository Identity Gate
 
 - Expected product: ObsoliQ Inventory Recovery Cockpit
-- Repository root: `C:/Users/Noah/Documents/Codex/2026-06-24/da-s/outputs/inventory-recovery-mvp`
+- Repository root: `<repository-root>`
 - Branch: `feature/ir-01-unified-inventory-risks`
 - Baseline commit: `96b5658c740d3d00d6e389910454a0703df828a6`
 - Runtime entry: `prototype.html`

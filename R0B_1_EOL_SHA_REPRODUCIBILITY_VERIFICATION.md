@@ -2,7 +2,7 @@
 
 Date: 2026-08-28
 Product: ObsoliQ Inventory Recovery Cockpit
-Repository: `C:\\Users\\Noah\\Documents\\Codex\\2026-06-24\\da-s\\outputs\\inventory-recovery-mvp`
+Repository: `<repository-root>`
 Branch: `feature/ir-01-unified-inventory-risks`
 Original R0B commit: `f884cbb236c36488839d68b6814999d8acdbc784`
 
