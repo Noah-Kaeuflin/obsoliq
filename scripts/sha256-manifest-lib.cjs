@@ -195,6 +195,7 @@ const BASELINE_PACKAGE_PATHS = Object.freeze([
 const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   ".gitattributes",
   "TEST_ARTIFACT_CONTAINMENT_01_VERIFICATION.md",
+  "HISTORY_SLOW_DEAD_CONTRACT_CLOSURE_01_RERUN_01_VERIFICATION.md",
   "tests/test-artifact-containment-product-smoke.cjs",
   "NUM_CAL_MIG_01_VERIFICATION.md",
   "R0A_IR_DATA_NUMERIC_SAFETY_VERIFICATION.md",
@@ -296,7 +297,10 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "tests/trust-01-targeted.html",
   "tests/trust-01-transaction-rollback.test.js",
   "tests/ir-workspace-ux-02-product-smoke.cjs",
-  "tests/ir-workspace-ux-02-regression.test.js"
+  "tests/ir-workspace-ux-02-regression.test.js",
+  "tests/data-foundation-activation-01-contract-red.cjs",
+  "tests/history-slow-dead-contract-closure.test.cjs",
+  "tests/history-slow-dead-contract-closure-product-smoke.cjs"
 ]);
 const AUTHORIZED_PACKAGE_REMOVALS = Object.freeze([
   "assets/icons/obsoliq/icon-manifest.json",

@@ -329,7 +329,8 @@
         : "unknown";
       const confidence = confidenceForMatchType(matchType, definition ? canonicalField : "");
       const duplicateAutoKey = isImportable ? `${canonicalField}::${normalizeHeaderToken(sourceLabel)}` : "";
-      const selectedCanonicalField = isImportable && !automaticSelections.has(duplicateAutoKey) ? canonicalField : "";
+      // Competing quantity units require explicit review, never first-column selection.
+      const selectedCanonicalField = isImportable && (canonicalField === "base_unit" || !automaticSelections.has(duplicateAutoKey)) ? canonicalField : "";
       if (selectedCanonicalField) automaticSelections.add(duplicateAutoKey);
       return {
         sourceIndex,

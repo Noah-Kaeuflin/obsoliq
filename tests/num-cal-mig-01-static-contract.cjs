@@ -187,7 +187,8 @@ try {
     const source = path.join(root, relativePath);
     const target = path.join(portableRoot, relativePath);
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.copyFileSync(source, target);
+    // Copy fixture bytes without inheriting Windows Hidden/ReadOnly attributes.
+    fs.writeFileSync(target, fs.readFileSync(source));
   });
 
   const portableGeneratorPath = path.join(portableRoot, generatorRelativePath);

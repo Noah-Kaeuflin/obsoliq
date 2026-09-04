@@ -94,6 +94,8 @@
     assert.equal(metric.months_since_last_consumption, 0, "Last consumption in the as-of month should be zero months old");
     assert.equal(metric.consumption_trend, "increasing", "Recent three months should show increasing trend vs prior three");
     assert.equal(metric.inventory_coverage_months, 12, "Coverage should use stock quantity divided by average monthly consumption");
+    assert.equal(metric.history_coverage_months, 12, "Observed history span should be produced separately from stock coverage");
+    assert.equal(metric.provenance.historyCoverageMonths, 12, "History span must retain producer provenance");
     assert.equal(metric.partial_current_period, false, "Last day of the month should not be partial");
     assert.includes(reasons, "future_movement", "Future movement should be excluded with provenance");
     assert.includes(reasons, "unknown_movement", "Unknown movement should be excluded with provenance");
@@ -126,5 +128,6 @@
     assert.equal(metric.last_consumption_period, "2026-06", "Month precision should remain visible as period evidence");
     assert.equal(metric.last_consumption_precision, "month", "Precision should remain month");
     assert.equal(metric.partial_current_period, true, "Mid-month analysis as-of should be marked partial");
+    assert.equal(metric.history_coverage_months, 1, "Single observed month is one inclusive month, not zero");
   });
 })();

@@ -21,7 +21,8 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - source-bound Consumption History interpretation policies
 - package-scoped History Readiness
 - Inventory-to-Consumption-History relationship
-- controlled historical inventory metrics with provenance
+- controlled historical inventory metrics with inclusive observed `history_coverage_months` provenance
+- optional canonical Inventory/Material Master `base_unit` with Inventory-authoritative fill-missing-only enrichment
 - lifecycle-triggered Historical Metrics Runtime orchestration
 - presentation-independent Historical Data Foundation status
 - Slow / Dead Condition & Evidence Engine
@@ -52,6 +53,8 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - versioned synthetic Calibration Metrics plus 17-scenario OFAT threshold-sensitivity artifacts without Policy recommendation or activation
 
 Current cross-package relationships are limited to Inventory-to-Material-Master Context Enrichment and Inventory-to-Consumption-History Derived Historical Metrics. Arbitrary joins and a standalone Purchase Orders import are not available.
+
+History Coverage is the inclusive span between the earliest and latest valid observed Consumption History month. It is separate from rolling-window completeness and quantity-based Inventory Coverage. Missing History remains unavailable rather than zero. No unit conversion, unit defaulting or History-to-Inventory unit backfill is performed.
 
 ## Quick Start
 

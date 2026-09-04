@@ -56,7 +56,10 @@
     return String(value ?? "").trim();
   }
 
-  function valuesEqual(a, b) {
+  function valuesEqual(a, b, fieldKey) {
+    if (fieldKey === "base_unit") {
+      return normalizeText(a).replace(/\s+/g, "").toUpperCase() === normalizeText(b).replace(/\s+/g, "").toUpperCase();
+    }
     return normalizeText(a) === normalizeText(b);
   }
 
@@ -205,7 +208,7 @@
           }
           return;
         }
-        if (valuesEqual(inventoryValue, masterValue)) {
+        if (valuesEqual(inventoryValue, masterValue, fieldKey)) {
           rowProvenance.confirmedFields[fieldKey] = {
             source: "material_master",
             materialMasterPackageId: identity.materialMaster.packageId,

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-04 - HISTORY-SLOW-DEAD-CONTRACT-CLOSURE-01-RERUN-01
+
+### Changed
+
+- Added optional canonical Inventory/Material Master `base_unit` with unambiguous aliases, physical-source duplicate review and conservative fill-missing-only unit comparison.
+- Added inclusive observed `history_coverage_months` and `historyCoverageMonths` provenance in the existing Aggregation producer; advanced Aggregation and Historical Metric models to v2.
+- Corrected the existing Explorer History Coverage source and label without changing layout or export formatting.
+- Added synthetic domain/import/remap/rollback regression tests and included the unchanged DFA01 RED reproducer in the explicit package allowlist.
+
+### Preserved
+
+- Sample data, financials, Recovery, Data Quality, rolling consumption metrics, completeness, stock reach, Slow/Dead policy and thresholds, readiness formula, Package schemas and local-only operation.
+- TEST-ARTIFACT-CONTAINMENT-01 remains intact. Full demo activation belongs to the later DATA-FOUNDATION-ACTIVATION-01-RERUN-01 phase. Product Release remains HOLD.
+
 ## 2026-09-04 - TEST-ARTIFACT-CONTAINMENT-01: Packaged R0B.1 Dependency Closure
 
 ### Changed

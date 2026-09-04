@@ -93,6 +93,8 @@
     assert.equal(runtime.status, "available", "Runtime should be available with complete 12-month evidence");
     assert.equal(runtime.historicalMetricsSummary.includedRowCount, 12, "Portfolio metric rows must not double-count repeated inventory row views");
     assert.equal(metric.sharedEntityMetric, true, "Repeated inventory rows for one entity should be marked as shared metrics");
+    assert.equal(metric.history_coverage_months, 12, "Service must preserve the producer's observed history span");
+    assert.equal(runtime.historicalMetricProvenanceByInventoryRowKey["INV-SVC-1"].historyCoverageMonths, 12, "Row provenance must retain history span");
     assert.equal(runtime.historicalMetricEntityKeyByInventoryRowKey["INV-SVC-1"], entityKey, "First row view should point to entity authority");
     assert.equal(runtime.historicalMetricEntityKeyByInventoryRowKey["INV-SVC-2"], entityKey, "Second row view should point to same entity authority");
     assert.equal(runtime.historicalMetricsByInventoryRowKey["INV-SVC-1"].net_consumption_quantity_12m, 120, "Row view should expose entity metric");

@@ -17034,7 +17034,7 @@ const historicalInventoryFieldDefinitions = Object.freeze({
   history_net_consumption_6m_ch: { labelKey: "netConsumption6m", type: "number", sourceKey: "net_consumption_quantity_6m" },
   history_net_consumption_12m_ch: { labelKey: "netConsumption12m", type: "number", sourceKey: "net_consumption_quantity_12m" },
   history_average_monthly_consumption_ch: { labelKey: "averageMonthlyConsumptionHistory", type: "number", sourceKey: "average_monthly_consumption_12m" },
-  history_coverage_months_ch: { labelKey: "inventoryCoverage", type: "number", sourceKey: "inventory_coverage_months" },
+  history_coverage_months_ch: { labelKey: "historyCoverageMonths", type: "number", sourceKey: "history_coverage_months" },
   history_status_ch: { labelKey: "historicalMetricStatus", type: "multi", sourceKey: "history_metric_status" },
   history_relationship_ch: { labelKey: "historyRelationship", type: "multi", sourceKey: "matchType", exportOnly: true },
   history_limitations_ch: { labelKey: "exclusionReasons", type: "multi", sourceKey: "history_metric_limitation_codes", exportOnly: true },

@@ -2,7 +2,7 @@
   const root = global.ObsoliQ = global.ObsoliQ || {};
   root.application = root.application || {};
 
-  const HISTORICAL_METRIC_MODEL_VERSION = "historical-inventory-metrics-v1";
+  const HISTORICAL_METRIC_MODEL_VERSION = "historical-inventory-metrics-v2";
 
   function cloneData(value) {
     if (value === undefined) return undefined;

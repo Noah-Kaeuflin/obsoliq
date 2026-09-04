@@ -5,7 +5,7 @@
   const relationshipEngine = root.data?.consumptionHistoryRelationshipEngine;
   if (!relationshipEngine) throw new Error("Consumption History Aggregation Engine requires the relationship engine.");
 
-  const AGGREGATION_MODEL_VERSION = "consumption-history-aggregation-v1";
+  const AGGREGATION_MODEL_VERSION = "consumption-history-aggregation-v2";
   const WINDOW_MODEL_VERSION = "historical-metrics-window-v1";
   const RUN_OUT_ASSUMPTION_MODEL = "constant_consumption_no_receipts_v1";
   const ALLOWED_DUPLICATE_SEMANTICS = new Set(["unique", "none", "legitimate_repeat", "legitimate_repeated_movement"]);
@@ -370,6 +370,12 @@
       .filter(item => item.temporal.status === "valid")
       .map(item => item.temporal.date || item.temporal.monthKey)
       .sort();
+    // Use the existing observed coverage evidence, not the rolling window or as-of end.
+    const coverageStartIndex = monthIndex((historyCoverageValues[0] || "").slice(0, 7));
+    const coverageEndIndex = monthIndex((historyCoverageValues.at(-1) || "").slice(0, 7));
+    const historyCoverageMonths = coverageStartIndex !== null && coverageEndIndex !== null && coverageEndIndex >= coverageStartIndex
+      ? coverageEndIndex - coverageStartIndex + 1
+      : null;
     const provenance = {
       ...provenanceBase,
       inventoryEntityKey: inventoryEntity.inventoryEntityKey,
@@ -384,6 +390,7 @@
       exclusionReasons: [...limitationCodes].sort(),
       historyCoverageStart: historyCoverageValues[0] || "",
       historyCoverageEnd: historyCoverageValues.at(-1) || "",
+      historyCoverageMonths,
       coveredCalendarMonthCount,
       partialCurrentPeriod: windows.partialCurrentPeriod,
       evaluatedAt: provenanceBase.evaluatedAt
@@ -409,6 +416,7 @@
       consumption_trend_ratio: trend.ratio,
       history_coverage_start: provenance.historyCoverageStart || null,
       history_coverage_end: provenance.historyCoverageEnd || null,
+      history_coverage_months: historyCoverageMonths,
       history_completeness: quantityEvidenceUnavailable || unitConflict ? null : clamp01(coveredCalendarMonthCount / 12),
       inventory_coverage_months: coverage,
       estimated_run_out_months: coverage,

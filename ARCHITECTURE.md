@@ -1,5 +1,13 @@
 # ObsoliQ Architecture
 
+## History And Inventory Unit Contract Closure
+
+The canonical Registry owns optional text `base_unit` for Inventory and Material Master. Existing builders derive support from that Registry; no parallel builder, unit model or runtime backfill is introduced. Mapping requires explicit resolution of competing physical unit columns. Existing Material Master fill-missing-only enrichment compares unit tokens conservatively and retains Inventory authority and conflict provenance.
+
+Consumption History Aggregation v2 alone produces inclusive observed `history_coverage_months` and provenance `historyCoverageMonths`, using the existing coverage start/end evidence. Historical Metrics v2 forwards them into entity and shared row views; the Slow/Dead Service passes the metric unchanged to its existing Condition Engine. The existing model-version input signature invalidates old results without new orchestration. `app.js` only corrects the existing Explorer adapter's source and label. No rendering-triggered build or new Package revision mechanism is added.
+
+`tests/history-slow-dead-contract-closure.test.cjs` executes domain producers with synthetic inputs. The focused Product Smoke exercises physical Mapping review/remap, Inventory/MM/History imports, read-only presentation and enrichment rollback. The unchanged DFA01 RED reproducer remains a positive contract acceptance test after closure. The verification report is evidence, not a browser Runtime dependency.
+
 ## Current Module Structure
 
 The local MVP remains a file-compatible browser prototype:

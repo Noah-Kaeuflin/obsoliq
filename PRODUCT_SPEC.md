@@ -1,5 +1,13 @@
 # ObsoliQ Product Spec
 
+## History/Slow-Dead Producer Contract Closure
+
+Inventory and Material Master support optional `base_unit` as the quantity unit of `stock_quantity`. Existing files without it still import and retain their existing Data Quality score; quantitative Historical and definitive Slow/Dead evidence remains limited without a compatible Inventory unit. History never supplies that missing Inventory unit and no conversion/default is available.
+
+History Coverage now means the inclusive span of actually observed valid evidence months, not stock reach and not completeness. It remains separate from rolling 12-month completeness and Inventory Coverage. The existing Explorer History Coverage column reads this corrected producer field. Neither missing periods nor unobserved months before the as-of are invented. Slow/Dead thresholds, financials and readiness formulas are unchanged.
+
+The 102-row Inventory sample is unchanged. This contract closure does not create a full multi-Package demo. `DATA-FOUNDATION-ACTIVATION-01` remains blocked historical evidence; its follow-up `DATA-FOUNDATION-ACTIVATION-01-RERUN-01` is eligible only after verified closure acceptance. Product Release remains HOLD and is not authorized by technical tests.
+
 ## Product Positioning
 
 ObsoliQ is an Inventory Recovery Cockpit for SAP-based manufacturing companies. It is not a generic dashboard, not a full SAP replacement and not a pure BI report.

@@ -270,6 +270,14 @@ const inventoryFieldDefinitions = Object.freeze({
     importable: true,
     aliases: ["stock quantity", "stock quantity qty", "inventory quantity"]
   },
+  base_unit: {
+    label: { de: "Basismengeneinheit", en: "Base unit" },
+    type: "text",
+    requirement: "optional",
+    analysis_group: "context",
+    importable: true,
+    aliases: ["base_unit", "Base Unit", "Base UoM", "Base Unit of Measure", "Basismengeneinheit", "MEINS"]
+  },
   good_stock_value: {
     label: { de: "Frei verwendbarer Bestand", en: "Good Stock Value" },
     type: "currency",

@@ -1,5 +1,19 @@
 # ObsoliQ Data Contract
 
+## HISTORY-SLOW-DEAD-CONTRACT-CLOSURE-01
+
+`base_unit` is the sole canonical Inventory quantity-unit field: optional, importable text in the `context` group, never numeric, derived, a Relationship Key, currency or conversion factor. It describes `stock_quantity`. It is optional product-wide but required analytical evidence for Inventory Coverage, Run-out and definitive Slow/Dead conclusions. Missing remains missing; no default or History backfill is allowed.
+
+Automatic aliases are `base_unit`, `Base Unit`, `Base UoM`, `Base Unit of Measure`, `Basismengeneinheit` and `MEINS`. Generic `Unit`, `UoM`, `Einheit` and Stock/Order/Purchase/Sales/Price/Valuation Unit require explicit review. Currency is not a quantity unit. Duplicate or competing unit columns remain distinct physical sources and block automatic Apply until explicitly resolved. Existing Physical Source Identity, Mapping signatures and confirmation invalidation apply unchanged.
+
+Inventory is authoritative. The existing Material Master relationship and `fill_missing_only` enrichment may supply missing `base_unit`; exact Material/Plant takes priority over controlled unique fallback. Unmatched, ambiguous and invalid relationships cannot fill it. Token comparison trims/removes whitespace and ignores case without changing Raw Source or equating EA, PC, PCS, ST, KG or G. Equal tokens retain the Inventory value; conflicts retain Inventory and existing conflict provenance. Entity quantity remains unavailable when contributing Inventory rows have missing or conflicting effective units.
+
+`history_coverage_months` is produced only by Consumption History Aggregation from the same matched rows with `temporalReference(row, analysisAsOf).status === "valid"` that provide existing coverage start/end. Its inclusive observed span is `(endYear * 12 + endMonth - 1) - (startYear * 12 + startMonth - 1) + 1`. Valid evidence yields a positive integer, without a 12-month cap; no valid evidence yields `null`, never zero. The explicit as-of is an upper bound, not an invented coverage end. Quantity, unit, movement and duplicate exclusions still limit metrics independently and do not redefine the coverage evidence set.
+
+Three metrics remain independent: observed `history_coverage_months`; rolling observed-month fraction `history_completeness`; and quantity/average-based `inventory_coverage_months`. Missing months do not create consumption or zero buckets. Provenance carries `historyCoverageMonths`; entity/row views and Slow/Dead consume the producer unchanged. The Explorer `history_coverage_months_ch` adapter reads history span, not Inventory Coverage, and uses the History Coverage label. Existing formatted exports remain unchanged apart from that corrected source value.
+
+Aggregation and Historical Metric model versions are respectively `consumption-history-aggregation-v2` and `historical-inventory-metrics-v2`. Existing signatures invalidate v1 results. Window model, Package schemas, Slow/Dead policy, thresholds, readiness and financial formulas remain unchanged. No existing Package is migrated or default-filled. This closure does not activate the complete demo or authorize a Product Release.
+
 ## Canonical Inventory Data Contract
 
 The canonical inventory model describes SAP-like inventory rows after source parsing and mapping. It includes identifiers, organization fields, planning context, quantity/value fields, recovery inputs, calculated recovery fields and action fields.
