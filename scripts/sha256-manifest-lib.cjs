@@ -196,6 +196,18 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   ".gitattributes",
   "TEST_ARTIFACT_CONTAINMENT_01_VERIFICATION.md",
   "HISTORY_SLOW_DEAD_CONTRACT_CLOSURE_01_RERUN_01_VERIFICATION.md",
+  "DATA_FOUNDATION_ACTIVATION_01_RERUN_01_VERIFICATION.md",
+  "demo-data.js",
+  "data/demo/consumption-history.csv",
+  "data/demo/demo-expectations.json",
+  "data/demo/inventory-snapshot.csv",
+  "data/demo/material-master.csv",
+  "data/templates/consumption-history-template.csv",
+  "data/templates/material-master-template.csv",
+  "scripts/generate-linked-demo-data.cjs",
+  "tests/data-foundation-activation-01-full-demo.test.js",
+  "tests/data-foundation-activation-01-product-smoke.cjs",
+  "tests/data-foundation-activation-01-static-contract.cjs",
   "tests/test-artifact-containment-product-smoke.cjs",
   "NUM_CAL_MIG_01_VERIFICATION.md",
   "R0A_IR_DATA_NUMERIC_SAFETY_VERIFICATION.md",
@@ -311,7 +323,7 @@ const AUTHORIZED_PACKAGE_REMOVALS = Object.freeze([
 ]);
 
 const REQUIRED_PACKAGE_ANCHORS = Object.freeze([
-  "prototype.html", "app.js", "styles.css", "sample-data.js", "js/ui/icon-system.js",
+  "prototype.html", "app.js", "styles.css", "sample-data.js", "demo-data.js", "js/ui/icon-system.js",
   "assets/icons/icon-manifest.json", "assets/icons/obsoliq-icon-sprite.svg",
   "assets/icons/LICENSE-LUCIDE.txt", "assets/icons/README.md",
   "tests/tests.html", "tests/run-browser-suite.cjs", "tests/pkg-02-product-smoke.cjs",
@@ -332,15 +344,28 @@ const REQUIRED_PACKAGE_ANCHORS = Object.freeze([
   "tests/r0b-release-integrity.test.js", "tests/r0b-1-eol-manifest-reproducibility.test.cjs",
   "tests/r0b-static-contract.cjs", "R0B_1_EOL_SHA_REPRODUCIBILITY_VERIFICATION.md",
   "tests/inventory-risk-smoke-navigation.cjs", "tests/icon-system-regression.test.js",
-  "tests/icon-sys-01-product-smoke.cjs", "ICON_SYS_01_VERIFICATION.md"
+  "tests/icon-sys-01-product-smoke.cjs", "ICON_SYS_01_VERIFICATION.md",
+  "scripts/generate-linked-demo-data.cjs", "data/demo/demo-expectations.json",
+  "data/templates/material-master-template.csv", "data/templates/consumption-history-template.csv",
+  "tests/data-foundation-activation-01-full-demo.test.js",
+  "tests/data-foundation-activation-01-product-smoke.cjs",
+  "tests/data-foundation-activation-01-static-contract.cjs",
+  "DATA_FOUNDATION_ACTIVATION_01_RERUN_01_VERIFICATION.md"
 ]);
 
 const DATA_PROVENANCE = Object.freeze({
   "artifacts/ap-16-4d-3b-metrics.json": Object.freeze({ classification: "synthetic", note: "Deterministically generated from synthetic Slow/Dead calibration fixtures." }),
   "artifacts/ap-16-4d-3b-sensitivity.csv": Object.freeze({ classification: "synthetic", note: "Deterministically generated OFAT output from synthetic calibration fixtures." }),
   "assets/icons/icon-manifest.json": Object.freeze({ classification: "structural-template", note: "Icon identifiers and metadata only; no business or personal records." }),
+  "data/demo/consumption-history.csv": Object.freeze({ classification: "synthetic", note: "Deterministically generated Consumption History for the linked ObsoliQ demo; fictitious material and plant identifiers only." }),
+  "data/demo/demo-expectations.json": Object.freeze({ classification: "synthetic", note: "Deterministic machine-readable oracle for the linked synthetic demo cohorts and source hashes." }),
+  "data/demo/inventory-snapshot.csv": Object.freeze({ classification: "synthetic", note: "Deterministically generated Inventory Snapshot for the linked ObsoliQ demo; fictitious material and plant identifiers only." }),
+  "data/demo/material-master.csv": Object.freeze({ classification: "synthetic", note: "Deterministically generated Material Master for the linked ObsoliQ demo; fictitious material and plant identifiers only." }),
   "data/sample_existing_excel_export.csv": Object.freeze({ classification: "synthetic", note: "Generated SAP-like demonstration rows using fictitious material identifiers." }),
   "data/sample_inventory.csv": Object.freeze({ classification: "synthetic", note: "Small hand-authored demonstration inventory with fictitious material identifiers." }),
+  "data/templates/consumption-history-template.csv": Object.freeze({ classification: "structural-template", note: "Header-only local Consumption History import template; contains no business rows." }),
+  "data/templates/material-master-template.csv": Object.freeze({ classification: "structural-template", note: "Header-only local Material Master import template; contains no business rows." }),
+  "demo-data.js": Object.freeze({ classification: "synthetic", note: "Browser-compatible generated descriptor containing the same linked synthetic demo sources and oracle as data/demo/." }),
   "sample-data.js": Object.freeze({ classification: "synthetic", note: "Embedded generated demonstration dataset with fictitious material identifiers." }),
   "tests/fixtures/excess-pilot-cases.js": Object.freeze({ classification: "synthetic", note: "Deterministic test fixtures created solely for regression tests." }),
   "tests/fixtures/slow-dead-calibration-baseline-evidence.json": Object.freeze({ classification: "synthetic", note: "Synthetic calibration evidence fingerprint and aggregate counters." }),
@@ -448,7 +473,7 @@ function validatePackagePathPolicy(relativePath) {
 
 function isDataArtifact(relativePath) {
   const extension = path.posix.extname(relativePath).toLocaleLowerCase("en-US");
-  return extension === ".csv" || extension === ".json" || relativePath === "sample-data.js" || relativePath.startsWith("tests/fixtures/");
+  return extension === ".csv" || extension === ".json" || relativePath === "sample-data.js" || relativePath === "demo-data.js" || relativePath.startsWith("tests/fixtures/");
 }
 
 function validateDataProvenance(paths, provenance = DATA_PROVENANCE) {

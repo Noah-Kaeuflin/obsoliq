@@ -1,12 +1,22 @@
 # ObsoliQ Product Spec
 
+## Linked Demo Data Foundation
+
+`DATA-FOUNDATION-ACTIVATION-01-RERUN-01` adds one deterministic, explicitly synthetic demo set containing separate Inventory Snapshot, Material Master and Consumption History sources. `Beispieldaten` / `Sample data` loads all three sources atomically through the same parser, Mapping, Input Trust, Builder, Package Import, Registry and Runtime boundaries used by corresponding user imports. It does not write Packages or Historical/Slow-Dead Runtime directly.
+
+The frozen demo contains 102 Inventory rows, 98 Material Master rows and 2,260 Consumption History rows. Its `analysisAsOf` is `2026-08-31` UTC. A machine-readable oracle owns source hashes, controlled cohort identities, expected History relationships and Evidence Readiness reconciliation; calculated Slow/Dead results remain outputs of the accepted engines, not source fields. Header-only Material Master and Consumption History templates are local structural templates and are intentionally invalid datasets until records are added.
+
+Demo provenance is retained on all three active Packages through a shared `demo_set_id`, source IDs, generator version and content hashes. Repeated demo loading resets the demo-owned baseline without accumulating active Packages. A user Inventory upload invalidates demo-owned extensions before analysis, and loading the demo over an existing user Inventory requires explicit confirmation. Existing manual Material Master and Consumption History import paths remain available.
+
+This activation changes no Recovery formula, Slow/Dead threshold, readiness formula, Data Quality rule, export calculation or Package schema. It is local demonstration capability, not customer validation or Product Release authorization.
+
 ## History/Slow-Dead Producer Contract Closure
 
 Inventory and Material Master support optional `base_unit` as the quantity unit of `stock_quantity`. Existing files without it still import and retain their existing Data Quality score; quantitative Historical and definitive Slow/Dead evidence remains limited without a compatible Inventory unit. History never supplies that missing Inventory unit and no conversion/default is available.
 
 History Coverage now means the inclusive span of actually observed valid evidence months, not stock reach and not completeness. It remains separate from rolling 12-month completeness and Inventory Coverage. The existing Explorer History Coverage column reads this corrected producer field. Neither missing periods nor unobserved months before the as-of are invented. Slow/Dead thresholds, financials and readiness formulas are unchanged.
 
-The 102-row Inventory sample is unchanged. This contract closure does not create a full multi-Package demo. `DATA-FOUNDATION-ACTIVATION-01` remains blocked historical evidence; its follow-up `DATA-FOUNDATION-ACTIVATION-01-RERUN-01` is eligible only after verified closure acceptance. Product Release remains HOLD and is not authorized by technical tests.
+The compatibility `sample-data.js` source remains byte-unchanged. The later `DATA-FOUNDATION-ACTIVATION-01-RERUN-01` layer generates a separate linked multi-Package demo from that Inventory source after this producer closure; Product Release remains HOLD and is not authorized by technical tests.
 
 ## Product Positioning
 

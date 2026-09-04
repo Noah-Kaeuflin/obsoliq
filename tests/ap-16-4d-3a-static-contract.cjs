@@ -56,7 +56,9 @@ const acceptedProductAppBaselines = [
   "0db57eddbef7e345b7e88df495711fe846e94babc0ff49dbd754dda70c5c4b53",
   "0b23e4bb93c579fbd360f7c4464fd06d33e67198271db37e617058b5bb37336f",
   // HSDCC01: only the historical coverage field/label adapter changed.
-  "afc556a7ffb3455afb8a334699bf69ac5ece10e794bd8f91f6aee71d19258ce6"
+  "afc556a7ffb3455afb8a334699bf69ac5ece10e794bd8f91f6aee71d19258ce6",
+  // DFA01: productive three-package demo orchestration; condition and score engines remain frozen below.
+  "765188f14b773dcadd4293fe0cdcf5a627dfcf298c779cfff552c4c3eb754764"
 ];
 check(acceptedProductAppBaselines.includes(sha256("app.js")), "app.js differs from the accepted Calibration, IR-01 or TRUST-01 product baseline");
 check(sha256("js/slow-dead/slow-dead-condition-engine.js") === "7c7a4e3e51b39d89e12daf93dadb20908a87234061677a3fcf4aa8784469e03f", "Productive Slow / Dead Condition Engine differs from the accepted pre-migration baseline");

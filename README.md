@@ -12,6 +12,8 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 
 ## Current Scope
 
+- linked synthetic full-demo loading for Inventory Snapshot, Material Master and Consumption History through the productive import services
+- deterministic demo generation, source hashes, scenario oracle and header-only import templates
 - Inventory Snapshot
 - Material Master
 - Consumption History Package import
@@ -59,10 +61,11 @@ History Coverage is the inclusive span between the earliest and latest valid obs
 ## Quick Start
 
 1. Open `prototype.html` in a browser.
-2. Use the built-in sample data or upload a supported local file.
+2. Select `Beispieldaten` / `Sample data` to atomically load the linked three-source demo, or upload a supported local Inventory file.
 3. No server, database or login is required for the current MVP.
 
 Supported local upload formats include `.xlsx`, `.csv` and `.tsv`. Uploaded data stays in the browser session.
+The built-in full demo is explicitly synthetic and uses the frozen analysis date `2026-08-31` in UTC. A user Inventory upload deactivates demo-owned Material Master and Consumption History before analysis; loading the demo over user data requires confirmation.
 
 ## Local Icon System
 
@@ -165,8 +168,15 @@ Every packaged CSV, JSON, sample-data source and fixture has a fail-closed prove
 | `artifacts/ap-16-4d-3b-metrics.json` | synthetic | Deterministic output from synthetic Slow/Dead calibration fixtures. |
 | `artifacts/ap-16-4d-3b-sensitivity.csv` | synthetic | Deterministic OFAT output from synthetic calibration fixtures. |
 | `assets/icons/icon-manifest.json` | structural-template | Icon identifiers and metadata only; no business or personal records. |
+| `data/demo/consumption-history.csv` | synthetic | Deterministically generated linked demo history with fictitious identifiers. |
+| `data/demo/demo-expectations.json` | synthetic | Machine-readable linked-demo cohorts, expectations and content hashes. |
+| `data/demo/inventory-snapshot.csv` | synthetic | Deterministically generated linked demo inventory with fictitious identifiers. |
+| `data/demo/material-master.csv` | synthetic | Deterministically generated linked demo material context with fictitious identifiers. |
 | `data/sample_existing_excel_export.csv` | synthetic | Generated SAP-like demonstration rows with fictitious material identifiers. |
 | `data/sample_inventory.csv` | synthetic | Small hand-authored demonstration inventory with fictitious identifiers. |
+| `data/templates/consumption-history-template.csv` | structural-template | Header-only Consumption History import template. |
+| `data/templates/material-master-template.csv` | structural-template | Header-only Material Master import template. |
+| `demo-data.js` | synthetic | Browser descriptor generated from the same linked demo source of truth. |
 | `sample-data.js` | synthetic | Embedded generated demonstration dataset with fictitious identifiers. |
 | `tests/fixtures/excess-pilot-cases.js` | synthetic | Deterministic test-only fixtures. |
 | `tests/fixtures/slow-dead-calibration-baseline-evidence.json` | synthetic | Aggregate synthetic calibration evidence and fingerprints. |
@@ -181,6 +191,7 @@ inventory-recovery-mvp/
 ├── app.js
 ├── styles.css
 ├── sample-data.js
+├── demo-data.js
 ├── js/
 ├── tests/
 ├── assets/
@@ -201,7 +212,7 @@ inventory-recovery-mvp/
 - `js/` contains production modules for canonical data, mapping, recovery, enrichment, Excess Intelligence, Slow / Dead evidence, Slow / Dead page presentation and Pilot Review.
 - `tests/` contains the file-based structured test package.
 - `assets/` contains local UI assets, including the licensed ObsoliQ functional Icon Pack under `assets/icons/`.
-- `data/` is reserved for anonymized sample or test fixtures only.
+- `data/demo/` contains the generated linked synthetic demo and its independent expectation catalog; `data/templates/` contains record-free import templates.
 - `scripts/` contains portable manifest generation, verification and review-bundle tooling.
 - `artifacts/` contains controlled deterministic analysis artifacts and the generated portable review bundle; obsolete extracted review directories and screenshots are not part of PKG-02.
 - `PRODUCT_SPEC.md`, `ARCHITECTURE.md`, `DATA_CONTRACT.md` and `CHANGELOG.md` are the central product contracts.

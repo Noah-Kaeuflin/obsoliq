@@ -1,5 +1,19 @@
 # ObsoliQ Architecture
 
+## Linked Demo Data Foundation Activation
+
+The deterministic generator `scripts/generate-linked-demo-data.cjs` is the sole source of truth for `demo-data.js`, the three files under `data/demo/`, the expectation catalog and the two header-only files under `data/templates/`. `sample-data.js` remains the compatibility Inventory input and is read, not rewritten, by the generator.
+
+The browser flow is:
+
+`Sample data action -> Full-demo transaction snapshot -> productive Inventory loader -> Package Import Service for Material Master -> Package Import Service for Consumption History -> Historical Runtime Coordinator -> Slow/Dead Runtime -> normal presentation adapters`.
+
+`app.js` orchestrates the transaction and UI state only. It does not directly register Packages, inject historical metrics or construct Slow/Dead Cases. Source metadata is carried through the existing import boundaries so each committed Package retains the shared demo-set identity, frozen analysis date and content fingerprints. Any phase error restores the complete prior Registry and runtime snapshot.
+
+Demo/user isolation is enforced at the Inventory lifecycle boundary. A normal user Inventory load deactivates sample-owned Material Master and Consumption History before analysis. Replacing user data with the linked demo requires confirmation. Repeating the linked demo resets its owned state instead of accumulating active Packages. Manual package imports remain independent and use their existing workflows.
+
+The Runtime remains directly `file://` compatible: `prototype.html` loads `sample-data.js`, then generated `demo-data.js`, followed by the existing production modules and `app.js`. No fetch, server, database or external dependency is introduced.
+
 ## History And Inventory Unit Contract Closure
 
 The canonical Registry owns optional text `base_unit` for Inventory and Material Master. Existing builders derive support from that Registry; no parallel builder, unit model or runtime backfill is introduced. Mapping requires explicit resolution of competing physical unit columns. Existing Material Master fill-missing-only enrichment compares unit tokens conservatively and retains Inventory authority and conflict provenance.
@@ -13,7 +27,7 @@ Consumption History Aggregation v2 alone produces inclusive observed `history_co
 The local MVP remains a file-compatible browser prototype:
 
 - `prototype.html` loads the product shell and classic scripts.
-- `sample-data.js` provides the built-in demo dataset.
+- `sample-data.js` preserves the compatibility Inventory sample; generated `demo-data.js` describes the linked three-source demo loaded by the Sample data action.
 - `js/core/canonical-model.js` owns canonical inventory field definitions.
 - `js/core/value-utils.js` owns numeric, locale, magnitude and header-scale parsing helpers.
 - `js/data/source-model.js` owns source-column metadata.

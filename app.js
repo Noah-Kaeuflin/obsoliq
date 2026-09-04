@@ -35,7 +35,8 @@ const obsoliqFaultOptionKeys = [
   "forceRemediationDataQualityFailureForTest",
   "forceRemediationRollbackRenderFailureForTest",
   "forceInventoryEnrichmentFailureForTest",
-  "forcePackageImportRollbackFailureForTest"
+  "forcePackageImportRollbackFailureForTest",
+  "forceFullDemoFailureForTest"
 ];
 
 function sanitizeMappingContextForProduction(options = {}, settings = {}) {
@@ -246,6 +247,7 @@ const dataPackageRegistry = createDataPackageRegistry();
 const INVENTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.INVENTORY_SNAPSHOT;
 const MATERIAL_MASTER_PACKAGE_TYPE = DATA_PACKAGE_TYPES.MATERIAL_MASTER;
 const CONSUMPTION_HISTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.CONSUMPTION_HISTORY;
+const SYNTHETIC_DEMO_SOURCE_TYPE = "synthetic_demo";
 const PURCHASE_ORDERS_IMPORT_SUPPORTED = DATA_PACKAGE_TYPE_DEFINITIONS[DATA_PACKAGE_TYPES.PURCHASE_ORDERS]?.importSupported === true;
 const MATERIAL_MASTER_MAPPING_POLICY = ObsoliQModules.data.materialMasterBuilder.MATERIAL_MASTER_MAPPING_POLICY;
 const CONSUMPTION_HISTORY_MAPPING_POLICY = ObsoliQModules.data.consumptionHistoryBuilder.CONSUMPTION_HISTORY_MAPPING_POLICY;
@@ -1348,6 +1350,13 @@ const translations = {
     emptyDatasetRowsError: "Die Datei enthält keine Datenzeilen. Der bisherige Datenstand bleibt unverändert.",
     sampleLoading: "Beispieldaten werden geladen",
     sampleLoaded: "Beispieldaten geladen",
+    fullDemoLoading: "Vollständige Demo-Datenbasis wird geladen",
+    fullDemoLoaded: "Vollständige Demo-Datenbasis geladen",
+    fullDemoLoadFailed: "Demo-Datenbasis konnte nicht vollständig geladen werden",
+    fullDemoReplaceConfirm: "Die vollständige Demo ersetzt die aktuell geladene Datenbasis in dieser Sitzung. Möchtest du fortfahren?",
+    downloadMaterialMasterTemplate: "Material-Master-Vorlage herunterladen",
+    downloadConsumptionHistoryTemplate: "Verbrauchshistorie-Vorlage herunterladen",
+    importTemplateHelp: "Leere CSV-Vorlagen für separate Datenimporte",
     reportDownload: "Managementbericht exportieren",
     inventoryDownload: "Bestand exportieren",
     topDownload: "Recovery-Potenziale exportieren",
@@ -3114,6 +3123,13 @@ const translations = {
     emptyDatasetRowsError: "The file contains no data rows. The previous dataset remains unchanged.",
     sampleLoading: "Loading sample data",
     sampleLoaded: "Sample data loaded",
+    fullDemoLoading: "Loading complete demo data foundation",
+    fullDemoLoaded: "Complete demo data foundation loaded",
+    fullDemoLoadFailed: "The demo data foundation could not be loaded completely",
+    fullDemoReplaceConfirm: "The complete demo replaces the currently loaded data foundation for this session. Do you want to continue?",
+    downloadMaterialMasterTemplate: "Download Material Master template",
+    downloadConsumptionHistoryTemplate: "Download consumption history template",
+    importTemplateHelp: "Empty CSV templates for separate data imports",
     reportDownload: "Download Excel report",
     inventoryDownload: "Export inventory",
     topDownload: "Export recovery opportunities",
@@ -4409,6 +4425,8 @@ let pendingDownloadVariant = "original";
 let activeProcessKey = "overview";
 let activeProcessLabel = "Overview";
 let currentDatasetMeta = null;
+let fullDemoBaselineSnapshot = null;
+let fullDemoLoadPromise = null;
 let currentInventoryMaterialMasterRelationship = null;
 let currentInventoryEnrichmentDiagnostics = null;
 let currentInventoryEnrichmentProvenance = {};
@@ -8376,7 +8394,7 @@ function renderExcessHistoricalBuckets(evidence = {}) {
     .replace("{unit}", unit || t("excessHistoricalUnitMissing"));
   return `
     <figure class="excess-history-chart" data-canonical-monthly-buckets="true" data-bucket-count="${buckets.length}" data-chronological-months="${html(buckets.map(bucket => bucket.month).join(","))}" data-negative-values="${values.some(value => value < 0) ? "true" : "false"}" data-zero-baseline="true">
-      <svg viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="none" role="img" aria-label="${html(description)}">
+      <svg style="display:block;width:100%;max-width:100%;overflow:hidden" viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="none" role="img" aria-label="${html(description)}">
         <line class="excess-history-zero-line" x1="${plotLeft}" y1="${zeroY.toFixed(2)}" x2="${plotRight}" y2="${zeroY.toFixed(2)}"></line>
         <polyline class="excess-history-line" points="${points}"></polyline>
         ${buckets.map((bucket, index) => {
@@ -8398,7 +8416,7 @@ function renderExcessHistoricalEvidence(core = {}) {
   const bodyKey = `excessHistoryState_${state}_body`;
   if (!evidence.metric) {
     return `
-      <section class="excess-historical-state unavailable ${html(state)}" data-history-state="unavailable" data-history-detail-state="${html(state)}">
+      <section class="excess-historical-state unavailable ${html(state)}" style="min-width:0" data-history-state="unavailable" data-history-detail-state="${html(state)}">
         <div class="excess-history-empty-copy">
           <span class="excess-history-empty-icon" aria-hidden="true">${iconHtml("history", { className: "oq-icon--section" })}</span>
           <div>
@@ -8427,7 +8445,7 @@ function renderExcessHistoricalEvidence(core = {}) {
     ? `<p class="excess-history-limitations">${html(evidence.limitations.map(code => translatedCodeLabel(`historyReason_${code}`, code)).join(" · "))}</p>`
     : "";
   return `
-    <section class="excess-historical-state ${html(evidence.status)} ${html(state)}" data-history-state="${html(evidence.status)}" data-history-detail-state="${html(state)}">
+    <section class="excess-historical-state ${html(evidence.status)} ${html(state)}" style="min-width:0;grid-template-columns:minmax(0,1fr)" data-history-state="${html(evidence.status)}" data-history-detail-state="${html(state)}">
       <div class="excess-history-heading">
         <div><h4>${html(t("excessHistoricalEvidence"))}</h4><small>${html(t(titleKey))}</small></div>
         <span>${html(displayHistoricalMetricStatus(evidence.status))}</span>
@@ -9865,6 +9883,7 @@ function inventoryPackageRecordFromCurrentState({
     schemaVersion: "1",
     status: "ready",
     sourceDescriptor: {
+      ...clonePlainRecord(currentDatasetMeta.sourceDescriptor || {}),
       sourceLabel: currentDatasetMeta.sourceLabel || "",
       sourceType: currentDatasetMeta.sourceType || "",
       rows: currentDatasetMeta.rows || 0,
@@ -11292,7 +11311,7 @@ function rollbackRemediationTransaction({
     if (options.forceRemediationRollbackRenderFailureForTest) {
       throw new Error("Forced remediation rollback render failure for transactional rollback test.");
     }
-    renderRestoredDatasetState();
+    if (context?.render !== false) renderRestoredDatasetState();
   } catch (renderError) {
     if (!options.suppressErrorLog) console.error("ObsoliQ remediation rollback rendering failed", renderError);
   }
@@ -16213,6 +16232,15 @@ function renderPackageAvailability() {
               diagnosticText: t("consumptionHistoryRole")
             })}
           </div>
+          <div class="data-foundation-section-label">${html(t("importTemplateHelp"))}</div>
+          <div class="data-foundation-source-list">
+            <button class="secondary data-foundation-template-action" type="button" data-download-data-foundation-template="materialMaster">
+              ${iconHtml("export", { className: "oq-icon--button" })}<span>${html(t("downloadMaterialMasterTemplate"))}</span>
+            </button>
+            <button class="secondary data-foundation-template-action" type="button" data-download-data-foundation-template="consumptionHistory">
+              ${iconHtml("export", { className: "oq-icon--button" })}<span>${html(t("downloadConsumptionHistoryTemplate"))}</span>
+            </button>
+          </div>
           ${canShowContextEnrichment ? `
             <div class="data-foundation-section-label">${html(t("contextEnrichment"))}</div>
             ${renderRelationshipReadinessItem(readiness)}
@@ -16782,7 +16810,7 @@ function renderAfterPresentationChange() {
 function renderAfterDatasetChange(options = {}) {
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   renderGlobalChrome({ syncStateFromControls: false });
-  resetInventoryRiskPortfolioCache();
+  if (options.preserveInventoryRiskCache !== true) resetInventoryRiskPortfolioCache();
   ["dashboard", "inventory-risks", "excess", "slow-dead", "actions", "inventory", "check"].forEach(view => dirtyDataViews.add(view));
   renderCurrentView({ globalChrome: false, syncStateFromControls: false });
 }
@@ -16812,7 +16840,7 @@ function renderRestoredDatasetState() {
     renderEmptyDatasetState();
     return;
   }
-  renderAfterDatasetChange({ syncStateFromControls: false });
+  renderAfterDatasetChange({ syncStateFromControls: false, preserveInventoryRiskCache: true });
 }
 
 function actionStatusSnapshotForCurrentRows() {
@@ -17507,11 +17535,56 @@ function snapshotDatasetRuntimeState() {
     filterControlState: snapshotFilterControlState(),
     datasetUiState: snapshotDatasetUiState(),
     actionStatusSnapshot: actionStatusSnapshotForCurrentRows(),
-    historicalMetricsRuntimeState: historicalMetricsRuntimeCoordinator.snapshot()
+    historicalMetricsRuntimeState: historicalMetricsRuntimeCoordinator.snapshot(),
+    historicalMetricsRuntimeBuildCount,
+    historicalMetricsRuntimeBuildLog: clonePlainArray(historicalMetricsRuntimeBuildLog),
+    slowDeadRecoveryCaseRuntime: clonePlainRecord(slowDeadRecoveryCaseRuntime),
+    slowDeadRecoveryCaseBuildCount,
+    slowDeadRecoveryCaseFailedBuildCount,
+    slowDeadRecoveryCaseDependencyNoBuildCount,
+    slowDeadRecoveryCaseBuildLog: clonePlainArray(slowDeadRecoveryCaseBuildLog),
+    slowDeadPageState: clonePlainRecord(slowDeadPageState),
+    currentSlowDeadPageModel: clonePlainRecord(currentSlowDeadPageModel),
+    slowDeadInventoryRevealTarget: clonePlainRecord(slowDeadInventoryRevealTarget),
+    slowDeadActionRevealTarget: clonePlainRecord(slowDeadActionRevealTarget),
+    excessActionRevealTarget: clonePlainRecord(excessActionRevealTarget),
+    inventoryRiskPageState: clonePlainRecord(inventoryRiskPageState),
+    inventoryRiskPortfolioBuildCount,
+    inventoryRiskRuntimeState: {
+      portfolio: clonePlainRecord(currentInventoryRiskPortfolio),
+      pageModel: clonePlainRecord(currentInventoryRiskPageModel),
+      rowsCurrent: currentInventoryRiskPortfolioRowsRef === enrichedRows,
+      excessModelCurrent: currentInventoryRiskExcessModelRef === currentExcessPortfolioModel,
+      slowDeadRuntimeCurrent: currentInventoryRiskSlowDeadRuntimeRef === slowDeadRecoveryCaseRuntime
+    },
+    excessRuntimeState: {
+      activeExcessCaseId,
+      excessDetailTabState: clonePlainRecord(excessDetailTabState),
+      currentExcessViewModel: clonePlainRecord(currentExcessViewModel),
+      currentExcessVisibleRows: clonePlainArray(currentExcessVisibleRows),
+      currentExcessPageRows: clonePlainArray(currentExcessPageRows),
+      currentActiveExcessCase: clonePlainRecord(currentActiveExcessCase),
+      excessPortfolioModelRevision,
+      currentExcessPortfolioCacheRevision,
+      excessPortfolioLastInvalidationReason,
+      currentExcessPortfolioModel: clonePlainRecord(currentExcessPortfolioModel),
+      excessPortfolioRowsCurrent: currentExcessPortfolioRowsRef === enrichedRows,
+      excessPageNumber,
+      excessPageModelBuildCountForTest
+    },
+    navigationState: {
+      currentView,
+      activeProcessKey,
+      activeProcessLabel,
+      pendingDownloadType,
+      pendingDownloadScope,
+      pendingDownloadVariant
+    },
+    dirtyDataViews: [...dirtyDataViews]
   };
 }
 
-function restoreDatasetRuntimeState(snapshot) {
+function restoreDatasetRuntimeState(snapshot, options = {}) {
   restoreRemediationRuntimeState(snapshot);
   Object.keys(filterState).forEach(key => delete filterState[key]);
   Object.assign(filterState, clonePlainRecord(snapshot.filterState || {}));
@@ -17519,9 +17592,65 @@ function restoreDatasetRuntimeState(snapshot) {
   refreshFilterOptions({ syncStateFromControls: false });
   applyFilterStateToControls(filterState, { rebuildOptions: false });
   restoreActionStatusesFromSnapshot(snapshot.actionStatusSnapshot);
-  historicalMetricsRuntimeCoordinator.restore(snapshot.historicalMetricsRuntimeState || null);
-  syncDatasetUiFromMeta(currentDatasetMeta);
-  renderActiveFilterChips({ syncStateFromControls: false });
+  const historicalSnapshot = clonePlainRecord(snapshot.historicalMetricsRuntimeState || null);
+  if (options.preserveHistoricalGeneration === true && Number.isInteger(historicalSnapshot?.generation)) {
+    historicalSnapshot.generation -= 1;
+  }
+  historicalMetricsRuntimeCoordinator.restore(historicalSnapshot);
+  historicalMetricsRuntimeBuildCount = Number(snapshot.historicalMetricsRuntimeBuildCount || 0);
+  historicalMetricsRuntimeBuildLog = clonePlainArray(snapshot.historicalMetricsRuntimeBuildLog || []);
+  slowDeadRecoveryCaseRuntime = slowDeadRuntimeState.createState(snapshot.slowDeadRecoveryCaseRuntime || {});
+  slowDeadRecoveryCaseBuildCount = Number(snapshot.slowDeadRecoveryCaseBuildCount || 0);
+  slowDeadRecoveryCaseFailedBuildCount = Number(snapshot.slowDeadRecoveryCaseFailedBuildCount || 0);
+  slowDeadRecoveryCaseDependencyNoBuildCount = Number(snapshot.slowDeadRecoveryCaseDependencyNoBuildCount || 0);
+  slowDeadRecoveryCaseBuildLog = clonePlainArray(snapshot.slowDeadRecoveryCaseBuildLog || []);
+  slowDeadPageState = clonePlainRecord(snapshot.slowDeadPageState || slowDeadPageState);
+  currentSlowDeadPageModel = clonePlainRecord(snapshot.currentSlowDeadPageModel || null);
+  slowDeadInventoryRevealTarget = clonePlainRecord(snapshot.slowDeadInventoryRevealTarget || null);
+  slowDeadActionRevealTarget = clonePlainRecord(snapshot.slowDeadActionRevealTarget || null);
+  excessActionRevealTarget = clonePlainRecord(snapshot.excessActionRevealTarget || null);
+  inventoryRiskPageState = clonePlainRecord(snapshot.inventoryRiskPageState || inventoryRiskPageState);
+  const excessState = snapshot.excessRuntimeState || {};
+  activeExcessCaseId = excessState.activeExcessCaseId || "";
+  excessDetailTabState = clonePlainRecord(excessState.excessDetailTabState || { caseId: "", activeTab: DEFAULT_EXCESS_DETAIL_TAB });
+  currentExcessViewModel = clonePlainRecord(excessState.currentExcessViewModel || null);
+  currentExcessVisibleRows = clonePlainArray(excessState.currentExcessVisibleRows || []);
+  currentExcessPageRows = clonePlainArray(excessState.currentExcessPageRows || []);
+  currentActiveExcessCase = clonePlainRecord(excessState.currentActiveExcessCase || null);
+  excessPortfolioModelRevision = Number(excessState.excessPortfolioModelRevision || 0);
+  currentExcessPortfolioCacheRevision = Number.isInteger(excessState.currentExcessPortfolioCacheRevision)
+    ? excessState.currentExcessPortfolioCacheRevision
+    : -1;
+  excessPortfolioLastInvalidationReason = excessState.excessPortfolioLastInvalidationReason || "initial";
+  currentExcessPortfolioModel = clonePlainRecord(excessState.currentExcessPortfolioModel || null);
+  currentExcessPortfolioRowsRef = excessState.excessPortfolioRowsCurrent ? enrichedRows : null;
+  excessPageNumber = Number(excessState.excessPageNumber || 1);
+  excessPageModelBuildCountForTest = Number(excessState.excessPageModelBuildCountForTest || 0);
+  const inventoryRiskState = snapshot.inventoryRiskRuntimeState || {};
+  inventoryRiskPortfolioBuildCount = Number(snapshot.inventoryRiskPortfolioBuildCount || 0);
+  currentInventoryRiskPortfolio = clonePlainRecord(inventoryRiskState.portfolio || null);
+  currentInventoryRiskPageModel = clonePlainRecord(inventoryRiskState.pageModel || null);
+  currentInventoryRiskPortfolioRowsRef = inventoryRiskState.rowsCurrent && currentInventoryRiskPortfolio ? enrichedRows : null;
+  currentInventoryRiskExcessModelRef = inventoryRiskState.excessModelCurrent && currentInventoryRiskPortfolio
+    ? currentExcessPortfolioModel
+    : null;
+  currentInventoryRiskSlowDeadRuntimeRef = inventoryRiskState.slowDeadRuntimeCurrent && currentInventoryRiskPortfolio
+    ? slowDeadRecoveryCaseRuntime
+    : null;
+  const navigationState = snapshot.navigationState || {};
+  currentView = navigationState.currentView || currentView;
+  activeProcessKey = navigationState.activeProcessKey || activeProcessKey;
+  activeProcessLabel = navigationState.activeProcessLabel || activeProcessLabel;
+  pendingDownloadType = navigationState.pendingDownloadType || pendingDownloadType;
+  pendingDownloadScope = navigationState.pendingDownloadScope || pendingDownloadScope;
+  pendingDownloadVariant = navigationState.pendingDownloadVariant || pendingDownloadVariant;
+  dirtyDataViews.clear();
+  (snapshot.dirtyDataViews || []).forEach(view => dirtyDataViews.add(view));
+  if (options.syncUi !== false) {
+    syncDatasetUiFromMeta(currentDatasetMeta);
+    renderActiveFilterChips({ syncStateFromControls: false });
+  }
+  if (options.restoreUi !== false) restoreDatasetUiState(snapshot.datasetUiState || {});
 }
 
 function remediationStateForPreparedDataset(datasetId, preserveCurrentDatasetState, correctionContext) {
@@ -18038,6 +18167,7 @@ function prepareDatasetLoad({
     originalRows: nextRows.length,
     columns: nextHeaders.length,
     sourceType,
+    sourceDescriptor: clonePlainRecord(options.sourceDescriptor || {}),
     importedAt: importTimestamp,
     columnMapping: reviewedMapping,
     baseColumnMapping: nextBaseMapping,
@@ -18178,7 +18308,10 @@ function loadDataset(headers, rows, sourceLabel, options = {}) {
           operationType: options.operationType || (options.sourceType === "sample" ? "sample_load" : "dataset_load"),
           qualitySummary: evaluatePackageQualitySummary(packageTimestamp),
           relationshipKeys: inventoryPackageRelationshipKeys(currentDatasetMeta?.columnMapping || [], sourceColumnMetadata),
-          freshness: { importedAt: currentDatasetMeta?.importedAt },
+          freshness: {
+            importedAt: currentDatasetMeta?.importedAt,
+            ...clonePlainRecord(options.freshness || {})
+          },
           timestamp: packageTimestamp,
           builtAt: currentDatasetMeta?.buildMetadata?.builtAt || packageTimestamp,
           forcePackageFinalizationFailureForTest: options.forcePackageFinalizationFailureForTest
@@ -18290,6 +18423,222 @@ function runInventoryMaterialMasterEnrichmentTransaction(options = {}) {
     if (options.throwOnFailure) throw error;
     return { ok: false, status: "error", restored, error };
   }
+}
+
+function linkedFullDemoDescriptor() {
+  const descriptor = window.ObsoliQFullDemo;
+  if (!descriptor || descriptor.version !== "obsoliq-linked-demo-v1") {
+    throw new Error("ObsoliQ linked full-demo descriptor is unavailable or unsupported.");
+  }
+  const requiredSources = ["inventorySnapshot", "materialMaster", "consumptionHistory"];
+  requiredSources.forEach(sourceKey => {
+    const source = descriptor.sources?.[sourceKey];
+    if (!source || source.sourceType !== SYNTHETIC_DEMO_SOURCE_TYPE || typeof source.csv !== "string" || !source.csv.trim()) {
+      throw new Error(`ObsoliQ linked full-demo source is invalid: ${sourceKey}.`);
+    }
+  });
+  return descriptor;
+}
+
+function linkedFullDemoSourceDescriptor(descriptor, sourceKey) {
+  const source = descriptor.sources[sourceKey];
+  return {
+    classification: descriptor.classification,
+    demo_set_id: descriptor.demoSetId,
+    inventory_source_id: descriptor.sourceIds.inventorySnapshot,
+    material_master_source_id: descriptor.sourceIds.materialMaster,
+    consumption_history_source_id: descriptor.sourceIds.consumptionHistory,
+    analysis_as_of: descriptor.analysisAsOf,
+    timezone: descriptor.timezone,
+    generator_version: descriptor.generatorVersion,
+    content_hashes: clonePlainRecord(descriptor.contentHashes || {}),
+    sourceLabel: source.sourceLabel,
+    sourceType: source.sourceType
+  };
+}
+
+function isSyntheticDemoPackage(packageRecord) {
+  return packageRecord?.sourceDescriptor?.sourceType === SYNTHETIC_DEMO_SOURCE_TYPE;
+}
+
+function fullDemoReplacementRequiresConfirmation() {
+  return (dataPackageRegistry.snapshot().packages || []).some(packageRecord => !isSyntheticDemoPackage(packageRecord));
+}
+
+function activeSyntheticDemoExtensionPackages() {
+  return [currentMaterialMasterPackage(), currentConsumptionHistoryPackage()]
+    .filter(packageRecord => packageRecord && isSyntheticDemoPackage(packageRecord));
+}
+
+function detachSyntheticDemoExtensionsForUserInventory() {
+  const snapshot = dataPackageRegistry.snapshot();
+  const removedPackageIds = new Set((snapshot.packages || [])
+    .filter(packageRecord => [MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(packageRecord.packageType))
+    .filter(isSyntheticDemoPackage)
+    .map(packageRecord => packageRecord.packageId));
+  if (!removedPackageIds.size) return [];
+  dataPackageRegistry.restore({
+    ...snapshot,
+    activeByType: (snapshot.activeByType || []).filter(([, packageId]) => !removedPackageIds.has(packageId)),
+    packages: (snapshot.packages || []).filter(packageRecord => !removedPackageIds.has(packageRecord.packageId))
+  });
+  currentInventoryMaterialMasterRelationship = null;
+  currentInventoryEnrichmentDiagnostics = null;
+  currentInventoryEnrichmentProvenance = {};
+  invalidateHistoricalMetricsRuntime({ reason: "synthetic_demo_extensions_detached" });
+  resetSlowDeadRecoveryCaseRuntime("synthetic_demo_extensions_detached");
+  resetInventoryRiskPortfolioCache();
+  return [...removedPackageIds];
+}
+
+function loadInventoryDatasetWithSourceIsolation(headers, rows, sourceLabel, options = {}) {
+  const mustDetachDemoExtensions = options.sourceType === "upload" && activeSyntheticDemoExtensionPackages().length > 0;
+  const previousState = mustDetachDemoExtensions ? snapshotDatasetRuntimeState() : null;
+  if (mustDetachDemoExtensions) detachSyntheticDemoExtensionsForUserInventory();
+  const loaded = loadDataset(headers, rows, sourceLabel, options);
+  if (!loaded && previousState) {
+    restoreDatasetRuntimeState(previousState, { preserveHistoricalGeneration: true });
+    if (options.render !== false) renderRestoredDatasetState();
+  }
+  return loaded;
+}
+
+function assertFullDemoStage(result, stage) {
+  if (result?.status === "loaded") return;
+  const error = result?.error instanceof Error
+    ? result.error
+    : new Error(`ObsoliQ full-demo stage failed: ${stage}.`);
+  error.fullDemoStage = stage;
+  throw error;
+}
+
+function forceFullDemoFailure(options, stage) {
+  if (options.forceFullDemoFailureForTest !== stage) return;
+  const error = new Error(`Forced full-demo failure after ${stage}.`);
+  error.code = "FULL_DEMO_FORCED_FAILURE";
+  error.fullDemoStage = stage;
+  throw error;
+}
+
+async function executeFullDemoLoad(options = {}) {
+  const descriptor = linkedFullDemoDescriptor();
+  const previousState = snapshotDatasetRuntimeState();
+  const baselineState = fullDemoBaselineSnapshot || previousState;
+  try {
+    restoreDatasetRuntimeState(baselineState, {
+      preserveHistoricalGeneration: true,
+      restoreUi: false,
+      syncUi: false
+    });
+
+    const inventorySource = descriptor.sources.inventorySnapshot;
+    assertFullDemoStage(await loadTextDataset(inventorySource.csv, inventorySource.sourceLabel, {
+      sourceType: SYNTHETIC_DEMO_SOURCE_TYPE,
+      sourceDescriptor: linkedFullDemoSourceDescriptor(descriptor, "inventorySnapshot"),
+      freshness: {
+        asOfDate: descriptor.analysisAsOf,
+        temporalCoverage: "snapshot"
+      },
+      operationType: "full_demo_inventory_load",
+      allowMappingReview: false,
+      render: false,
+      suppressErrorLog: options.suppressErrorLog,
+      suppressFeedback: true,
+      suppressSuccessFeedback: true
+    }), "inventory");
+    forceFullDemoFailure(options, "after_inventory");
+
+    const materialMasterSource = descriptor.sources.materialMaster;
+    assertFullDemoStage(await loadTextDataset(materialMasterSource.csv, materialMasterSource.sourceLabel, {
+      packageType: MATERIAL_MASTER_PACKAGE_TYPE,
+      sourceType: SYNTHETIC_DEMO_SOURCE_TYPE,
+      sourceDescriptor: linkedFullDemoSourceDescriptor(descriptor, "materialMaster"),
+      allowMappingReview: false,
+      render: false,
+      suppressErrorLog: options.suppressErrorLog,
+      suppressFeedback: true,
+      suppressSuccessFeedback: true
+    }), "material_master");
+    forceFullDemoFailure(options, "after_material_master");
+
+    const consumptionHistorySource = descriptor.sources.consumptionHistory;
+    assertFullDemoStage(await loadTextDataset(consumptionHistorySource.csv, consumptionHistorySource.sourceLabel, {
+      packageType: CONSUMPTION_HISTORY_PACKAGE_TYPE,
+      sourceType: SYNTHETIC_DEMO_SOURCE_TYPE,
+      sourceDescriptor: linkedFullDemoSourceDescriptor(descriptor, "consumptionHistory"),
+      semanticPolicy: {
+        reviewConfirmed: true,
+        confirmedAt: `${descriptor.analysisAsOf}T00:00:00.000Z`
+      },
+      allowMappingReview: false,
+      render: false,
+      suppressErrorLog: options.suppressErrorLog,
+      suppressFeedback: true,
+      suppressSuccessFeedback: true
+    }), "consumption_history");
+    forceFullDemoFailure(options, "after_consumption_history");
+
+    await historicalMetricsRuntimeCoordinator.whenIdle();
+    const historicalResult = historicalMetricsResultForCurrentSignature();
+    if (!historicalResult || !["available", "limited"].includes(historicalMetricsRuntimeForPresentation()?.status)) {
+      throw new Error("ObsoliQ full-demo Historical Runtime did not reach a current usable state.");
+    }
+    if (!["available", "limited"].includes(slowDeadRecoveryCaseRuntimeForPresentation()?.status)) {
+      throw new Error("ObsoliQ full-demo Slow / Dead Runtime did not reach a current usable state.");
+    }
+    if (options.render !== false) {
+      refreshFilterOptions({ syncStateFromControls: false });
+      syncDatasetUiFromMeta(currentDatasetMeta);
+      renderAfterDatasetChange({ syncStateFromControls: false });
+    }
+    if (!options.suppressFeedback) {
+      setFeedback(t("dataLoaded"), "ok");
+      updateAnalysisPanel(t("fullDemoLoaded"));
+    }
+    return {
+      status: "loaded",
+      demoSetId: descriptor.demoSetId,
+      packageIds: {
+        inventory: currentInventoryPackage()?.packageId || "",
+        materialMaster: currentMaterialMasterPackage()?.packageId || "",
+        consumptionHistory: currentConsumptionHistoryPackage()?.packageId || ""
+      }
+    };
+  } catch (error) {
+    restoreDatasetRuntimeState(previousState, {
+      preserveHistoricalGeneration: true,
+      restoreUi: options.render === false,
+      syncUi: options.render !== false
+    });
+    if (options.render !== false) {
+      renderRestoredDatasetState();
+      restoreDatasetUiState(previousState.datasetUiState || {});
+    }
+    if (!options.suppressErrorLog) console.error("ObsoliQ full-demo load failed", error);
+    if (!options.suppressFeedback) setFeedback(t("fullDemoLoadFailed"), "error", { autoReset: false });
+    return { status: "error", error };
+  }
+}
+
+function loadFullDemoData(options = {}) {
+  const safeOptions = productionSafeOptions(options);
+  if (fullDemoLoadPromise) return fullDemoLoadPromise;
+  fullDemoLoadPromise = executeFullDemoLoad(safeOptions)
+    .finally(() => {
+      fullDemoLoadPromise = null;
+    });
+  return fullDemoLoadPromise;
+}
+
+function downloadDataFoundationTemplate(templateKey) {
+  const template = linkedFullDemoDescriptor().templates?.[templateKey];
+  if (!template || template.classification !== "structural-template" || typeof template.csv !== "string") {
+    setFeedback(t("downloadFailed"), "error", { autoReset: true });
+    return false;
+  }
+  downloadBlob(new Blob([template.csv], { type: "text/csv;charset=utf-8" }), template.filename);
+  setFeedback(t("downloadStarted"), "ok", { autoReset: true });
+  return true;
 }
 
 async function loadTextDataset(text, sourceLabel, options = {}) {
@@ -19381,6 +19730,10 @@ function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
     fileName: sourceLabel,
     sourceLabel,
     sourceType: options.sourceType || "upload",
+    sourceDescriptor: clonePlainRecord(options.sourceDescriptor || {}),
+    freshness: clonePlainRecord(options.freshness || {}),
+    operationType: options.operationType || "",
+    render: options.render,
     headers: parsed.headers,
     rows: parsed.rows,
     sourceColumnMetadata: metadata,
@@ -19418,8 +19771,12 @@ function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
     return { status: "error", mappingState };
   }
 
-  const loaded = loadDataset(parsed.headers, parsed.rows, sourceLabel, {
+  const loaded = loadInventoryDatasetWithSourceIsolation(parsed.headers, parsed.rows, sourceLabel, {
     sourceType: context.sourceType,
+    sourceDescriptor: context.sourceDescriptor,
+    freshness: context.freshness,
+    operationType: context.operationType,
+    render: context.render,
     columnMapping: reviewedMapping,
     sourceColumnMetadata: metadata,
     inputTrustAssessment,
@@ -19452,6 +19809,7 @@ function packageImportFeedbackKey(packageType, event) {
 
 function packageSourceDescriptorForImport(packageType, sourceLabel, options = {}) {
   const descriptor = {
+    ...clonePlainRecord(options.sourceDescriptor || {}),
     sourceLabel,
     sourceType: options.sourceType || "upload"
   };
@@ -19501,7 +19859,8 @@ function beginPackageImportWithParsedData(parsed, sourceLabel, options = {}) {
       forcePackageImportRollbackFailureForTest: options.forcePackageImportRollbackFailureForTest,
       suppressErrorLog: options.suppressErrorLog,
       suppressFeedback: options.suppressFeedback,
-      suppressSuccessFeedback: options.suppressSuccessFeedback
+      suppressSuccessFeedback: options.suppressSuccessFeedback,
+      render: options.render
     };
     if (options.allowMappingReview !== false) {
       openColumnMappingAssistant(context);
@@ -19693,8 +20052,8 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
   if (context.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
     onHistoricalMetricInputsChanged({ reason: "consumption_history_package_imported" });
   }
-  renderPackageAvailability();
-  if ([MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(context.packageType) && currentDatasetMeta) {
+  if (context.render !== false) renderPackageAvailability();
+  if (context.render !== false && [MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(context.packageType) && currentDatasetMeta) {
     renderAfterDatasetChange({ syncStateFromControls: false });
   }
   if (!explicitContext) closeColumnMappingAssistant({ force: true });
@@ -19764,8 +20123,11 @@ function continueUploadWithMapping(mapping = pendingUploadContext?.approvedMappi
     ? cloneColumnMapping(currentDatasetBeforeApply.columnMapping)
     : null;
   const previousIssues = context.preserveRemediation ? [...dataQualityIssues] : [];
-  const loaded = loadDataset(context.headers, context.rows, context.sourceLabel, {
+  const loaded = loadInventoryDatasetWithSourceIsolation(context.headers, context.rows, context.sourceLabel, {
     sourceType: context.sourceType,
+    sourceDescriptor: context.sourceDescriptor,
+    freshness: context.freshness,
+    operationType: context.operationType,
     columnMapping: validation.mapping,
     baseColumnMapping: context.baseColumnMapping || currentDatasetBeforeApply?.baseColumnMapping || validation.mapping,
     sourceColumnMetadata: context.sourceColumnMetadata,
@@ -19820,7 +20182,10 @@ function continueUploadWithMapping(mapping = pendingUploadContext?.approvedMappi
       operationType: "mapping_apply",
       qualitySummary: evaluatePackageQualitySummary(packageTimestamp),
       relationshipKeys: inventoryPackageRelationshipKeys(currentDatasetMeta?.columnMapping || [], sourceColumnMetadata),
-      freshness: { importedAt: currentDatasetMeta?.importedAt },
+      freshness: {
+        importedAt: currentDatasetMeta?.importedAt,
+        ...clonePlainRecord(context.freshness || {})
+      },
       timestamp: packageTimestamp,
       builtAt: currentDatasetMeta?.buildMetadata?.builtAt || packageTimestamp,
       forcePackageFinalizationFailureForTest: Boolean(context.forcePackageFinalizationFailureForTest || context.forceMappingFinalizeFailureForTest === "package")
@@ -20952,8 +21317,9 @@ $("fileInput").addEventListener("change", event => {
     });
 });
 $("sampleButton").addEventListener("click", () => {
-  setBusy(true, t("sampleLoading"));
-  loadTextDataset(window.sampleCsv, "Beispieldaten", { sourceType: "sample", allowMappingReview: false })
+  if (fullDemoReplacementRequiresConfirmation() && !window.confirm(t("fullDemoReplaceConfirm"))) return;
+  setBusy(true, t("fullDemoLoading"));
+  loadFullDemoData()
     .then(result => {
       if (result?.status === "error") return;
       restoreHeaderDataStatus();
@@ -21113,6 +21479,12 @@ document.addEventListener("click", event => {
       diagnostic.open = true;
       diagnostic.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
+    return;
+  }
+  const templateDownloadButton = event.target.closest("[data-download-data-foundation-template]");
+  if (templateDownloadButton) {
+    event.preventDefault();
+    downloadDataFoundationTemplate(templateDownloadButton.dataset.downloadDataFoundationTemplate);
     return;
   }
   const materialMasterImportButton = event.target.closest("[data-data-foundation-import-material-master]");
@@ -21442,6 +21814,19 @@ function createObsoliqTestBridge() {
       allowMappingReview: false,
       ...options
     }),
+    loadUserInventoryTextForTest: (text, sourceLabel = "inventory.csv", options = {}) => {
+      const parsed = parseDelimited(text);
+      return beginUploadWithParsedData(parsed, sourceLabel, {
+        sourceType: "upload",
+        allowMappingReview: false,
+        ...options
+      });
+    },
+    loadFullDemoForTest: (options = {}) => loadFullDemoData({
+      ...options,
+      render: false
+    }),
+    downloadDataFoundationTemplateForTest: templateKey => downloadDataFoundationTemplate(templateKey),
     loadTextDataset,
     beginUploadWithParsedData,
     continueUploadWithMapping,
@@ -22047,13 +22432,14 @@ function bootstrapObsoliQApp() {
   applyTheme();
   applyTranslations({ render: false });
   if (obsoliqTestMode) {
-    window.__obsoliqTestBridge = createObsoliqTestBridge();
     syncDatasetUiFromMeta(null);
+    fullDemoBaselineSnapshot = snapshotDatasetRuntimeState();
+    window.__obsoliqTestBridge = createObsoliqTestBridge();
     return;
   }
-  loadTextDataset(window.sampleCsv, "Beispieldaten", {
-    sourceType: "sample",
-    allowMappingReview: false,
+  syncDatasetUiFromMeta(null);
+  fullDemoBaselineSnapshot = snapshotDatasetRuntimeState();
+  loadFullDemoData({
     preserveFailureFeedback: true
   })
     .catch(error => {

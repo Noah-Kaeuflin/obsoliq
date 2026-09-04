@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-09-04 - DATA-FOUNDATION-ACTIVATION-01-RERUN-01
+
+### Added
+
+- Added one deterministic linked synthetic demo with 102 Inventory rows, 98 Material Master rows, 2,260 Consumption History rows, a machine-readable scenario oracle and two header-only import templates.
+- Added an atomic full-demo loader through the productive Inventory and Package Import paths, including rollback fault points, demo/user isolation, replacement confirmation and repeated-load reset behavior.
+- Added structured browser, direct `file://` Product Smoke and static generator/provenance contracts for Package activation, Historical Runtime, Slow/Dead cohorts, readiness reconciliation and template rejection.
+
+### Changed
+
+- The Sample data action now activates Inventory, Material Master and Consumption History as three linked Packages and computes Historical and Slow/Dead evidence from their accepted source rows.
+- Extended the canonical package manifest and provenance inventory for generated demo inputs, templates, tests and this verification layer.
+
+### Preserved
+
+- Preserved `sample-data.js`, Recovery calculations, Data Quality rules, Slow/Dead thresholds and policy, Evidence Readiness formula, Package schemas, manual upload/export behavior and direct local `file://` operation.
+- Product Release remains `HOLD`; no push, tag, merge, deployment or publication is authorized.
+
 ## 2026-09-04 - HISTORY-SLOW-DEAD-CONTRACT-CLOSURE-01-RERUN-01
 
 ### Changed

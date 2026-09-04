@@ -1,5 +1,19 @@
 # ObsoliQ Data Contract
 
+## DATA-FOUNDATION-ACTIVATION-01-RERUN-01
+
+The linked demo is one synthetic source set with three physically separate inputs: Inventory Snapshot, Material Master and Consumption History. The canonical generator writes the browser descriptor, CSV sources, expectation catalog and record-free templates deterministically. Parallel browser and file payloads must remain byte-equivalent to the generator output, UTF-8 without BOM and LF-normalized.
+
+All three demo inputs cross the existing productive package boundaries. Inventory is committed first, Material Master second and Consumption History third; Historical Runtime and Slow/Dead Runtime are requested only from the resulting accepted Packages. The full-demo operation snapshots application and Registry state before starting and restores it if any phase fails. A failed operation consumes no Package IDs and leaves no partial demo, active extension, stale Historical result or Slow/Dead result.
+
+Every demo Package retains `sourceType = synthetic_demo`, `classification = synthetic`, one shared `demo_set_id`, its package-specific source ID, `analysis_as_of = 2026-08-31`, `timezone = UTC`, generator version and the complete content-hash set. These fields are audit metadata only and do not bypass Mapping, Input Trust, signatures or Package validation.
+
+Demo-owned Material Master and Consumption History may be active only with the demo Inventory from the same set. Accepting a user Inventory deactivates those extensions before analysis. Repeated full-demo loading produces exactly one active Package per demo type and a reset Package-ID sequence. Loading the demo over user Inventory requires explicit confirmation. Inactive prior Inventory records may remain in the Registry under its existing retention contract; only current active Packages drive analysis.
+
+The expectation catalog is an independent synthetic oracle. It may assert source row counts, identities, cohorts, boundary cases, hashes and reconciliations, but Raw Inventory and History must not contain Slow/Dead classifications, Risk Cases, Readiness results or derived historical metrics. True-zero and missing-History cohorts remain distinct. Header-only templates contain exact required headers and no records; importing them is rejected before Package commit.
+
+The full-demo contract changes no Recovery calculation, Slow/Dead policy or threshold, Evidence Readiness formula, Data Quality rule, export calculation, Package schema or user-upload trust boundary.
+
 ## HISTORY-SLOW-DEAD-CONTRACT-CLOSURE-01
 
 `base_unit` is the sole canonical Inventory quantity-unit field: optional, importable text in the `context` group, never numeric, derived, a Relationship Key, currency or conversion factor. It describes `stock_quantity`. It is optional product-wide but required analytical evidence for Inventory Coverage, Run-out and definitive Slow/Dead conclusions. Missing remains missing; no default or History backfill is allowed.

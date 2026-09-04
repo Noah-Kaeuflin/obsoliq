@@ -119,10 +119,10 @@ async function main() {
   await page.locator('.inventory-risk-detail [data-excess-detail-target="history"]').click();
   await page.waitForTimeout(50);
   const history = await page.evaluate(() => {
-    const state = document.querySelector('.inventory-risk-detail .excess-historical-state.unavailable');
+    const state = document.querySelector('.inventory-risk-detail .excess-historical-state');
     return {
-      unavailable: state?.dataset.historyState === "unavailable",
-      historyIcon: state?.querySelector("[data-oq-icon='history']")?.getAttribute("aria-hidden") === "true",
+      status: state?.dataset.historyState || "",
+      metricRows: state?.querySelectorAll(".excess-history-primary-metrics > div").length || 0,
       cta: state?.querySelector("[data-data-foundation-import-consumption-history]")?.textContent.trim() || ""
     };
   });
@@ -143,7 +143,7 @@ async function main() {
   if (!prioritization.semanticContext || prioritization.legacySeparators) failures.push("semantic-operational-context");
   if (!prioritization.scoreTrackCount || !prioritization.scoreTracksStyled) failures.push("shared-score-tracks");
   if (prioritization.columnsAt650 !== 1 || prioritization.columnsAt820 !== 2) failures.push("prioritization-breakpoint");
-  if (!history.unavailable || !history.historyIcon || history.cta !== "Verbrauchshistorie importieren") failures.push("history-empty-state");
+  if (!["available", "limited"].includes(history.status) || history.metricRows !== 4 || history.cta) failures.push("history-evidence-state");
   if (externalRequests.length) failures.push("external-requests");
   if (failedRequests.length) failures.push("failed-requests");
   if (pageErrors.length) failures.push("page-errors");

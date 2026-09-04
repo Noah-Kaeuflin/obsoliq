@@ -13,6 +13,35 @@
     return Object.freeze(value);
   }
 
+  const SOURCE_DESCRIPTOR_AUDIT_FIELDS = Object.freeze([
+    "classification",
+    "demo_set_id",
+    "inventory_source_id",
+    "material_master_source_id",
+    "consumption_history_source_id",
+    "analysis_as_of",
+    "timezone",
+    "generator_version",
+    "content_hashes"
+  ]);
+
+  function packageSourceDescriptor(sourceDescriptor = {}, source = {}) {
+    const audit = {};
+    SOURCE_DESCRIPTOR_AUDIT_FIELDS.forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(sourceDescriptor, key)) {
+        audit[key] = cloneData(sourceDescriptor[key]);
+      }
+    });
+    return {
+      ...audit,
+      sourceLabel: sourceDescriptor.sourceLabel || "",
+      sourceType: sourceDescriptor.sourceType || "upload",
+      rows: source.rows.length,
+      originalRows: source.rows.length,
+      columns: source.headers.length
+    };
+  }
+
   function createDatasetId(packageType, sourceDescriptor = {}, timestamp = "") {
     const suffix = String(sourceDescriptor.sourceLabel || packageType || "package")
       .replace(/\.[^.]+$/, "")
@@ -141,8 +170,33 @@
       };
     }
 
+    function emptySourceError(packageType) {
+      const error = new Error(`Data Package source contains no data rows: ${packageType}.`);
+      error.code = "EMPTY_DATASET_ROWS";
+      error.packageType = packageType;
+      return error;
+    }
+
+    function emptySourceBuildResult(packageType) {
+      return freezeResult({
+        ok: false,
+        errorCode: "EMPTY_DATASET_ROWS",
+        errorMessage: emptySourceError(packageType).message,
+        packageValidation: {
+          status: "invalid",
+          statusKey: "empty_dataset_rows",
+          blockingErrors: [{ key: "emptyDatasetRows", code: "EMPTY_DATASET_ROWS", severity: "error", count: 0 }],
+          warnings: [],
+          rowCount: 0,
+          validRowCount: 0
+        }
+      });
+    }
+
     function prepareImport({ packageType, parsedSource, sourceDescriptor = {} } = {}) {
+      packageDefinition(packageType);
       const source = normalizedParsedSource(parsedSource);
+      if (source.rows.length === 0) throw emptySourceError(packageType);
       const automaticMapping = mappingEngine.createAutomaticColumnMapping({
         headers: source.headers,
         rows: source.rows,
@@ -231,6 +285,7 @@
       }
       const { definition, builder } = builderFor(packageType);
       const source = normalizedParsedSource(parsedSource);
+      if (source.rows.length === 0) return emptySourceBuildResult(packageType);
       const timestamp = clock();
       const datasetId = sourceDescriptor.datasetId || createDatasetId(packageType, sourceDescriptor, timestamp);
       const inputTrustResult = inputTrustService
@@ -342,13 +397,7 @@
         datasetId,
         schemaVersion: definition.schemaVersion || buildResult.buildMetadata?.schemaVersion || builder.schemaVersion || "1",
         status: "ready",
-        sourceDescriptor: {
-          sourceLabel: sourceDescriptor.sourceLabel || "",
-          sourceType: sourceDescriptor.sourceType || "upload",
-          rows: source.rows.length,
-          originalRows: source.rows.length,
-          columns: source.headers.length
-        },
+        sourceDescriptor: packageSourceDescriptor(sourceDescriptor, source),
         sourceData: {
           headers: source.headers,
           sourceColumnMetadata: source.sourceColumnMetadata,
