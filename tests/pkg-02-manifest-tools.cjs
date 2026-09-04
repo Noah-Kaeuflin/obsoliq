@@ -7,6 +7,7 @@ const {
   BASELINE_PACKAGE_PATHS,
   EXPECTED_PACKAGE_PATHS,
   MANIFEST_NAME,
+  REPOSITORY_REPRODUCIBILITY_METADATA,
   STABLE_BUNDLE_ROOT,
   assertNoSymlinkComponents,
   collectPackageFiles,
@@ -175,6 +176,24 @@ check(packageFiles.includes("js/inventory-risks/inventory-risk-portfolio-service
 check(packageFiles.includes("tests/r0b-release-integrity.test.js"), "R0B structured regression must be in package scope");
 check(packageFiles.includes("tests/r0b-1-eol-manifest-reproducibility.test.cjs"), "R0B.1 EOL regression must be in package scope");
 check(packageFiles.includes("R0B_1_EOL_SHA_REPRODUCIBILITY_VERIFICATION.md"), "R0B.1 verification must be in package scope");
+check(packageFiles.filter(relativePath => relativePath === ".gitattributes").length === 1, ".gitattributes must appear exactly once in package scope");
+check(packageFiles.filter(relativePath => relativePath.split("/").some(segment => segment.startsWith("."))).every(relativePath => relativePath === ".gitattributes"), "No dotfile other than .gitattributes may enter package scope");
+check(REPOSITORY_REPRODUCIBILITY_METADATA[".gitattributes"]?.classification === "repository-reproducibility-policy"
+  && REPOSITORY_REPRODUCIBILITY_METADATA[".gitattributes"]?.packageRole === "SOURCE_REPRODUCIBILITY_METADATA"
+  && REPOSITORY_REPRODUCIBILITY_METADATA[".gitattributes"]?.runtimeRole === "NONE", ".gitattributes package metadata contract is incomplete");
+const gitAttributesBytes = fs.readFileSync(path.join(root, ".gitattributes"));
+const gitAttributesLines = gitAttributesBytes.toString("utf8").split("\n").filter(Boolean);
+const acceptedGitAttributeLines = [
+  "* text=auto",
+  ".gitattributes text eol=lf", "*.js text eol=lf", "*.cjs text eol=lf", "*.css text eol=lf",
+  "*.html text eol=lf", "*.md text eol=lf", "*.json text eol=lf", "*.csv text eol=lf",
+  "*.svg text eol=lf", "*.tsv text eol=lf", "*.txt text eol=lf",
+  "*.png binary", "*.jpg binary", "*.jpeg binary", "*.gif binary", "*.webp binary", "*.ico binary",
+  "*.xlsx binary", "*.xls binary", "*.pdf binary", "*.zip binary"
+];
+check(!gitAttributesBytes.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])) && !gitAttributesBytes.includes(13), ".gitattributes must be UTF-8 without BOM and LF-only");
+check(JSON.stringify(gitAttributesLines) === JSON.stringify(acceptedGitAttributeLines), ".gitattributes must contain only the accepted text/LF and binary policy");
+check(sha256Bytes(gitAttributesBytes) === "48141415e098daf50c4d2a7b09dba8b4d48ee0836f406d457f7b9bb9c48e82fc", ".gitattributes source bytes differ from the accepted H0 blob bytes");
 check(!packageFiles.includes(MANIFEST_NAME), "Manifest must not hash itself");
 rejects(() => validateMandatoryAnchors(["prototype.html"], [], ["prototype.html", "app.js"]), "Missing mandatory anchor must be rejected", "PKG_ANCHOR_MISSING");
 
@@ -255,6 +274,11 @@ check(!/[A-Za-z]:\\Users\\/.test(builderSource), "Builder contains a user-specif
 
 // Fail-closed data scope and redacted secret findings.
 rejects(() => validatePackagePathPolicy(".env"), ".env must be rejected", "PKG_SCOPE_CREDENTIAL_FILE");
+check(validatePackagePathPolicy(".gitattributes") === ".gitattributes", "The exact .gitattributes root policy must be allowed");
+rejects(() => validatePackagePathPolicy(".gitignore"), ".gitignore must remain rejected", "PKG_SCOPE_UNAUTHORIZED_DOTFILE");
+rejects(() => validatePackagePathPolicy(".editorconfig"), "Other root dotfiles must remain rejected", "PKG_SCOPE_UNAUTHORIZED_DOTFILE");
+rejects(() => validatePackagePathPolicy(".github/workflow.js"), "Dotfile directories must remain rejected", "PKG_SCOPE_UNAUTHORIZED_DOTFILE");
+rejects(() => validatePackagePathPolicy("nested/.gitattributes"), "Nested .gitattributes aliases must remain rejected", "PKG_SCOPE_UNAUTHORIZED_DOTFILE");
 rejects(() => validatePackagePathPolicy("private/client.json"), "Private data directory must be rejected", "PKG_SCOPE_FORBIDDEN_PATH");
 rejects(() => validatePackagePathPolicy("keys/signing.pem"), "Private-key format must be rejected", "PKG_SCOPE_SENSITIVE_FORMAT");
 rejects(() => validatePackagePathPolicy("data/customer.sqlite"), "Database dump must be rejected", "PKG_SCOPE_SENSITIVE_FORMAT");

@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 
-const screenshotDir = path.join(__dirname, "screenshots", "ir-01");
+const screenshotDir = "screenshots/ir-01";
 const viewports = [
   { name: "desktop-light-de", width: 1440, height: 900, language: "de", dark: false },
   { name: "tablet-dark-en", width: 1024, height: 900, language: "en", dark: true },
@@ -23,7 +21,6 @@ async function setPresentation(page, language, dark) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ acceptDownloads: true, viewport: viewports[0], reducedMotion: "reduce" });
   const page = await context.newPage();
@@ -101,7 +98,7 @@ async function main() {
       };
     }, viewport);
     responsive.push(result);
-    await page.screenshot({ path: path.join(screenshotDir, `${viewport.name}-${viewport.width}x${viewport.height}.png`), fullPage: false });
+    await captureScreenshot(page, screenshotName("ir-01", `${viewport.name}-${viewport.width}x${viewport.height}.png`), { fullPage: false });
   }
 
   await page.setViewportSize({ width: 1440, height: 900 });

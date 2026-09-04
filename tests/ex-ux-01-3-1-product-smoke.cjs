@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
-const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-3-1");
+const screenshotDir = "screenshots/ex-ux-01-3-1";
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1200, height: 800 },
@@ -12,7 +10,6 @@ const viewports = [
 ];
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: viewports[0] });
   const pageErrors = [];
@@ -54,7 +51,7 @@ async function main() {
       };
     }, viewport);
     results.push(result);
-    await page.screenshot({ path: path.join(screenshotDir, `excess-closure-light-${viewport.width}x${viewport.height}.png`), fullPage: true });
+    await captureScreenshot(page, screenshotName("ex-ux-01-3-1", `excess-closure-light-${viewport.width}x${viewport.height}.png`), { fullPage: true });
   }
 
   await page.setViewportSize(viewports[0]);
@@ -69,7 +66,7 @@ async function main() {
 
   await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
   await page.waitForTimeout(100);
-  await page.screenshot({ path: path.join(screenshotDir, "excess-closure-dark-1440x900.png"), fullPage: true });
+  await captureScreenshot(page, screenshotName("ex-ux-01-3-1", "excess-closure-dark-1440x900.png"), { fullPage: true });
 
   const failures = [];
   assertUnifiedExcessRoute(routeState, failures);

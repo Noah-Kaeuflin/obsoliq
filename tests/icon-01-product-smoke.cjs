@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 
-const screenshotDir = path.join(__dirname, "screenshots", "icon-01");
+const screenshotDir = "screenshots/icon-01";
 
 async function clickIcon(page, selector) {
   const icon = page.locator(`${selector} > .oq-icon`).first();
@@ -12,7 +10,6 @@ async function clickIcon(page, selector) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const pageErrors = [];
@@ -101,8 +98,8 @@ async function main() {
   await page.locator("#settingsDoneButton").click();
   await page.locator("[data-process='overview']").click();
 
-  const desktopScreenshot = path.join(screenshotDir, "shell-1440x900.png");
-  await page.screenshot({ path: desktopScreenshot });
+  const desktopScreenshot = screenshotName("icon-01", "shell-1440x900.png");
+  await captureScreenshot(page, desktopScreenshot);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator("#navToggleButton").click();
@@ -126,8 +123,8 @@ async function main() {
       })()
     };
   });
-  const mobileScreenshot = path.join(screenshotDir, "shell-390x844.png");
-  await page.screenshot({ path: mobileScreenshot });
+  const mobileScreenshot = screenshotName("icon-01", "shell-390x844.png");
+  await captureScreenshot(page, mobileScreenshot);
 
   const iconNetworkRequests = requests.filter(url => /obsoliq-icon-sprite\.svg|icon-manifest\.json|lucide/i.test(url));
   const expectedNavigation = {

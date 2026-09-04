@@ -1,11 +1,8 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
-const screenshotDir = path.join(__dirname, "screenshots", "ch-ex-01a");
+const screenshotDir = "screenshots/ch-ex-01a";
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const pageErrors = [];
@@ -55,8 +52,8 @@ async function main() {
     };
   });
 
-  const screenshot = path.join(screenshotDir, "excess-case-header-1440x900.png");
-  await page.screenshot({ path: screenshot });
+  const screenshot = screenshotName("ch-ex-01a", "excess-case-header-1440x900.png");
+  await captureScreenshot(page, screenshot);
   const failures = [];
   assertUnifiedExcessRoute(routeState, failures);
   if (!result.url.startsWith("file:///")) failures.push("not-file-url");

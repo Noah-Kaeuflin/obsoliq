@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09-04 - TEST-ARTIFACT-CONTAINMENT-01: Packaged R0B.1 Dependency Closure
+
+### Changed
+
+- Routed all 15 screenshot writers through the checked external test-artifact boundary while preserving the 82-image standard catalog and separate one-image opt-in.
+- Added the unchanged root `.gitattributes` file as the sole explicitly allowed repository-policy metadata dependency in the canonical manifest and Product Bundle.
+- Kept all other dotfiles excluded and added strict package-policy, byte, cardinality and R0B.1 count reconciliation checks.
+- Exercised full archive reconstruction under `core.autocrlf=true`, `false` and `input` without weakening the typed R0B.1 model.
+
+### Release Boundary
+
+- This closure is test/package hardening only. It changes no browser Runtime or product calculation.
+- `PRODUCT_RELEASE_GATE` remains `HOLD`; no push, tag, merge, deployment or publication is authorized.
+
 ## 2026-08-31 - TRUST-01: Source-Bound Input Trust And Release-Governance Closure
 
 ### Fixed

@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const { EXPECTED_PACKAGE_PATHS } = require("../scripts/sha256-manifest-lib.cjs");
 const {
   HOST_PATH_SCANNER_VERSION,
   assertNoActionableHostPaths,
@@ -229,7 +230,7 @@ const builderSource = read("scripts/build-pkg-02-review-bundle.cjs");
 check(["SOURCE_PAYLOAD", "BUILD_SNAPSHOT", "PRODUCT_BUNDLE:ZIP_INPUT", "PRODUCT_BUNDLE:RAW", "PRODUCT_BUNDLE:ENTRIES", "PRODUCT_BUNDLE:EXTRACTED", "PRODUCT_BUNDLE:CHECKSUM_SIDECAR"].every(marker => builderSource.includes(marker)), "PVHPC01R1 durable guard is not wired to every required package surface");
 const manifestRecords = read("SHA256SUMS.txt").split(/\r?\n/).filter(Boolean).map(line => line.match(/^[0-9a-f]{64}  (.+)$/)?.[1]).filter(Boolean).map(relativePath => ({ path: relativePath, data: fs.readFileSync(path.join(root, ...relativePath.split("/"))) }));
 const completeSourceScan = scanHostPathRecords([...manifestRecords, { path: "SHA256SUMS.txt", data: fs.readFileSync(path.join(root, "SHA256SUMS.txt")) }], { surfaceId: "STATIC:SOURCE_PAYLOAD", exactRoots: [root] });
-check(manifestRecords.length === 278 && completeSourceScan.actionableHostPathOccurrences === 0 && completeSourceScan.unclassifiedFindings === 0 && completeSourceScan.unclassifiedNestedEncodings === 0 && completeSourceScan.decodeErrors === 0 && completeSourceScan.scanCoverageGaps === 0, "PVHPC01R1 complete source payload host-path scan is not green");
+check(manifestRecords.length === EXPECTED_PACKAGE_PATHS.length && completeSourceScan.actionableHostPathOccurrences === 0 && completeSourceScan.unclassifiedFindings === 0 && completeSourceScan.unclassifiedNestedEncodings === 0 && completeSourceScan.decodeErrors === 0 && completeSourceScan.scanCoverageGaps === 0, "PVHPC01R1 complete source payload host-path scan is not green");
 const safeGuardResult = assertNoActionableHostPaths([{ path: "safe.txt", data: Buffer.from("<repository-root>", "utf8") }], { surfaceId: "STATIC:SAFE" });
 check(safeGuardResult.actionableHostPathOccurrences === 0 && safeGuardResult.invalidExceptionBindings === 0 && safeGuardResult.approvedSecurityFixtureOccurrences === 0, "PVHPC01R1 safe placeholder or exception contract is invalid");
 

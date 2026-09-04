@@ -95,17 +95,17 @@ function removeTemp(directory) {
   fs.rmSync(directory, { recursive: true, force: true });
 }
 
-function makeCandidateRepository(label, git, tar) {
+function makeCandidateRepository(label, git, tar, autocrlf = "true", countChecks = true) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), `obsoliq-r0b1-eol-${label}-`));
   const payload = path.join(directory, "payload");
   const archivePath = path.join(directory, "candidate.tar");
   const archiveRoot = path.join(directory, "archive");
   fs.mkdirSync(payload);
   fs.mkdirSync(archiveRoot);
-  [...EXPECTED_PACKAGE_PATHS, MANIFEST_NAME, ".gitattributes"].forEach(relativePath => copyFile(root, payload, relativePath));
+  [...new Set([...EXPECTED_PACKAGE_PATHS, MANIFEST_NAME, ".gitattributes"])].forEach(relativePath => copyFile(root, payload, relativePath));
 
   run(git, ["init", "--quiet"], { cwd: payload });
-  run(git, ["config", "core.autocrlf", "true"], { cwd: payload });
+  run(git, ["config", "core.autocrlf", autocrlf], { cwd: payload });
   run(git, ["config", "user.name", "ObsoliQ R0B1 Test"], { cwd: payload });
   run(git, ["config", "user.email", ["r0b1", "example.invalid"].join("@")], { cwd: payload });
   run(git, ["add", "--", ".gitattributes", MANIFEST_NAME, ...EXPECTED_PACKAGE_PATHS], { cwd: payload });
@@ -114,29 +114,33 @@ function makeCandidateRepository(label, git, tar) {
   run(tar, ["-xf", archivePath, "-C", archiveRoot], { cwd: payload });
 
   const verification = verifyPayloadRoot(archiveRoot, { strictRootSet: false });
-  check(verification.status === "passed", `${label}: archived payload must pass manifest verification`);
-  check(verification.mismatched.length === 0, `${label}: archived payload must have zero SHA mismatches`);
-  check(verification.missing.length === 0, `${label}: archived payload must have zero missing paths`);
+  const verify = (condition, message) => {
+    if (countChecks) check(condition, message);
+    else if (!condition) throw new Error(message);
+  };
+  verify(verification.status === "passed", `${label}: archived payload must pass manifest verification`);
+  verify(verification.mismatched.length === 0, `${label}: archived payload must have zero SHA mismatches`);
+  verify(verification.missing.length === 0, `${label}: archived payload must have zero missing paths`);
 
   for (const relativePath of EXPECTED_PACKAGE_PATHS) {
     const extension = path.extname(relativePath).toLowerCase();
     const source = fs.readFileSync(path.join(root, ...relativePath.split("/")));
     const archived = fs.readFileSync(path.join(archiveRoot, ...relativePath.split("/")));
-    if (textExtensions.has(extension)) {
+    if (relativePath === ".gitattributes" || textExtensions.has(extension)) {
       const stats = eolStats(archived);
-      check(stats.crlf === 0 && stats.loneCr === 0, `${label}: archived text is not LF-canonical: ${relativePath}`);
-      check(!stats.hasBom, `${label}: archived text unexpectedly contains a UTF-8 BOM: ${relativePath}`);
+      verify(stats.crlf === 0 && stats.loneCr === 0, `${label}: archived text is not LF-canonical: ${relativePath}`);
+      verify(!stats.hasBom, `${label}: archived text unexpectedly contains a UTF-8 BOM: ${relativePath}`);
     }
     if (binaryExtensions.has(extension)) {
-      check(source.equals(archived), `${label}: binary bytes changed during archive: ${relativePath}`);
+      verify(source.equals(archived), `${label}: binary bytes changed during archive: ${relativePath}`);
       const attribute = String(run(git, ["check-attr", "text", "--", relativePath], { cwd: payload })).trim();
-      check(/: text: unset$/.test(attribute), `${label}: binary path is not marked non-text: ${relativePath}`);
+      verify(/: text: unset$/.test(attribute), `${label}: binary path is not marked non-text: ${relativePath}`);
     }
   }
 
   const generated = createManifest(readExpectedPayload(archiveRoot).records);
-  check(generated === fs.readFileSync(path.join(archiveRoot, MANIFEST_NAME), "utf8"), `${label}: archive manifest is path-dependent or non-deterministic`);
-  return { directory, archiveRoot, generated };
+  verify(generated === fs.readFileSync(path.join(archiveRoot, MANIFEST_NAME), "utf8"), `${label}: archive manifest is path-dependent or non-deterministic`);
+  return { directory, archiveRoot, generated, autocrlf };
 }
 
 function assertCrLfMutationRejected() {
@@ -165,13 +169,14 @@ function main() {
   const tar = resolveExecutable([process.env.OBSOLIQ_TAR_EXECUTABLE, "tar"], ["--version"]);
   const before = sourceFingerprint();
   const attributes = fs.readFileSync(path.join(root, ".gitattributes"), "utf8");
+  check(EXPECTED_PACKAGE_PATHS.filter(relativePath => relativePath === ".gitattributes").length === 1, ".gitattributes must be a single canonical manifest path");
   check(/^\.gitattributes\s+text\s+eol=lf$/m.test(attributes), ".gitattributes must be LF-canonical itself");
   check(/^\*\.cjs\s+text\s+eol=lf$/m.test(attributes), "CJS files must have an explicit LF contract");
   check(/^\*\.svg\s+text\s+eol=lf$/m.test(attributes), "SVG files must have an explicit LF contract");
 
   for (const relativePath of [...EXPECTED_PACKAGE_PATHS, MANIFEST_NAME]) {
     const extension = path.extname(relativePath).toLowerCase();
-    if (!textExtensions.has(extension)) continue;
+    if (relativePath !== ".gitattributes" && !textExtensions.has(extension)) continue;
     const stats = eolStats(fs.readFileSync(path.join(root, ...relativePath.split("/"))));
     check(stats.crlf === 0 && stats.loneCr === 0, `Worktree text is not LF-canonical: ${relativePath}`);
     check(!stats.hasBom, `Worktree text unexpectedly contains a UTF-8 BOM: ${relativePath}`);
@@ -186,15 +191,17 @@ function main() {
   const secondManifest = createManifest(readExpectedPayload(root).records);
   check(firstManifest === secondManifest && firstManifest === manifestText, "Repeated manifest generation must be byte-identical");
 
-  const first = makeCandidateRepository("first", git, tar);
-  const second = makeCandidateRepository("second-path", git, tar);
+  const first = makeCandidateRepository("autocrlf-true", git, tar, "true");
+  const second = makeCandidateRepository("autocrlf-false", git, tar, "false");
+  const input = makeCandidateRepository("autocrlf-input", git, tar, "input", false);
   try {
-    check(first.generated === second.generated, "Manifest output must be independent of absolute checkout path");
+    check(first.generated === second.generated && second.generated === input.generated, "Manifest output must be independent of absolute checkout path and core.autocrlf mode");
     assertCrLfMutationRejected();
     assertSourceUnchanged(before);
   } finally {
     removeTemp(first.directory);
     removeTemp(second.directory);
+    removeTemp(input.directory);
   }
 
   const report = {
@@ -202,7 +209,7 @@ function main() {
     checks,
     expectedPackagePaths: EXPECTED_PACKAGE_PATHS.length,
     canonicalTextEol: "LF",
-    syntheticArchiveCoreAutocrlf: true,
+    syntheticArchiveCoreAutocrlfModes: [first.autocrlf, second.autocrlf, input.autocrlf],
     sourceMutations: 0,
     failures
   };

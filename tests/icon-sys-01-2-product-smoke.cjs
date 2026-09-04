@@ -1,8 +1,8 @@
 const fs = require("fs");
 const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 
-const screenshotDir = path.join(__dirname, "screenshots", "icon-sys-01-2");
+const screenshotDir = "screenshots/icon-sys-01-2";
 const manifestPath = path.join(__dirname, "..", "assets", "icons", "icon-manifest.json");
 const expectedIcons = [
   "inventory-risks",
@@ -50,8 +50,8 @@ async function openRiskPage(page) {
 
 async function capture(page, name, width, height) {
   await page.setViewportSize({ width, height });
-  const target = path.join(screenshotDir, name);
-  await page.screenshot({ path: target, fullPage: false });
+  const target = screenshotName("icon-sys-01-2", name);
+  await captureScreenshot(page, target, { fullPage: false });
   return target;
 }
 
@@ -114,7 +114,6 @@ async function measure(page, expected) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });

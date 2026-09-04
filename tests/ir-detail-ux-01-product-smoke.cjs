@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 
-const screenshotDir = path.join(__dirname, "screenshots", "ir-detail-ux-01");
+const screenshotDir = "screenshots/ir-detail-ux-01";
 const viewports = [
   { name: "desktop-light-de", width: 1440, height: 900, language: "de", dark: false },
   { name: "laptop-light-de", width: 1200, height: 800, language: "de", dark: false },
@@ -33,7 +31,6 @@ async function openEmbeddedExcess(page) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: viewports[0], reducedMotion: "reduce" });
   const page = await context.newPage();
@@ -88,7 +85,7 @@ async function main() {
       };
     }, viewport.name);
     responsive.push(result);
-    await page.screenshot({ path: path.join(screenshotDir, `${viewport.name}-${viewport.width}x${viewport.height}.png`), fullPage: false });
+    await captureScreenshot(page, screenshotName("ir-detail-ux-01", `${viewport.name}-${viewport.width}x${viewport.height}.png`), { fullPage: false });
   }
 
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -109,7 +106,7 @@ async function main() {
     }, key);
     tabChecks.push(result);
   }
-  await page.screenshot({ path: path.join(screenshotDir, "embedded-actions-light-de-1440x900.png"), fullPage: false });
+  await captureScreenshot(page, screenshotName("ir-detail-ux-01", "embedded-actions-light-de-1440x900.png"), { fullPage: false });
 
   const preserved = await page.evaluate(() => {
     const surface = document.querySelector('.inventory-risk-detail [data-excess-decision-surface]');

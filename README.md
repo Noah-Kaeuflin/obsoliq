@@ -87,6 +87,21 @@ Portfolio counts and the three financial semantics remain unchanged and separate
 
 ## Tests
 
+Screenshot smokes write only to a dedicated external absolute `OBSOLIQ_TEST_ARTIFACT_ROOT`.
+When unset, the shared test runtime creates a unique directory under the OS temporary directory.
+Use a fresh artifact root for each complete run; concurrent runs use separate roots. Existing
+screenshots are never overwritten. Logical report paths stay `screenshots/<suite>/<name>.png`.
+The standard catalog remains 82 images across 14 suites. `OBSOLIQ_SMOKE_SCREENSHOT=1` enables
+one additional `screenshots/ex-ux-01-2/excess-workspace.png`; other values, including legacy
+physical paths and empty values, are rejected before screenshot output. The optional image is
+not part of the standard catalog. No generated screenshot is a product-package input.
+Run `node tests/test-artifact-containment-product-smoke.cjs` for path, isolation and bypass checks.
+
+The canonical review package includes the root `.gitattributes` file exactly once as
+`SOURCE_REPRODUCIBILITY_METADATA`. It is a test/reproducibility dependency for R0B.1, not a
+browser Runtime dependency. Every other dotfile, including `.gitignore`, `.github/**`, `.env*`
+and local tool metadata, remains outside the explicit package allowlist.
+
 1. Open `tests/tests.html` in a browser.
 2. Confirm that the structured test result reports zero failures.
 3. Production startup through `prototype.html` does not execute tests.

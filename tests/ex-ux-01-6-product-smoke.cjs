@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
-const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-6");
+const screenshotDir = "screenshots/ex-ux-01-6";
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1440, height: 768 },
@@ -14,7 +12,6 @@ const viewports = [
 ];
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: viewports[0], reducedMotion: "reduce" });
   const page = await context.newPage();
@@ -115,7 +112,7 @@ async function main() {
       };
     }, viewport);
     results.push(result);
-    await page.screenshot({ path: path.join(screenshotDir, `excess-light-de-${viewport.width}x${viewport.height}.png`) });
+    await captureScreenshot(page, screenshotName("ex-ux-01-6", `excess-light-de-${viewport.width}x${viewport.height}.png`));
   }
 
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -147,14 +144,14 @@ async function main() {
       };
     }, key));
   }
-  await page.screenshot({ path: path.join(screenshotDir, "excess-actions-landing-light-de-1440x900.png") });
+  await captureScreenshot(page, screenshotName("ex-ux-01-6", "excess-actions-landing-light-de-1440x900.png"));
 
   await page.evaluate(() => {
     document.documentElement.dataset.theme = "dark";
     document.querySelector("[data-excess-detail-target='decision']")?.click();
   });
   await page.waitForTimeout(80);
-  await page.screenshot({ path: path.join(screenshotDir, "excess-decision-dark-de-1440x900.png") });
+  await captureScreenshot(page, screenshotName("ex-ux-01-6", "excess-decision-dark-de-1440x900.png"));
 
   await page.evaluate(() => {
     const language = document.querySelector("#languageSelect");
@@ -167,7 +164,7 @@ async function main() {
     summary: document.querySelector(".inventory-risk-summary-grid")?.innerText || "",
     action: document.querySelector(".excess-action-option.primary")?.innerText || ""
   }));
-  await page.screenshot({ path: path.join(screenshotDir, "excess-decision-dark-en-1440x900.png") });
+  await captureScreenshot(page, screenshotName("ex-ux-01-6", "excess-decision-dark-en-1440x900.png"));
 
   const failures = [];
   assertUnifiedExcessRoute(routeState, failures);

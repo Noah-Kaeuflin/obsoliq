@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 
-const screenshotDir = path.join(__dirname, "screenshots", "ir-workspace-ux-02");
+const screenshotDir = "screenshots/ir-workspace-ux-02";
 
 async function setPresentation(page, language, dark) {
   await page.evaluate(({ language, dark }) => {
@@ -73,7 +71,6 @@ async function inventoryRiskMetrics(page, viewport) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const page = await context.newPage();
@@ -107,7 +104,7 @@ async function main() {
     await setPresentation(page, presentation.language, presentation.dark);
     const metrics = await inventoryRiskMetrics(page, presentation);
     results.push({ ...presentation, ...metrics });
-    await page.screenshot({ path: path.join(screenshotDir, `${presentation.name}-${presentation.width}x${presentation.height}.png`), fullPage: false });
+    await captureScreenshot(page, screenshotName("ir-workspace-ux-02", `${presentation.name}-${presentation.width}x${presentation.height}.png`), { fullPage: false });
   }
 
   await page.setViewportSize({ width: 1440, height: 900 });

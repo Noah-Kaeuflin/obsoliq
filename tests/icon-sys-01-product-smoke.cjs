@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 
-const screenshotDir = path.join(__dirname, "screenshots", "icon-sys-01");
+const screenshotDir = "screenshots/icon-sys-01";
 const breakpoints = [
   [1536, 864],
   [1440, 900],
@@ -33,8 +31,8 @@ async function setLanguage(page, language) {
 
 async function screenshot(page, name, viewport = { width: 1440, height: 900 }) {
   await page.setViewportSize(viewport);
-  const target = path.join(screenshotDir, name);
-  await page.screenshot({ path: target, fullPage: false });
+  const target = screenshotName("icon-sys-01", name);
+  await captureScreenshot(page, target, { fullPage: false });
   return target;
 }
 
@@ -46,7 +44,6 @@ async function openMobileNavigation(page) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: "reduce" });
   const pageErrors = [];

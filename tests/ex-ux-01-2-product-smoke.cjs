@@ -1,5 +1,7 @@
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName, optionalScreenshotEnabled } = require("./smoke-runtime.cjs");
 const { assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
+
+const captureOptional = optionalScreenshotEnabled();
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
@@ -86,8 +88,8 @@ async function main() {
   await page.waitForTimeout(100);
   const keyboardSelectedId = await page.locator(".inventory-risk-table tbody tr.selected").getAttribute("data-inventory-risk-case");
 
-  if (process.env.OBSOLIQ_SMOKE_SCREENSHOT) {
-    await page.screenshot({ path: process.env.OBSOLIQ_SMOKE_SCREENSHOT, fullPage: true });
+  if (captureOptional) {
+    await captureScreenshot(page, screenshotName("ex-ux-01-2", "excess-workspace.png"), { fullPage: true });
   }
 
   await page.locator('[data-process="inventory-explorer"]').click();

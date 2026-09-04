@@ -1,8 +1,6 @@
-const fs = require("fs");
-const path = require("path");
-const { chromium, productUrl } = require("./smoke-runtime.cjs");
+const { chromium, productUrl, captureScreenshot, screenshotName } = require("./smoke-runtime.cjs");
 const { activateExcessDetailTab, assertUnifiedExcessRoute, openUnifiedExcessSegment } = require("./inventory-risk-smoke-navigation.cjs");
-const screenshotDir = path.join(__dirname, "screenshots", "ex-ux-01-5");
+const screenshotDir = "screenshots/ex-ux-01-5";
 const viewports = [
   { width: 1440, height: 900 },
   { width: 1200, height: 800 },
@@ -101,7 +99,6 @@ async function installCanonicalHistoryFixture(page) {
 }
 
 async function main() {
-  fs.mkdirSync(screenshotDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: viewports[0] });
   const pageErrors = [];
@@ -196,17 +193,17 @@ async function main() {
       };
     }, viewport);
     results.push(result);
-    await page.screenshot({ path: path.join(screenshotDir, `excess-top-light-${viewport.width}x${viewport.height}.png`) });
+    await captureScreenshot(page, screenshotName("ex-ux-01-5", `excess-top-light-${viewport.width}x${viewport.height}.png`));
   }
 
   await page.setViewportSize(viewports[0]);
   await activateExcessDetailTab(page, "prioritization");
   const tabStateObservation = await observeStableTabState(page, "prioritization");
-  await page.screenshot({ path: path.join(screenshotDir, "excess-prioritization-light-1440x900.png") });
+  await captureScreenshot(page, screenshotName("ex-ux-01-5", "excess-prioritization-light-1440x900.png"));
 
   await activateExcessDetailTab(page, "decision");
   await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
-  await page.screenshot({ path: path.join(screenshotDir, "excess-top-dark-1440x900.png") });
+  await captureScreenshot(page, screenshotName("ex-ux-01-5", "excess-top-dark-1440x900.png"));
   await page.evaluate(() => { document.querySelector("#languageSelect").value = "en"; });
   await page.locator("#languageSelect").dispatchEvent("change");
   const englishLabels = await page.locator(".excess-detail-section-nav").innerText();

@@ -193,6 +193,9 @@ const BASELINE_PACKAGE_PATHS = Object.freeze([
 ]);
 
 const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
+  ".gitattributes",
+  "TEST_ARTIFACT_CONTAINMENT_01_VERIFICATION.md",
+  "tests/test-artifact-containment-product-smoke.cjs",
   "NUM_CAL_MIG_01_VERIFICATION.md",
   "R0A_IR_DATA_NUMERIC_SAFETY_VERIFICATION.md",
   "R0B_1_EOL_SHA_REPRODUCIBILITY_VERIFICATION.md",
@@ -341,6 +344,14 @@ const DATA_PROVENANCE = Object.freeze({
   "tests/fixtures/slow-dead-calibration-sensitivity-evidence.json": Object.freeze({ classification: "synthetic", note: "Synthetic sensitivity evidence fingerprint and aggregate counters." })
 });
 
+const REPOSITORY_REPRODUCIBILITY_METADATA = Object.freeze({
+  ".gitattributes": Object.freeze({
+    classification: "repository-reproducibility-policy",
+    packageRole: "SOURCE_REPRODUCIBILITY_METADATA",
+    runtimeRole: "NONE"
+  })
+});
+
 const ALLOWED_PROVENANCE_CLASSIFICATIONS = new Set(["synthetic", "public-licensed", "structural-template"]);
 const ALLOWED_FILE_EXTENSIONS = new Set([".cjs", ".css", ".csv", ".html", ".js", ".json", ".md", ".png", ".svg", ".txt"]);
 const TEXT_FILE_EXTENSIONS = new Set([".cjs", ".css", ".csv", ".html", ".js", ".json", ".md", ".svg", ".txt"]);
@@ -425,6 +436,8 @@ function validatePackagePathPolicy(relativePath) {
   if (/^\.env(?:\..+)?$/i.test(name) || [".npmrc", ".netrc"].includes(name)) throw packageError("PKG_SCOPE_CREDENTIAL_FILE", `Credential configuration file rejected: ${value}`, { path: value });
   if (/\.(?:key|pem|p12|pfx|jks|keystore|sql|sqlite|sqlite3|db|dump)$/i.test(name)) throw packageError("PKG_SCOPE_SENSITIVE_FORMAT", `Sensitive file format rejected: ${value}`, { path: value });
   if (/(?:^|[-_.])(?:credential|credentials|secret|secrets|private-key|user-export|runtime-upload)(?:[-_.]|$)/i.test(name)) throw packageError("PKG_SCOPE_SENSITIVE_NAME", `Sensitive filename rejected: ${value}`, { path: value });
+  if (parts.some(part => part.startsWith(".")) && value !== ".gitattributes") throw packageError("PKG_SCOPE_UNAUTHORIZED_DOTFILE", `Unauthorized dotfile rejected: ${value}`, { path: value });
+  if (value === ".gitattributes") return value;
   if (!ALLOWED_FILE_EXTENSIONS.has(extension)) throw packageError("PKG_SCOPE_UNKNOWN_FORMAT", `Unclassified file format rejected: ${value}`, { path: value });
   return value;
 }
@@ -681,6 +694,7 @@ function verifyPayloadRoot(rootDirectory, options = {}) {
 
 module.exports = Object.freeze({
   AUTHORIZED_PACKAGE_ADDITIONS, AUTHORIZED_PACKAGE_REMOVALS, BASELINE_PACKAGE_PATHS, DATA_PROVENANCE,
+  REPOSITORY_REPRODUCIBILITY_METADATA,
   EXPECTED_PACKAGE_PATHS, MANIFEST_NAME, REQUIRED_PACKAGE_ANCHORS, STABLE_BUNDLE_ROOT,
   assertNoSymlinkComponents, assertRegularPayloadPath, collectPackageFiles, comparePathSets, createManifest,
   extractLocalReferences, inspectPathSet, isDataArtifact, isInsideRoot, listRegularFiles, normalizeRelativePath,
