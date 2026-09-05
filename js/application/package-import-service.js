@@ -113,6 +113,7 @@
     function mappingPolicyFor(packageType) {
       const { definition, builder } = builderFor(packageType);
       return builder.MATERIAL_MASTER_MAPPING_POLICY
+        || builder.PURCHASE_ORDERS_MAPPING_POLICY
         || builder.CONSUMPTION_HISTORY_MAPPING_POLICY
         || definition.mappingPolicy
         || mappingEngine.DEFAULT_MAPPING_POLICY;
@@ -120,7 +121,7 @@
 
     function fieldDefinitionsFor(packageType) {
       const { builder } = builderFor(packageType);
-      return builder.CONSUMPTION_HISTORY_FIELD_DEFINITIONS || null;
+      return builder.PURCHASE_ORDERS_FIELD_DEFINITIONS || builder.CONSUMPTION_HISTORY_FIELD_DEFINITIONS || null;
     }
 
     function mappingOptionsFor(packageType, sourceColumnMetadata = []) {
@@ -133,12 +134,14 @@
     }
 
     function validatePackageWithBuilder(builder, input) {
+      if (builder.validatePurchaseOrdersPackage) return builder.validatePurchaseOrdersPackage(input);
       if (builder.validateMaterialMasterPackage) return builder.validateMaterialMasterPackage(input);
       if (builder.validateConsumptionHistoryPackage) return builder.validateConsumptionHistoryPackage(input);
       return null;
     }
 
     function buildPackageWithBuilder(builder, input) {
+      if (builder.buildPurchaseOrdersPackage) return builder.buildPurchaseOrdersPackage(input);
       if (builder.buildMaterialMasterPackage) return builder.buildMaterialMasterPackage(input);
       if (builder.buildConsumptionHistoryPackage) return builder.buildConsumptionHistoryPackage(input);
       throw new Error("Registered Data Package Builder does not expose a supported build method.");
@@ -236,7 +239,7 @@
       });
     }
 
-    function validateMapping({ packageType, parsedSource, mapping, semanticPolicy = null, sourceDescriptor = {} } = {}) {
+    function validateMapping({ packageType, parsedSource, mapping, semanticPolicy = null, normalizationPolicy = null, sourceDescriptor = {} } = {}) {
       const policy = mappingPolicyFor(packageType);
       const source = normalizedParsedSource(parsedSource);
       const mappingValidation = mappingEngine.validateColumnMapping(mapping || [], {
@@ -261,6 +264,7 @@
           headers: source.headers,
           sourceColumnMetadata: source.sourceColumnMetadata,
           columnMapping: mappingValidation.mapping,
+          normalizationPolicy,
           inputTrustResult,
           semanticInterpretation: interpretationResult,
           semanticPolicy: interpretationResult?.effectivePolicy || semanticPolicy,
@@ -269,7 +273,7 @@
       return freezeResult({
         ok: mappingValidation.valid
           && packageValidation.status !== "invalid"
-          && inputTrustResult?.trustState !== "blocked"
+          && (packageType === "purchase_orders" || inputTrustResult?.trustState !== "blocked")
           && interpretationResult?.trustState !== "blocked"
           && interpretationResult?.trustState !== "review_required",
         mappingValidation,
@@ -279,7 +283,7 @@
       });
     }
 
-    function buildPackage({ packageType, parsedSource, approvedMapping, sourceDescriptor = {}, semanticPolicy = null, forceBuildErrorForTest = false } = {}) {
+    function buildPackage({ packageType, parsedSource, approvedMapping, sourceDescriptor = {}, semanticPolicy = null, normalizationPolicy = null, purchaseOrderReview = null, forceBuildErrorForTest = false } = {}) {
       if (forceBuildErrorForTest) {
         return freezeResult({ ok: false, errorCode: "BUILD_FAILED", errorMessage: "Forced Package build failure." });
       }
@@ -300,7 +304,7 @@
           sourceDescriptor
         })
         : null;
-      if (inputTrustResult?.trustState === "blocked") {
+      if (inputTrustResult?.trustState === "blocked" && packageType !== "purchase_orders") {
         return freezeResult({
           ok: false,
           errorCode: "INPUT_TRUST_BLOCKED",
@@ -345,6 +349,8 @@
         headers: source.headers,
         sourceColumnMetadata: source.sourceColumnMetadata,
         columnMapping: approvedMapping,
+        normalizationPolicy,
+        purchaseOrderReview,
         inputTrustResult,
         semanticInterpretation: interpretationResult,
         semanticPolicy: interpretationResult?.effectivePolicy || semanticPolicy,
@@ -353,6 +359,9 @@
         buildTimestamp: timestamp
       });
       const packageValidation = buildResult.validation || buildResult.packageValidation || {};
+      if (packageType === "purchase_orders" && buildResult.buildMetadata?.normalizationPolicySignature !== inputTrustService.normalizationPolicySignature(normalizationPolicy || {})) {
+        return freezeResult({ ok: false, errorCode: "PO_POLICY_SIGNATURE_MISMATCH" });
+      }
       const builtMapping = packageValidation.mappingValidation?.mapping || approvedMapping || [];
       const mappingSignature = mappingEngine.columnMappingSignature(
         builtMapping,
@@ -392,6 +401,9 @@
           mappingValidation: packageValidation.mappingValidation
         });
       }
+      const effectiveTrustMetadata = packageType === "purchase_orders"
+        ? { version: "po-input-trust-v1", trustState: "user_confirmed", normalizationPolicySignature: buildResult.buildMetadata.normalizationPolicySignature, reviewBinding: purchaseOrderReview.binding }
+        : inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null;
       const packageRecord = {
         packageType,
         datasetId,
@@ -419,7 +431,7 @@
           builtAt: timestamp,
           buildMetadata: buildResult.buildMetadata,
           freshness: buildResult.freshness || null,
-          inputTrustMetadata: inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null,
+          inputTrustMetadata: effectiveTrustMetadata,
           interpretationMetadata: {
             ...(interpretationResult?.inputTrustMetadata || buildResult.buildMetadata?.interpretationMetadata || {}),
             historyReadiness: buildResult.buildMetadata?.historyReadiness || interpretationResult?.historyReadiness || null
@@ -455,7 +467,7 @@
           temporalCoverage: definition.temporalMode || "unknown"
         },
         relationshipKeys: buildResult.relationshipKeys,
-        inputTrustMetadata: inputTrustResult?.inputTrustMetadata || buildResult.buildMetadata?.inputTrustMetadata || null,
+        inputTrustMetadata: effectiveTrustMetadata,
         interpretationMetadata: {
           ...(interpretationResult?.inputTrustMetadata || {}),
           historyReadiness: buildResult.buildMetadata?.historyReadiness || interpretationResult?.historyReadiness || null

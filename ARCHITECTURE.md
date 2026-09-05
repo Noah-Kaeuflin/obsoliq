@@ -1,8 +1,52 @@
 # ObsoliQ Architecture
 
+## RECOVERY-PILOT-01 Shared Parser Compatibility
+
+The existing Source Ingestion XML reader resolves SpreadsheetML elements by namespace/local name, allowing the prefixed XML emitted by genuine XLSX producers. No alternate parser, upload service or PO workflow was introduced. The external pilot generator and durable synthetic tests are development tools only; browser runtime references are unchanged. UI tests cross the existing chooser, Mapping Assistant and source attestation, reading the existing test bridge solely for assertions. Generated downloads, screenshots and run logs are outside the package.
+
+## RECOVERY-LOOP-01D Feedback Boundary
+
+`purchase-order-review-service.js` remains the only mutable owner. `beginFeedback` resolves a documented historical version through the existing portable codec and validates its source-bound identity. A private WeakMap binds its editor to the whole review position and restore epoch. `saveFeedback` validates human input and atomically appends without any source, registry or analytical mutation. Identical resubmission returns the original ID. Existing `currentPosition` / `sourceState` remain the sole current-source comparison, separate from historical validity.
+
+`po-review-backup.js` adds v2 report validation, version-binding digests, global ID uniqueness and backward-only correction linkage; it still has no independent state store. The restore preview validates the combined candidate, including pre-existing reports, before the existing synchronous Map swap. Exact decision histories allow additive report union; conflicts block every entry. Snapshot restoration retains report data and invalidates editors through the existing epoch.
+
+The existing PO view adds localized version groups and a native report editor. app.js supplies only input, modal lifecycle and the existing formula-safe download adapter. No new runtime global, script dependency, importer, comparison engine, Action registry or persistence layer was introduced. Durable `recovery-loop-01d` contract/product tests reuse the 01C synthetic fixture/browser helpers; the new regression runner includes the prior registered dependency chain. Logs and screenshots remain outside the product tree.
+
+## RECOVERY-LOOP-01C Local Backup Boundary
+
+`js/purchase-orders/po-review-backup.js` owns only the versioned JSON codec, bounds, explicit field validation, portable source/case proof capture and Web Crypto SHA-256. It has no state registry, DOM, persistence or package-import side effects. It loads before the existing Review Service in the local prototype and test bootstraps.
+
+The existing `purchase-order-review-service.js` remains the single owner of both assigned reviews and unassigned restored records. `createBackup`, `previewRestore`, `previewReassociation` and `applyRestore` are distinct from internal trusted snapshot/restore. External files never enter internal restore directly. Private preview plans bind complete before-state and current models; synchronous apply rechecks those tokens and stages a new Map. Exceptions after replacement restore the original Map; the test fault callback is reachable only in explicit test mode. A local editor epoch invalidates open editors after state replacement independently of imported logical versions.
+
+The existing view supplies the DE/EN preview and summary counts. `app.js` handles file selection, pre-read size checks, download, modal lifecycle, stale asynchronous preview generation and explicit confirmation; no analytical trigger is added. Source proof inputs stay session-local; only allowlisted accepted position records and digests leave via JSON. Unassigned records have no current case connection and cannot enter current documented counts.
+
+01B contract/browser tests now reside under `tests/recovery-loop-01b*`, with unchanged behavioral assertions and repository-relative paths. `tests/recovery-loop-01c-regression.cjs` permanently registers these plus 01A, new backup tests and the existing PO/History dependency milestone. Test source is packaged; execution logs, screenshots and verification reports are external. Historical evidence files remain unchanged.
+
+## RECOVERY-LOOP-01B Decision Boundary
+
+The existing purchase-order-review-service owns decisions inside its existing review Map; no parallel Action registry, import pipeline or productive global was added. Its beginDecision/saveDecision methods own local optimistic versioning, source re-resolution, canonical numeric/calendar validation, explicit recheck and previous documented snapshots. Package/source signatures exclude all editable decision fields. Saving does not invalidate its own source or trigger analytics.
+
+purchase-orders-view supplies the localized decision worklist, filters, source comparison and editor. app.js owns only editor lifecycle, input events, dirty/cancel handling, native dialog focus and the existing CSV download adapter. The native modal is generated locally; no new script/reference or bootstrap order is required. Open editor tokens remain bound to their source even if an asynchronous import completes. Service validation rejects a stale save. Review filters are presentational; exports intentionally include all session positions and explicitly state their scope.
+
+01B originally kept targeted test sources externally; 01C moves the relevant sources into the repository without changing their behavioral assertions. Execution artifacts stay external. The existing registered 01A dependency milestone remains available unchanged. No Inventory, History, Slow/Dead, readiness or package import module is changed by 01B/01C.
+
+## RECOVERY-LOOP-01A Boundaries
+
+The productive `purchase_orders` extension uses the existing file parser, physical Source Model, Mapping Assistant, Input Trust, normalization engine, generic Package Import Service and Registry transaction. No second file pipeline is introduced.
+
+- `js/data/purchase-orders-builder.js`: the six-field required mapping policy, source-bound interpretation, per-row exclusions, whole-import validity, review binding and package metadata.
+- `js/purchase-orders/purchase-order-review-service.js`: current package bindings, the existing grouped Inventory entity index, exact material/plant/unit relationships, case-local evidence and session-only PO context attached to existing Actions.
+- `js/application/purchase-orders-view.js`: localized worklist, import preview, detail section and review context; no business calculations.
+- `app.js`: builder registration, existing dialog/transaction adapters, routing, DOM events and CSV download. Successful PO imports reproject the active surface; they do not request History/SlowDead builds or enrich Inventory.
+- `js/excess/excess-decision-workspace-model.js`: consumes the distinct `po-package-evidence-v1` projection while retaining legacy row-field evidence and all existing readiness/scenario rules.
+
+Review identity is Inventory dataset plus existing case ID. Position snapshots keep PO package/revision, mapping/policy signatures and Inventory package/revision. Repeated handoffs are idempotent for that binding; additional selections append. Any source replacement makes old context stale, not deleted. Existing dataset transactions include these session records and PO filters in rollback.
+
+`scripts/generate-purchase-orders-demo.cjs` (`po-demo-v1`) embeds the two hand-authored synthetic PO CSVs and header-only template in a local classic script. It is separate from, and does not rewrite, the accepted three-package demo generator.
+
 ## Linked Demo Data Foundation Activation
 
-The deterministic generator `scripts/generate-linked-demo-data.cjs` is the sole source of truth for `demo-data.js`, the three files under `data/demo/`, the expectation catalog and the two header-only files under `data/templates/`. `sample-data.js` remains the compatibility Inventory input and is read, not rewritten, by the generator.
+The deterministic generator `scripts/generate-linked-demo-data.cjs` is the sole source of truth for `demo-data.js`, the three linked Inventory/Material/History CSVs under `data/demo/`, their expectation catalog and the two corresponding header-only templates. The PO extension has its separate generator as described above. `sample-data.js` remains the compatibility Inventory input and is read, not rewritten, by the generator.
 
 The browser flow is:
 
@@ -322,6 +366,8 @@ Relationship and Metrics rendering remain separate. Material Master relationship
 
 ## DF-UX-02.1 Data Foundation Presentation Closure
 
+DATA-FOUNDATION-UX-03 extends this existing `app.js` adapter, without a parallel diagnostic engine. `dataFoundationMaterialDiagnostics()` projects completed relationship/enrichment arrays; source keys plus physical row indexes identify the read-only disclosures. `dataFoundationPOSegment()` reads the existing PO review-model projection; it never reads old decision status to determine source validity. Opening/closing/review navigation only changes DOM presentation. No importer, matching/enrichment engine, analytical builder, Registry write or runtime build is invoked by those interactions. PO source projection reuses the existing read-only `currentPurchaseOrdersModel()` and does not persist results. Templates remain in a secondary disclosure. The established mobile drawer controller retains Escape, focus containment and focus return, including keyboard-accessible diagnostic summaries.
+
 The DF-UX-02.1 presentation flow is:
 
 Existing Product State -> Data Foundation Presentation Adapter -> Prioritized Summary -> Source Row Variants -> Desktop Popover / Mobile Drawer -> Presentation Only.
@@ -517,7 +563,7 @@ The visible core owns business-facing decision narrative, options, History, Valu
 
 EX-UX-01.3.1 closes the presentation contract without adding an analytical capability. Historical Unit Context is projected from the completed Runtime metric's canonical `unit`, `provenance.historyUnit`, `provenance.unitStatus`, Inventory unit and canonical monthly-bucket units. A single unit is displayed, a missing unit remains unavailable and a conflict suppresses the chart projection. The adapter neither converts units nor invokes Semantics, Relationship, Aggregation or Runtime builds.
 
-Purchase Order evidence is Case-local. `purchaseOrderEvidence()` reads only existing PO number/detail and quantity/value fields from the current Case `source_row`, labels their provenance as `inventory_row_fields` and classifies the result as `concrete`, `insufficient` or `no_case_evidence`. `purchase_orders` remains a `contract_only` Registry definition without `importSupported`, Builder registration or upload control. The Decision Workspace therefore receives `purchaseOrderPackageImportSupported: false`; Registry fixtures cannot unlock a production capability and no PO import CTA is rendered.
+Purchase Order evidence remains Case-local. `purchaseOrderEvidence()` accepts the RECOVERY-LOOP-01A `po-package-evidence-v1` projection for current exact-case matches, otherwise retaining the existing `inventory_row_fields` fallback. The `purchase_orders` definition now registers its reviewed Builder and upload control. Registry fixtures cannot bypass source review, physical identity, mapping or policy signature checks.
 
 The UI adapter keeps the primary Recommendation expanded and renders only secondary structured Action Options as native disclosures. The fixed Case header remains the visible owner of Action status and compact Owner identity. The Work Context block owns supplementary decision type, Owner source, assignment confidence and session-only wording; the closed technical disclosure retains the complete Owner fields. This hierarchy does not alter Action or Pilot Review ownership.
 

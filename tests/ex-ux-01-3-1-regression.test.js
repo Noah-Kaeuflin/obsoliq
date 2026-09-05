@@ -187,7 +187,7 @@
     bridge.updateLanguageForTest("de");
   });
 
-  test("EX-UX-01.3.1 keeps PO evidence row-bound and does not imply a productive PO import", async assert => {
+  test("EX-UX-01.3.1 preserves row evidence; RECOVERY-LOOP-01A explicitly enables reviewed PO import", async assert => {
     const app = await helpers.loadApp();
     const model = app.ObsoliQ.excess.decisionWorkspaceModel;
     const definition = app.ObsoliQ.data.packageRegistry.DATA_PACKAGE_TYPE_DEFINITIONS.purchase_orders;
@@ -197,9 +197,9 @@
       source_row: { purchase_order_number: "450001", open_po_value: 25 }
     }), { purchaseOrderPackageImportSupported: false });
 
-    assert.notEqual(definition.importSupported, true, "Purchase Orders must remain contract-only in the Package Registry");
-    assert.equal(app.__obsoliqTestBridge.isPurchaseOrdersImportSupportedForTest(), false, "Production UI capability must follow the real import definition");
-    assert.equal(app.document.getElementById("packageTypePurchaseOrdersButton"), null, "Upload dialog must not expose a PO Package option");
+    assert.equal(definition.importSupported, true, "RECOVERY-LOOP-01A authorizes the productive reviewed PO builder");
+    assert.equal(app.__obsoliqTestBridge.isPurchaseOrdersImportSupportedForTest(), true, "Production UI capability follows the real import definition");
+    assert.ok(app.document.getElementById("packageTypePurchaseOrdersButton"), "Upload dialog exposes the reviewed PO Package option");
     assert.includes(noEvidence[1].provenance, "purchase_order_evidence:no_case_evidence", "No row evidence should be explicit");
     assert.includes(noEvidence[1].provenance, "purchase_orders_package:unsupported", "Unsupported standalone Package capability should be explicit");
     assert.equal(noEvidence[1].status, "not_checkable", "Missing row evidence must not be checkable");

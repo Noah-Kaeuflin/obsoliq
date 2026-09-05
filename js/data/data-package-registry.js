@@ -82,9 +82,13 @@
       packageType: "purchase_orders",
       domain: "procurement",
       temporalMode: "open_items",
-      currentUiSupport: "contract_only",
-      description: "Open purchase orders for later procurement-risk context.",
-      recommendedRelationshipKeys: ["material_id", "plant", "purchase_order"]
+      currentUiSupport: "reviewable_open_items",
+      importSupported: true,
+      builderIdentifier: "purchaseOrdersBuilder",
+      schemaVersion: "purchase-orders-v1",
+      description: "Source-bound open purchase order items for review, never calculated savings.",
+      requiredRelationshipKeys: ["material_id", "plant", "purchase_order", "purchase_order_item"],
+      recommendedRelationshipKeys: ["material_id", "plant", "purchase_order", "purchase_order_item"]
     },
     planning_parameters: {
       packageType: "planning_parameters",

@@ -1,5 +1,47 @@
 # ObsoliQ Inventory Recovery Cockpit
 
+## RECOVERY-PILOT-01: Synthetic End-to-End Pilot
+
+German click guide, expectation table and blank human feedback form: [data/RECOVERY_PILOT_01.md](data/RECOVERY_PILOT_01.md). Generate six initial/update CSV, TSV and genuine XLSX downloads plus eight focused format/failure fixtures with `node scripts/generate-recovery-pilot-01.cjs <external-directory>`. The generator uses the available local `@oai/artifact-tool`, JSZip and Playwright runtime, resolved through `OBSOLIQ_NODE_MODULES` or the bundled runtime; no new project dependency or runtime network access. Generated downloads/previews/catalogs belong outside the repository and are not runtime dependencies. The existing three-package demo and PO demo sources remain unchanged.
+
+Set `OBSOLIQ_PILOT_FILES` to that directory and `OBSOLIQ_PILOT_RESULTS` to a separate external run directory. Run `node tests/recovery-pilot-01-regression.cjs` for chooser-based format equivalence, the single XLSX decision/report/backup walkthrough, exact OOXML namespace regression, and registered PO/History dependencies. Optional screenshots use the existing opt-in external artifact policy. The generated catalog records source fingerprints and output SHA-256 hashes; worktree and input bytes are checked around regression. This is synthetic technical verification, not human usability or real-customer validation. Product release remains HOLD / unauthorized.
+
+## RECOVERY-LOOP-01D: Reported Implementation
+
+Open a saved documented PO decision in **Maßnahmen / Actions**. Under **Rückmeldungen / Implementation reports**, choose the specific decision version and **Rückmeldung erfassen / Record report**. Enter the human report, reporter and report date; partial reports also require the remaining part. Dates and references are optional where labelled. Corrections append a new report with a reason; the original stays readable as superseded.
+
+Historical decision, reported implementation and currently observed PO data remain distinct. Reports can refer to an unambiguously saved historical decision despite a stale/missing current source. A new decision version does not inherit old reports. Source updates never create reports, recognize savings or set Actions to Implemented.
+
+**Rückmeldungen exportieren / Export reports** downloads `obsoliq_po_implementation_reports.csv`, one row per report, including superseded entries and explicit version/source references, without financial totals. JSON backup now writes v2 and includes reports/corrections. Existing v1 files remain importable; matching older backups cannot delete additional local reports. Source files must still be kept separately. Checksums and manual references do not authenticate a person, document or supplier statement.
+
+Run `node tests/recovery-loop-01d-regression.cjs` for the feedback contract/browser checks and the registered 01A/01B/01C dependency regression. All data in these tests is synthetic. Runtime remains local, session-only and file-based; release remains HOLD / unauthorized.
+
+## RECOVERY-LOOP-01C: Local Decision Backup
+
+In **Maßnahmen / Actions**, use **Entscheidungen sichern / Back up decisions** for a local `obsoliq_po_review_backup.json`. It includes all saved PO decisions, incomplete saved drafts and earlier documented versions, not unsaved editor inputs. Keep source files separately; the JSON is not a copy of Inventory, Master, History or PO files. It may contain confidential notes and manual references.
+
+After reload, import the original sources normally, then choose **Entscheidungen wiederherstellen / Restore decisions**. Review current, stale, unassignable, identical and conflicting entries and explicitly confirm. Identical entries are no-ops; a conflict blocks the entire file. Missing-source documentation has no operational case link. After loading sources later, use **Zuordnung erneut prüfen / Review assignment again**. Changed quantities require the existing 01B comparison and revalidation. The CSV remains the readable review list, not a restoration format.
+
+Run `node tests/recovery-loop-01c-regression.cjs` for the permanently registered 01A/01B/01C and dependency tests. Test sources are in the repository; screenshots/logs/reports remain external through the existing artifact controls. No automatic browser persistence, cloud, authenticated approval, supplier execution or release is introduced.
+
+## RECOVERY-LOOP-01B: Document PO Decisions
+
+After the PO handoff described below, open **Entscheidung bearbeiten / Edit decision** in Actions. Select a decision direction and work state, enter a reason and responsibility, and optionally add a review date and manual evidence reference. Incomplete drafts can be saved; **Entscheidung dokumentiert / Decision documented** requires all applicable fields. A reduction request must be greater than zero and within the evidenced open quantity; postponement must be later than a known existing delivery date.
+
+Use **Synthetische Quellenaktualisierung** to see the original decision become stale. **Erneut prüfen / Review again** displays both source versions; explicitly confirm the new binding and validate the decision again. The synthetic quantity change from 12 to 6 invalidates a request to reduce by 8. Previous documented versions remain available in the editor history.
+
+The PO CSV includes all session positions, including stale decisions and prior documented versions, irrespective of list filters. Use the separate 01C JSON backup before reload. No automatic persistence or CSV restoration exists. A documented request does not execute a change, set the existing Action to Implemented, prove supplier approval or count as savings. Release remains on HOLD and unauthorized.
+
+## RECOVERY-LOOP-01A: Reviewed PO Items
+
+Open `prototype.html` locally. In **Bestellungen / Purchase Orders**, download the template or import a CSV, TSV or XLSX through the existing file dialog. Review the physical column mapping, number/date interpretation and every excluded row. Confirm that the source contains one open item per row and that the quantity is the open remainder, then apply.
+
+For a demonstration, load **Beispieldaten**, then explicitly choose **Synthetische PO-Ergänzung** in Bestellungen. The existing three-package demo remains unchanged. Open a linked Excess case, select **Maßnahmen / Actions** in its detail tabs, select PO items and choose **In Maßnahmen prüfen**. The existing Actions page retains the case and exports the PO review list. **Synthetische Quellenaktualisierung** marks prior review context stale without deleting it.
+
+The template requires `purchase_order`, `purchase_order_item`, `material_id`, `plant`, `open_quantity` and `base_unit`. Details and exclusion rules are in DATA_CONTRACT.md. Review context is session-only; export it before reload. This is evidence for human review, not a cancellable quantity, savings claim or ERP action.
+
+Targeted checks: `node tests/recovery-loop-01a.test.cjs`, `node tests/recovery-loop-01a-product-smoke.cjs`. Dependency milestone: `node tests/recovery-loop-01a-milestone.cjs`. Optional screenshots use the existing external artifact mechanism. No release is authorized: `PRODUCT_RELEASE_GATE: HOLD`, `AUTHORIZED_RELEASE: NO`.
+
 ObsoliQ is a local, browser-based Inventory Recovery and Decision Intelligence MVP for SAP-based manufacturing companies. It helps teams inspect inventory snapshots, classify recovery potential, review data quality, explain Excess cases and prepare action-oriented exports without sending data to a server.
 
 The current project is prepared for local Git version control and later publication as a private GitHub repository.
@@ -54,7 +96,7 @@ ObsoliQ is not a production SaaS, not a SAP live integration and not a predictiv
 - versioned Slow / Dead synthetic Calibration Contract, Safety Fixtures and reproducible Synthetic Contract Agreement baseline
 - versioned synthetic Calibration Metrics plus 17-scenario OFAT threshold-sensitivity artifacts without Policy recommendation or activation
 
-Current cross-package relationships are limited to Inventory-to-Material-Master Context Enrichment and Inventory-to-Consumption-History Derived Historical Metrics. Arbitrary joins and a standalone Purchase Orders import are not available.
+Current cross-package relationships support Material Master context, Consumption History metrics and reviewed open Purchase Order items linked exactly by material, plant and compatible unit. Arbitrary joins and PO quantity optimization remain unavailable.
 
 History Coverage is the inclusive span between the earliest and latest valid observed Consumption History month. It is separate from rolling-window completeness and quantity-based Inventory Coverage. Missing History remains unavailable rather than zero. No unit conversion, unit defaulting or History-to-Inventory unit backfill is performed.
 
@@ -268,7 +310,7 @@ Do not publish as a public repository. The intended GitHub repository visibility
 - no financial Recognition, Execution Workflow, Expected Recovery Value or realized cash/P&L effect exists
 - no Snapshot History
 - no Purchase Order optimization
-- no standalone Purchase Orders Package import; PO evidence can only come from fields already present on the current Inventory Case
+- no PO allocation, cancellable-quantity calculation or automatic execution; imported PO items provide source-bound review evidence only
 - no predictive analytics
 - synchronous 50,000-row historical metric calculation may still occupy the main browser thread during the controlled build
 

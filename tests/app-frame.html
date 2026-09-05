@@ -16,29 +16,27 @@
       </div>
     </div>
     <div class="top-actions">
-      <button id="navToggleButton" class="nav-toggle" type="button" aria-expanded="true" aria-haspopup="menu" data-i18n="navSections">Bereiche</button>
+      <button id="navToggleButton" class="nav-toggle" type="button" aria-expanded="true" aria-haspopup="menu"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="expand"><use href="#oq-expand"></use></svg><span data-i18n="navSections">Bereiche</span></button>
       <span id="currentSectionLabel" class="current-section-label">Overview</span>
-      <button id="uploadButton" class="primary" type="button" data-i18n="uploadButton">Datei hochladen</button>
+      <button id="uploadButton" class="primary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="upload-file"><use href="#oq-upload-file"></use></svg><span data-i18n="uploadButton">Datei hochladen</span></button>
       <input id="fileInput" type="file" accept=".xlsx,.csv,.tsv" />
-      <button id="sampleButton" class="secondary" type="button" data-i18n="sampleButton">Beispieldaten</button>
-      <button id="exportInventoryButton" class="secondary" type="button" data-i18n="exportInventory">Bestand exportieren</button>
-      <span id="actionFeedback" class="action-feedback" data-i18n="ready">Bereit</span>
+      <button id="sampleButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="sample-data"><use href="#oq-sample-data"></use></svg><span data-i18n="sampleButton">Beispieldaten</span></button>
+      <button id="exportInventoryButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportInventory">Bestand exportieren</span></button>
+      <span id="actionFeedback" class="action-feedback"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="data-loaded" hidden><use href="#oq-data-loaded"></use></svg><span class="action-feedback-text" data-i18n="ready">Bereit</span></span>
     </div>
   </header>
 
   <nav class="main-nav" aria-label="Bestandsnavigation" data-i18n-aria-label="navAriaLabel">
     <div class="main-nav-inner">
       <div class="process-tabs nav-tabs">
-        <button class="active" data-process="overview" type="button" data-i18n="navOverview">Overview</button>
-        <button data-process="inventory-explorer" type="button" data-i18n="navInventoryExplorer">Inventory Explorer</button>
-        <button data-process="excess-stock" type="button" data-i18n="navExcessStock">Excess Stock</button>
-        <button data-process="slow-dead-stock" type="button" data-i18n="navSlowDeadStock">Slow / Dead Stock</button>
-        <button data-process="blocked-quality" type="button" data-i18n="navBlockedQuality">Blocked / Quality</button>
-        <button data-process="purchase-orders" type="button" data-i18n="navPurchaseOrders">Purchase Orders</button>
-        <button data-process="actions" type="button" data-i18n="navActions">Actions</button>
-        <button data-process="data-quality" type="button" data-i18n="navDataQuality">Data Quality</button>
-        <button data-process="reports" type="button" data-i18n="navReports">Reports</button>
-        <button data-process="settings" type="button" data-i18n="navSettings">Settings</button>
+        <button class="active" data-process="overview" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="overview"><use href="#oq-overview"></use></svg><span data-i18n="navOverview">Overview</span></button>
+        <button data-process="inventory-explorer" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="inventory-explorer"><use href="#oq-inventory-explorer"></use></svg><span data-i18n="navInventoryExplorer">Inventory Explorer</span></button>
+        <button data-process="inventory-risks" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="inventory-risks"><use href="#oq-inventory-risks"></use></svg><span data-i18n="navInventoryRisks">Bestandsrisiken</span></button>
+        <button data-process="purchase-orders" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="purchase-orders"><use href="#oq-purchase-orders"></use></svg><span data-i18n="navPurchaseOrders">Purchase Orders</span></button>
+        <button data-process="actions" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="actions"><use href="#oq-actions"></use></svg><span data-i18n="navActions">Actions</span></button>
+        <button data-process="data-quality" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="data-quality"><use href="#oq-data-quality"></use></svg><span data-i18n="navDataQuality">Data Quality</span></button>
+        <button data-process="reports" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="reports"><use href="#oq-reports"></use></svg><span data-i18n="navReports">Reports</span></button>
+        <button data-process="settings" type="button"><svg class="oq-icon oq-icon--nav" aria-hidden="true" focusable="false" data-oq-icon="settings"><use href="#oq-settings"></use></svg><span data-i18n="navSettings">Settings</span></button>
       </div>
     </div>
   </nav>
@@ -50,7 +48,7 @@
 
     <section class="overview-header">
       <div class="overview-heading">
-        <h2 data-i18n="overviewTitle">Übersicht</h2>
+        <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="overview"><use href="#oq-overview"></use></svg><span data-i18n="overviewTitle">Übersicht</span></h2>
         <p data-i18n="overviewSubtitle">Managementübersicht über Bestandswert, Recovery-Potenzial und priorisierte Bestandsrisiken.</p>
       </div>
       <section id="dataPackagesPanel" class="data-foundation-panel" aria-label="Datenbasis" data-i18n-aria-label="dataFoundation"></section>
@@ -62,32 +60,32 @@
 
         <section class="metrics">
           <div class="metric inventory">
-            <div class="label" data-i18n="metricInventory">Gesamtbestand</div>
+            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="total-inventory"><use href="#oq-total-inventory"></use></svg><span data-i18n="metricInventory">Gesamtbestand</span></div>
             <div id="mInventory" class="value">0 EUR</div>
             <div id="mRows" class="sub">0 Zeilen</div>
           </div>
           <div class="metric excess">
-            <div class="label" data-i18n="metricExcess">Überbestand</div>
+            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="excess-stock"><use href="#oq-excess-stock"></use></svg><span data-i18n="metricExcess">Überbestand</span></div>
             <div id="mExcess" class="value">0 EUR</div>
             <div id="mExcessSub" class="sub" data-i18n="metricExcessSub">adressierbarer Überbestand</div>
           </div>
           <div class="metric bad">
-            <div class="label" data-i18n="metricBad">Gesperrt / QI</div>
+            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="blocked-quality"><use href="#oq-blocked-quality"></use></svg><span data-i18n="metricBad">Gesperrt / QI</span></div>
             <div id="mBad" class="value">0 EUR</div>
             <div class="sub" data-i18n="metricBadSub">gesperrter / QI-Bestand</div>
           </div>
           <div class="metric noneed">
-            <div class="label" data-i18n="metricNoNeed">Ohne Bedarf</div>
+            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="no-demand"><use href="#oq-no-demand"></use></svg><span data-i18n="metricNoNeed">Ohne Bedarf</span></div>
             <div id="mNoNeed" class="value">0 EUR</div>
             <div class="sub" data-i18n="metricNoNeedSub">Bestand ohne sichtbaren Bedarf</div>
           </div>
           <div class="metric noplan">
-            <div class="label" data-i18n="metricNoPlan">Ohne Plan</div>
+            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="unplanned"><use href="#oq-unplanned"></use></svg><span data-i18n="metricNoPlan">Ohne Plan</span></div>
             <div id="mNoPlan" class="value">0 EUR</div>
             <div class="sub" data-i18n="metricNoPlanSub">Bestand ohne Planbezug</div>
           </div>
           <div class="metric recovery">
-            <div class="label" data-i18n="metricRecovery">Recovery-Potenzial</div>
+            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="recovery-potential"><use href="#oq-recovery-potential"></use></svg><span data-i18n="metricRecovery">Recovery-Potenzial</span></div>
             <div id="mRecovery" class="value">0 EUR</div>
             <div id="mShare" class="sub">0 % vom Bestand</div>
             <div class="recovery-progress" aria-hidden="true">
@@ -100,7 +98,7 @@
 
     <section id="overviewGlobalFilterBlock" class="overview-global-filter" aria-label="Overview filters" data-i18n-aria-label="overviewFiltersAria">
       <div class="overview-global-filter-field">
-        <label for="overviewGlobalSearch" data-i18n="searchLabel">Suche</label>
+        <label class="oq-icon-label" for="overviewGlobalSearch"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="search"><use href="#oq-search"></use></svg><span data-i18n="searchLabel">Suche</span></label>
         <input id="overviewGlobalSearch" type="search" placeholder="Material oder Beschreibung suchen …" data-i18n-placeholder="searchPlaceholder" />
       </div>
       <div class="overview-global-filter-field">
@@ -115,13 +113,13 @@
         <label for="overviewGlobalCategory" data-i18n="categoryLabel">Kategorie</label>
         <select id="overviewGlobalCategory"><option value="all" data-i18n="all">Alle</option></select>
       </div>
-      <button id="overviewGlobalReset" class="secondary overview-global-reset" type="button" data-i18n="resetFilters">Filter zurücksetzen</button>
+      <button id="overviewGlobalReset" class="secondary overview-global-reset" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="reset-filter"><use href="#oq-reset-filter"></use></svg><span data-i18n="resetFilters">Filter zurücksetzen</span></button>
     </section>
 
     <section id="inventoryExplorerHeader" class="tab-page-header control-card explorer-control-card">
       <div class="control-card-top">
         <div class="overview-heading">
-          <h2 data-i18n="inventoryExplorerTitle">Inventory Explorer</h2>
+          <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="inventory-explorer"><use href="#oq-inventory-explorer"></use></svg><span data-i18n="inventoryExplorerTitle">Inventory Explorer</span></h2>
           <p data-i18n="inventoryExplorerSubtitle">Vollbestand in Excel-Anordnung mit Filtern, horizontalem Scroll und Export der sichtbaren Zeilen.</p>
         </div>
         <div class="control-card-actions">
@@ -135,7 +133,7 @@
             <span class="dataset-chip dataset-visible-chip">0 sichtbar</span>
             <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
           </div>
-          <button id="exportVisibleInventoryButton" class="secondary" type="button" data-i18n="exportVisible">Sichtbare Zeilen exportieren</button>
+          <button id="exportVisibleInventoryButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportVisible">Sichtbare Zeilen exportieren</span></button>
         </div>
       </div>
       <div id="inventoryToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
@@ -145,7 +143,7 @@
 
     <section id="dataQualityHeader" class="tab-page-header data-quality-page-header">
       <div class="data-quality-header-title-row">
-        <h2 data-i18n="dataQualityTitle">Data Quality</h2>
+        <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="data-quality"><use href="#oq-data-quality"></use></svg><span data-i18n="dataQualityTitle">Data Quality</span></h2>
         <span class="data-quality-source-badge dataset-source-chip source">Beispieldaten</span>
       </div>
       <p class="data-quality-header-meta-line">
@@ -159,7 +157,7 @@
 
     <section id="actionsHeader" class="tab-page-header">
       <div class="overview-heading">
-        <h2 data-i18n="actionsTitle">Maßnahmen</h2>
+        <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="actions"><use href="#oq-actions"></use></svg><span data-i18n="actionsTitle">Maßnahmen</span></h2>
         <p data-i18n="actionsSubtitle">Priorisierte Recovery-Maßnahmen mit Ursache, Verantwortlichkeit, Priorität und Status.</p>
       </div>
       <div class="dataset-context" aria-label="Dataset context">
@@ -210,7 +208,7 @@
               <option value="all" data-i18n="all">Alle</option>
             </select>
           </div>
-          <button id="excessResetFilters" class="secondary excess-only-filter excess-reset-button" type="button" data-i18n="resetFilters">Filter zurücksetzen</button>
+          <button id="excessResetFilters" class="secondary excess-only-filter excess-reset-button" type="button" hidden><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="reset-filter"><use href="#oq-reset-filter"></use></svg><span data-i18n="resetFilters">Filter zurücksetzen</span></button>
         </div>
       </section>
     </div>
@@ -219,7 +217,7 @@
       <div class="panel chart-panel category-chart-panel">
         <div class="panel-head">
           <div class="panel-title">
-            <h2 data-i18n="categoryChartTitle">Inventory Value by Category</h2>
+            <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="total-inventory"><use href="#oq-total-inventory"></use></svg><span data-i18n="categoryChartTitle">Inventory Value by Category</span></h2>
             <small data-i18n="categoryChartSubtitle">Bestandswert nach Recovery-Kategorie</small>
           </div>
         </div>
@@ -228,7 +226,7 @@
       <div class="panel chart-panel profit-center-chart-panel">
         <div class="panel-head">
           <div class="panel-title">
-            <h2 data-i18n="plantChartTitle">Recovery Potential by Profit Center</h2>
+            <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="recovery-potential"><use href="#oq-recovery-potential"></use></svg><span data-i18n="plantChartTitle">Recovery Potential by Profit Center</span></h2>
             <small data-i18n="plantChartSubtitle">Priorisierung nach finanzieller Wirkung</small>
           </div>
         </div>
@@ -237,11 +235,11 @@
       <div class="panel overview-top-list-panel">
         <div class="panel-head">
           <div class="panel-title">
-            <h2 data-i18n="topTitle">Recovery Opportunities</h2>
+            <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="recovery-potential"><use href="#oq-recovery-potential"></use></svg><span data-i18n="topTitle">Recovery Opportunities</span></h2>
             <small data-i18n="topSubtitle">All addressable inventory cases, sorted by financial potential.</small>
           </div>
           <div class="panel-actions">
-            <button id="exportTopButton" class="secondary top-export-button" type="button" data-i18n="exportTop">Exportieren</button>
+            <button id="exportTopButton" class="secondary top-export-button" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportTop">Exportieren</span></button>
           </div>
         </div>
         <div id="topTable" class="table-wrap overview-top-list-wrap"></div>
@@ -256,22 +254,27 @@
       <div id="slowDeadPage" class="slow-dead-page" data-view="slow-dead-stock"></div>
     </section>
 
+    <section id="view-inventory-risks" class="view">
+      <div id="inventoryRisksPage" class="inventory-risks-page" data-view="inventory-risks"></div>
+    </section>
+
     <section id="view-actions" class="view">
       <div class="panel action-cockpit-panel">
         <div class="panel-head action-worklist-header">
           <div class="panel-title action-worklist-title">
-            <h2 data-i18n="actionsTitle">Maßnahmen</h2>
+            <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="actions"><use href="#oq-actions"></use></svg><span data-i18n="actionsTitle">Maßnahmen</span></h2>
             <small data-i18n="actionsSubtitle">Priorisierte Recovery-Maßnahmen mit Ursache, nächstem Schritt, Verantwortlichkeit, Priorität und Status.</small>
             <div id="actionSummaryChips" class="action-summary-chips" aria-label="Action summary"></div>
           </div>
           <div class="panel-actions action-header-actions">
-            <button id="exportActionsButton" class="secondary action-export-button" type="button" data-i18n="exportActions">Sichtbare Maßnahmen exportieren</button>
+            <button id="exportActionsButton" class="secondary action-export-button" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportActions">Sichtbare Maßnahmen exportieren</span></button>
           </div>
         </div>
         <div class="action-filter-row">
           <div id="actionsToolbarSlot" class="toolbar-slot control-toolbar-slot"></div>
           <div class="action-worklist-filters">
             <button id="actionAdvancedFilterToggle" class="advanced-filter-toggle" type="button" data-actions-advanced-filter-toggle aria-expanded="false">
+              <svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="advanced-filter"><use href="#oq-advanced-filter"></use></svg>
               <span id="actionAdvancedFilterLabel" class="advanced-filter-label" data-i18n="moreFilters">Weitere Filter</span>
             </button>
             <div class="field">
@@ -297,6 +300,7 @@
           </div>
         </div>
         <div id="actionsActiveFilters" class="active-filter-row hidden" aria-live="polite"></div>
+        <div id="purchaseOrderActionReviews"></div>
         <div id="actionsTable" class="table-wrap action-table-wrap"></div>
       </div>
     </section>
@@ -322,6 +326,7 @@
     </div>
 
     <section id="placeholderPage" class="placeholder-page hidden">
+      <div id="purchaseOrdersPage" class="hidden"></div>
       <div class="placeholder-card">
         <strong id="placeholderTitle">In Bearbeitung</strong>
         <span id="placeholderDescription" data-i18n="placeholderText">Diese Seite wird aktuell aufgebaut.</span>
@@ -350,6 +355,10 @@
         <button id="packageTypeConsumptionHistoryButton" class="package-type-card" type="button">
           <strong data-i18n="consumptionHistory">Verbrauchshistorie</strong>
           <span data-i18n="consumptionHistoryDesc">Historische Verbrauchsbewegungen als optionale Intelligence-Quelle importieren.</span>
+        </button>
+        <button id="packageTypePurchaseOrdersButton" class="package-type-card" type="button" data-po-import>
+          <strong data-i18n="po_title">Bestellungen</strong>
+          <span data-i18n="po_subtitle">Offene Bestellpositionen mit Quellenbezug und Bestandszuordnung.</span>
         </button>
       </div>
       <p class="package-type-note" data-i18n="dropImportsInventoryNote">Drag & Drop importiert aktuell Inventory Snapshots.</p>
@@ -534,6 +543,7 @@
   </div>
 
   <script src="sample-data.js"></script>
+  <script src="demo-data.js"></script>
   <script src="js/core/canonical-model.js"></script>
   <script src="js/core/value-utils.js"></script>
   <script src="js/data/source-model.js"></script>
@@ -548,6 +558,11 @@
   <script src="js/data/consumption-history-semantics-engine.js"></script>
   <script src="js/data/consumption-history-builder.js"></script>
   <script src="js/data/consumption-history-relationship-engine.js"></script>
+  <script src="js/data/purchase-orders-builder.js"></script>
+  <script src="js/purchase-orders/po-review-backup.js"></script>
+  <script src="js/purchase-orders/purchase-order-review-service.js"></script>
+  <script src="js/purchase-orders/purchase-orders-demo.js"></script>
+  <script src="js/application/purchase-orders-view.js"></script>
   <script src="js/data/consumption-history-aggregation-engine.js"></script>
   <script src="js/data/package-relationship-engine.js"></script>
   <script src="js/data/package-enrichment-engine.js"></script>
@@ -574,6 +589,16 @@
   <script src="js/application/excess-pilot-review-service.js"></script>
   <script src="js/application/excess-pilot-review-view.js"></script>
   <script src="js/application/excess-pilot-review-controller.js"></script>
+  <script src="js/inventory-risks/inventory-risk-case-contract.js"></script>
+  <script src="js/inventory-risks/excess-risk-adapter.js"></script>
+  <script src="js/inventory-risks/slow-dead-risk-adapter.js"></script>
+  <script src="js/inventory-risks/blocked-quality-risk-adapter.js"></script>
+  <script src="js/inventory-risks/inventory-risk-portfolio-service.js"></script>
+  <script src="js/inventory-risks/inventory-risk-page-model.js"></script>
+  <script src="js/inventory-risks/inventory-risk-export-builder.js"></script>
+  <script src="js/application/inventory-risk-page-view.js"></script>
+  <script src="js/application/inventory-risk-page-controller.js"></script>
+  <script src="js/ui/icon-system.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

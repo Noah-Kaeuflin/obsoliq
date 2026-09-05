@@ -1,5 +1,35 @@
 # ObsoliQ Product Spec
 
+## RECOVERY-LOOP-01D Human Implementation Reports
+
+Documented PO decision versions now expose a compact reports section. Users record partial/full/non-implementation/rejection statements or a keep-specific acknowledgement, reporting person/function, date, optional implementation date and manual reference. Partial reports require a description of the remaining part. Corrections append and visibly supersede the original without deleting it.
+
+Historical decision and current source observations remain separate from the human statement. Stale or unassignable current sources do not prevent a report against a complete historical decision. New versions do not inherit prior reports. Source imports create no implementation reports. This is not ERP verification, supplier authentication, financial realization or automatic Action completion.
+
+All saved reports are included in JSON v2 backup and a separate one-report-per-row CSV without financial aggregates. v1 remains readable and cannot erase newer local reports on a matching decision. No automatic persistence, new sample data or operational order changes. PRODUCT_RELEASE_GATE: HOLD; AUTHORIZED_RELEASE: NO.
+
+## RECOVERY-LOOP-01C Local Backup and Restore
+
+The existing Actions PO area offers local JSON backup and controlled restoration, separately from the readable CSV review list. It preserves saved drafts, documented decisions, accepted source references and prior documented history. Users keep and import source files separately. A preview distinguishes current, stale, unassignable, identical and conflicting records, followed by explicit confirmation. Conflicts block the entire file; missing-source documentation remains unassigned until a conscious reassociation review. Updated source quantities cannot silently reactivate an old request.
+
+Data remains session-only with no browser persistence, cloud synchronization or authentication. Backup files may contain sensitive notes and are not encrypted; checksums do not authenticate a person or approve an order change. Unsaved editor text, Inventory corrections, Action statuses and Pilot Reviews are not backed up by this feature. Existing source quantities, economic calculations, scores, readiness, History and Slow/Dead remain unchanged. PRODUCT_RELEASE_GATE: HOLD; AUTHORIZED_RELEASE: NO.
+
+## RECOVERY-LOOP-01B User Scope
+
+The existing Actions PO review list now supports editable decisions with separate decision direction, work state and source status. Users can save incomplete drafts, record responsibility and optional dates/manual references, or document validated keep/reduction/cancellation/postponement requests. Filters expose open reviews, clarification requests, current documented decisions and stale/unassignable sources.
+
+There is exactly one active decision per position within an existing review context, with earlier documented versions in session history. New handoffs retain existing input. Source updates retain old decisions as stale; explicit comparison, confirmation and fresh validation are required to rebind. An editor cannot save against a source changed during editing. Current quantity and accepted prior binding remain distinct in the editor.
+
+All-session PO CSV export includes decisions and source provenance, including stale versions. Local responsibility is not authentication; manual references are not verified documents. No persistent workflow, CSV restoration, operational implementation, Recovery amount, readiness uplift, supplier communication or ERP write-back is introduced. 01C adds a separate controlled JSON backup. Existing financial, scoring and History/Slow-Dead behavior remains unchanged. PRODUCT_RELEASE_GATE: HOLD; AUTHORIZED_RELEASE: NO.
+
+## RECOVERY-LOOP-01A User Scope
+
+Bestellungen / Purchase Orders now supports reviewed local open-item import, a downloadable template, inclusion/exclusion preview, source/currentness context, search and plant/relationship filters. Exact material/plant/unit matches link to existing Excess cases. In the Excess detail Actions tab, users can select matching PO items for an existing Action case and export a source-bound PO review list.
+
+There is no purchase-order optimization. Open quantities are not cancellable quantities; open values are not savings. Future demand, supplier commitments, cancellation terms and supply safety remain explicit human checks. No new Cases, Recovery formulas, caps, scores, priority rules, readiness uplift, workflow persistence or ERP communication are introduced. The existing Action status remains authoritative; PO context is session-only and stale after relevant source changes.
+
+An explicit synthetic PO extension (14 positions, including exclusions and unmatched items) and a separate source-update fixture augment the accepted three-package demo without changing its source files or default loader. User uploads are never silently replaced by this extension; the demo buttons require the linked synthetic Inventory context. Release remains HOLD with no authorization. Any next recovery-loop scope requires separate review.
+
 ## Linked Demo Data Foundation
 
 `DATA-FOUNDATION-ACTIVATION-01-RERUN-01` adds one deterministic, explicitly synthetic demo set containing separate Inventory Snapshot, Material Master and Consumption History sources. `Beispieldaten` / `Sample data` loads all three sources atomically through the same parser, Mapping, Input Trust, Builder, Package Import, Registry and Runtime boundaries used by corresponding user imports. It does not write Packages or Historical/Slow-Dead Runtime directly.
@@ -85,7 +115,7 @@ The accepted Excess Decision Narrative now has a matching presentation contract 
 
 Historical quantities now show the canonical Historical Runtime unit. The UI distinguishes an available unit, a missing unit and conflicting units; it preserves a calculated zero with its unit and does not merge conflicting monthly buckets. Inventory Coverage remains a time metric. No unit is guessed, converted or substituted with a currency.
 
-Purchase Order communication follows the productive capability boundary. Concrete or partial PO evidence may come from fields already present on the current Inventory Case and names that row-level source in provenance. The registered `purchase_orders` type remains contract-only: there is no Builder, productive Package import, upload choice or PO import CTA. A test fixture or Registry-only record cannot imply product availability.
+Purchase Order communication follows the productive capability boundary. RECOVERY-LOOP-01A enables reviewed `purchase_orders` imports and exact-case `po-package-evidence-v1` evidence. Existing Inventory row evidence remains supported separately. A Registry-only fixture cannot bypass the current source, mapping, policy and review bindings.
 
 The primary Recommendation remains fully visible and authoritative. Secondary structured options retain their status in compact native disclosures and expose evidence, gaps, next check and provenance only when opened. The visible Work Context no longer repeats Action status, Owner and Owner function already shown in the fixed Case header; it adds decision type, Owner source, assignment confidence and the session-only boundary.
 
@@ -274,6 +304,8 @@ The drawer has a clear title, Close action, scrim and bounded scroll owner. Open
 AP 16.4d remains the next analytical block and is not implemented by DF-UX-02.
 
 ### DF-UX-02.1 — Data Foundation Visual Hierarchy & Data Quality Header Closure
+
+DATA-FOUNDATION-UX-03 adds actionable source explanations: loaded-but-limited Material Master is separate from an absent or invalid Package. Its actual invalid keys, missing/ambiguous matches and field conflicts open source-bound read-only diagnostic lists, with full values and next checks. The denominator explicitly counts eligible Inventory rows. High match rates do not hide conflicts. Optional Purchase Orders appear only when imported; the existing PO workspace/import remains the action destination. Active-source validity is independent of old decision staleness. Loaded sources and open reviews precede optional sources, templates and technical details. DE/EN and light/dark presentations retain the same analytical values and runtime build counts.
 
 DF-UX-02.1 closes the visual hierarchy of the existing Data Foundation without changing analytical state. The collapsed control now shows one prioritized primary statement and one secondary exception statement, for example active Inventory Analysis plus missing extension count or review-source count. Full `sourceStates` remain available inside the open Data Foundation and Technical Details.
 
@@ -1782,7 +1814,7 @@ TRUST-01 technical source acceptance is separate from release governance. A clea
 - Action recommendations are rule-based and non-binding.
 - Action status is session-only and not production persistence.
 - Pilot Reviews are session-only customer-validation evidence, not persistent workflow or realized-value tracking.
-- Placeholder tabs still describe not-yet-implemented product areas only: Purchase Orders and Reports.
+- Reports remains a placeholder. Purchase Orders now contains the RECOVERY-LOOP-01A reviewed import and relationship worklist.
 
 ## CH-EX-01A Integrity Closure
 

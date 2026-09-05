@@ -75,7 +75,7 @@
     assert.ok(text.includes("Bestandsdaten"), "Inventory source should be shown");
     assert.ok(text.includes("Materialstamm"), "Material Master source should be shown");
     assert.ok(text.includes("Verbrauchshistorie"), "Consumption History source should be shown as a product extension");
-    assert.equal(missingRows.length, 2, "Missing optional sources should render as two actionable rows");
+    assert.equal(missingRows.length, 3, "Missing Material Master, History and optional PO should render as actionable rows");
     assert.equal(text.includes("Nicht importiert"), false, "Visible missing status should not be repeated beside Import actions");
     assert.equal(text.includes("Noch nicht prüfbar"), false, "Missing Material Master should not create a separate not-assessable relationship card");
     assert.ok(!text.includes("0 Zeilen"), "Missing Material Master should not claim zero rows");

@@ -247,6 +247,17 @@ const dataPackageRegistry = createDataPackageRegistry();
 const INVENTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.INVENTORY_SNAPSHOT;
 const MATERIAL_MASTER_PACKAGE_TYPE = DATA_PACKAGE_TYPES.MATERIAL_MASTER;
 const CONSUMPTION_HISTORY_PACKAGE_TYPE = DATA_PACKAGE_TYPES.CONSUMPTION_HISTORY;
+const PURCHASE_ORDERS_PACKAGE_TYPE = DATA_PACKAGE_TYPES.PURCHASE_ORDERS;
+const purchaseOrdersBuilder = ObsoliQModules.data.purchaseOrdersBuilder;
+const purchaseOrderReviewModule = ObsoliQModules.purchaseOrders.reviewService;
+const purchaseOrderReviews = purchaseOrderReviewModule.createReviewService();
+const purchaseOrderFilters = { search: "", plant: "", status: "" };
+let purchaseOrderReviewFilter = "";
+let purchaseOrderDecisionEditor = null;
+let purchaseOrderFeedbackEditor = null;
+let purchaseOrderFeedbackGeneration = 0;
+let purchaseOrderRestorePreview = null;
+let purchaseOrderRestoreGeneration = 0;
 const SYNTHETIC_DEMO_SOURCE_TYPE = "synthetic_demo";
 const PURCHASE_ORDERS_IMPORT_SUPPORTED = DATA_PACKAGE_TYPE_DEFINITIONS[DATA_PACKAGE_TYPES.PURCHASE_ORDERS]?.importSupported === true;
 const MATERIAL_MASTER_MAPPING_POLICY = ObsoliQModules.data.materialMasterBuilder.MATERIAL_MASTER_MAPPING_POLICY;
@@ -324,7 +335,8 @@ const packageImportService = ObsoliQModules.application.packageImportService.cre
     [MATERIAL_MASTER_PACKAGE_TYPE]: ObsoliQModules.data.materialMasterBuilder,
     materialMasterBuilder: ObsoliQModules.data.materialMasterBuilder,
     [CONSUMPTION_HISTORY_PACKAGE_TYPE]: ObsoliQModules.data.consumptionHistoryBuilder,
-    consumptionHistoryBuilder: ObsoliQModules.data.consumptionHistoryBuilder
+    consumptionHistoryBuilder: ObsoliQModules.data.consumptionHistoryBuilder,
+    [PURCHASE_ORDERS_PACKAGE_TYPE]: purchaseOrdersBuilder
   }
 });
 const INVENTORY_PACKAGE_RETENTION_LIMIT = 5;
@@ -457,7 +469,50 @@ const translations = {
     dataFoundationInventoryMissing: "Bestandsdaten fehlen",
     dataFoundationInventoryInvalid: "Bestandsdaten prüfen",
     dataFoundationMaterialActive: "Kontextanreicherung aktiv",
-    dataFoundationMaterialLimited: "Kontextanreicherung prüfen",
+    dataFoundationMaterialLimited: "Kontextanreicherung eingeschränkt",
+    dfLoaded: "Geladen",
+    dfLoadedSources: "Geladene Quellen und nutzbarer Umfang",
+    dfReviews: "Offene Prüfungen",
+    dfOptional: "Optionale weitere Quellen",
+    dfMappingReview: "Zuordnungen prüfen",
+    dfConflictReview: "Feldkonflikte ansehen",
+    dfSourceReview: "Quellzuordnung prüfen",
+    dfDiagnosticReview: "Diagnose ansehen",
+    dfUnmatched: "{count} Bestandszeilen ohne Zuordnung",
+    dfUnmatchedOne: "1 Bestandszeile ohne Zuordnung",
+    dfAmbiguous: "{count} Bestandszeilen mit mehrdeutiger Zuordnung",
+    dfAmbiguousOne: "1 Bestandszeile mit mehrdeutiger Zuordnung",
+    dfInvalidKeys: "{count} ungültige Schlüssel in Bestand oder Materialstamm",
+    dfInvalidKeysOne: "1 ungültiger Schlüssel in Bestand oder Materialstamm",
+    dfKeyConflicts: "{count} doppelte Materialstamm-Schlüssel",
+    dfKeyConflictsOne: "1 doppelter Materialstamm-Schlüssel",
+    dfFieldConflicts: "{count} Feldkonflikte zwischen Bestand und Materialstamm",
+    dfFieldConflictsOne: "1 Feldkonflikt zwischen Bestand und Materialstamm",
+    dfNotCalculated: "Verknüpfung noch nicht berechnet",
+    dfDiagnosticGap: "Die vorhandene Diagnose erklärt die Einschränkung nicht vollständig.",
+    dfMatched: "{matched} von {eligible} berücksichtigten Bestandszeilen zugeordnet",
+    dfInventoryCounts: "{all} eingelesene Bestandszeilen · {considered} im Verknüpfungslauf · {eligible} berücksichtigt · Bestandszeilen mit diagnostiziertem ungültigem Schlüssel: {invalid}",
+    dfRowsOverlap: "Befunde können dieselbe Zeile betreffen; die Anzahlen werden nicht zu einer Fehlerzeilenzahl addiert.",
+    dfMissingMaterial: "Materialnummer fehlt",
+    dfMissingPlant: "Werk fehlt",
+    dfNoCandidate: "Kein Materialstamm-Kandidat vorhanden",
+    dfDuplicateKey: "Mehrere Materialstamm-Zeilen für denselben Schlüssel",
+    dfMultipleCandidates: "Mehrere mögliche Materialstamm-Zuordnungen",
+    dfConflict: "Abweichende Feldwerte; Bestandswert beibehalten",
+    dfNextKey: "Materialnummer und Werk in den angegebenen Quellzeilen prüfen.",
+    dfNextConflict: "Beide Quellwerte fachlich vergleichen; der vorhandene Bestandswert wurde nicht überschrieben.",
+    dfNextSource: "Quellzuordnung und Validierung prüfen; eine korrigierte Quelle bei Bedarf erneut importieren.",
+    dfSourceRowRef: "{source} · Quellzeile {row} · {key}",
+    dfPOTitle: "Bestellungen",
+    dfPOMissing: "Optional: offene Bestellpositionen mit Bestandskontext prüfen.",
+    dfPOUsable: "Bestellpositionen verwendbar",
+    dfPOLimited: "Bestellpositionen mit Einschränkungen",
+    dfPOInvalid: "Aktuelle PO-Quelle nicht auswertbar",
+    dfPOInventoryInvalid: "Bestandsbezug nicht auswertbar; PO-Quelle separat geladen",
+    dfPOCounts: "{source} Quellzeilen · {usable} verwendbare Positionen · {matched} zugeordnete Positionen · {excluded} ausgeschlossene Positionen",
+    dfPOLinks: "{unmatched} ohne Zuordnung · {ambiguous} mehrdeutig · {unit} mit Einheitenkonflikt",
+    dfPOOpen: "Bestellpositionen prüfen",
+    dfPOImport: "Bestellungen importieren",
     dataFoundationMaterialMissing: "Materialstamm fehlt",
     dataFoundationMaterialInvalid: "Materialstamm prüfen",
     dataFoundationHistoryAvailable: "Historische Analyse verfügbar",
@@ -1020,6 +1075,7 @@ const translations = {
     excessPoState_concrete: "Konkrete PO-Evidenz",
     excessPoState_insufficient: "PO-Evidenz unzureichend",
     excessPoSource_inventory_row_fields: "Felder der aktuellen Inventory-Zeile",
+    excessPoSource_purchase_orders_package: "Bestellpositions-Package mit bestätigter Quellrevision",
     excessPoSource_none: "Keine Zeilenquelle",
     excessPoPackage_unsupported: "Eigenständiges Purchase-Orders-Paket im aktuellen MVP nicht verfügbar",
     excessPoPackage_supported: "Eigenständiger Purchase-Orders-Import unterstützt",
@@ -2229,7 +2285,50 @@ const translations = {
     dataFoundationInventoryMissing: "Inventory Data Missing",
     dataFoundationInventoryInvalid: "Inventory Data Review",
     dataFoundationMaterialActive: "Context Enrichment Active",
-    dataFoundationMaterialLimited: "Context Enrichment Review",
+    dataFoundationMaterialLimited: "Context enrichment limited",
+    dfLoaded: "Loaded",
+    dfLoadedSources: "Loaded sources and usable scope",
+    dfReviews: "Open reviews",
+    dfOptional: "Optional additional sources",
+    dfMappingReview: "Review relationships",
+    dfConflictReview: "View field conflicts",
+    dfSourceReview: "Review source mapping",
+    dfDiagnosticReview: "View diagnostics",
+    dfUnmatched: "{count} inventory rows without a match",
+    dfUnmatchedOne: "1 inventory row without a match",
+    dfAmbiguous: "{count} inventory rows with ambiguous matches",
+    dfAmbiguousOne: "1 inventory row with an ambiguous match",
+    dfInvalidKeys: "{count} invalid keys in inventory or Material Master",
+    dfInvalidKeysOne: "1 invalid key in inventory or Material Master",
+    dfKeyConflicts: "{count} duplicate Material Master keys",
+    dfKeyConflictsOne: "1 duplicate Material Master key",
+    dfFieldConflicts: "{count} field conflicts between inventory and Material Master",
+    dfFieldConflictsOne: "1 field conflict between inventory and Material Master",
+    dfNotCalculated: "Relationship not yet calculated",
+    dfDiagnosticGap: "Available diagnostics do not fully explain the limitation.",
+    dfMatched: "{matched} of {eligible} eligible inventory rows matched",
+    dfInventoryCounts: "{all} imported inventory rows · {considered} in the relationship run · {eligible} eligible · Inventory rows with diagnosed invalid keys: {invalid}",
+    dfRowsOverlap: "Findings can refer to the same row; counts are not added into an error-row total.",
+    dfMissingMaterial: "Material ID missing",
+    dfMissingPlant: "Plant missing",
+    dfNoCandidate: "No Material Master candidate",
+    dfDuplicateKey: "Multiple Material Master rows for the same key",
+    dfMultipleCandidates: "Multiple possible Material Master matches",
+    dfConflict: "Different field values; inventory value retained",
+    dfNextKey: "Review material ID and plant in the referenced source rows.",
+    dfNextConflict: "Compare both source values; the existing inventory value was not overwritten.",
+    dfNextSource: "Review source mapping and validation; re-import a corrected source if needed.",
+    dfSourceRowRef: "{source} · Source row {row} · {key}",
+    dfPOTitle: "Purchase Orders",
+    dfPOMissing: "Optional: review open purchase order items in inventory context.",
+    dfPOUsable: "Purchase order items usable",
+    dfPOLimited: "Purchase order items with limitations",
+    dfPOInvalid: "Current PO source cannot be evaluated",
+    dfPOInventoryInvalid: "Inventory relationship unavailable; PO source loaded separately",
+    dfPOCounts: "{source} source rows · {usable} usable items · {matched} matched items · {excluded} excluded items",
+    dfPOLinks: "{unmatched} unmatched · {ambiguous} ambiguous · {unit} with unit conflict",
+    dfPOOpen: "Review purchase order items",
+    dfPOImport: "Import purchase orders",
     dataFoundationMaterialMissing: "Material Master Missing",
     dataFoundationMaterialInvalid: "Material Master Review",
     dataFoundationHistoryAvailable: "Historical Analysis Available",
@@ -2793,6 +2892,7 @@ const translations = {
     excessPoState_concrete: "Concrete PO evidence",
     excessPoState_insufficient: "Insufficient PO evidence",
     excessPoSource_inventory_row_fields: "Fields on the current Inventory row",
+    excessPoSource_purchase_orders_package: "Purchase order item package with confirmed source revision",
     excessPoSource_none: "No row-level source",
     excessPoPackage_unsupported: "Standalone Purchase Orders package is not available in the current MVP",
     excessPoPackage_supported: "Standalone Purchase Orders import supported",
@@ -4684,7 +4784,7 @@ let currentTheme = savedSettings.theme === "dark" ? "dark" : "light";
 let currentCurrency = currencyRates[savedSettings.currency] ? savedSettings.currency : "EUR";
 
 const $ = id => document.getElementById(id);
-const t = key => translations[currentLanguage]?.[key] ?? translations.de[key] ?? key;
+const t = key => key.startsWith("po_") ? purchaseOrdersView().t(key.slice(3)) : translations[currentLanguage]?.[key] ?? translations.de[key] ?? key;
 const locale = () => currentLanguage === "en" ? "en-US" : "de-DE";
 const activeCurrency = () => currencyRates[currentCurrency] || currencyRates.EUR;
 const activeCurrencySymbol = () => currencySymbols[activeCurrency().code] || activeCurrency().code;
@@ -5357,6 +5457,7 @@ function sourceDisplayLabel(sourceColumn, sourceIndex = null) {
 }
 
 function packageFieldDefinitionsForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
+  if (packageType === PURCHASE_ORDERS_PACKAGE_TYPE) return purchaseOrdersBuilder.PURCHASE_ORDERS_FIELD_DEFINITIONS;
   if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) return CONSUMPTION_HISTORY_FIELD_DEFINITIONS;
   return inventoryFieldDefinitions;
 }
@@ -8291,6 +8392,7 @@ function currentExcessDecisionCore(item = {}) {
     historicalRuntimeState,
     historyPackageLoaded: Boolean(currentConsumptionHistoryPackage()),
     purchaseOrderPackageImportSupported: PURCHASE_ORDERS_IMPORT_SUPPORTED,
+    purchaseOrderEvidence: purchaseOrderReviewModule.caseEvidence(currentPurchaseOrdersModel(), item.case_id),
     relationshipIssueRowKeys: currentExcessRelationshipIssueRowKeys()
   });
 }
@@ -8697,6 +8799,7 @@ function renderExcessDetail(item, options = {}) {
     ${renderExcessDisclosure("excessDataRelationship", technicalDetails)}
   `;
   const actionsPanel = `
+    ${purchaseOrdersView().details(currentPurchaseOrdersModel(), item.case_id)}
     ${renderExcessActionOptions(core)}
     ${renderExcessWorkContext(core)}
     ${renderExcessDisclosure("ownerActionContext", renderOwnerActionContext(item))}
@@ -15558,7 +15661,8 @@ function dataFoundationSourceIcon(sourceKind = "") {
   const icons = {
     inventory: "total-inventory",
     materialMaster: "inventory-explorer",
-    consumptionHistory: "history"
+    consumptionHistory: "history",
+    purchaseOrders: "purchase-orders"
   };
   return icons[sourceKind] || "information";
 }
@@ -15629,6 +15733,7 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
         <strong class="data-foundation-source-title">${html(t(labelKey))}</strong>
         <small class="data-foundation-source-meta">${html(meta.length ? meta.join(" · ") : state.label)}</small>
         ${reason ? `<small class="data-foundation-reason">${html(reason)}</small>` : ""}
+        ${options.detailMarkup || ""}
       </div>
       ${statusMarkup}
       ${action}
@@ -15638,13 +15743,26 @@ function renderDataFoundationSourceRow(labelKey, packageRecord, options = {}) {
 
 function relationshipMatchRateText(relationship) {
   const matchRate = finiteNumericValue(relationship?.matchRate);
-  return matchRate === null ? t("notAvailable") : formatQualityPercent(matchRate * 100);
+  return relationship?.status !== "executed" || !Number.isFinite(relationship.eligibleInventoryRowCount) || !(relationship.eligibleInventoryRowCount > 0) || matchRate === null
+    ? t("notAvailable") : formatQualityPercent(matchRate * 100);
 }
 
 function relationshipMatchedRowsText(relationship) {
-  const matched = Number(relationship?.matchedInventoryRowCount || 0);
-  const eligible = Number(relationship?.eligibleInventoryRowCount || 0);
-  return `${formatCount(matched)} ${t("of")} ${formatCount(eligible)}`;
+  const calculated = relationship?.status === "executed";
+  return dataFoundationText("dfMatched", {
+    matched: dataFoundationNumber(calculated ? relationship.matchedInventoryRowCount : null),
+    eligible: dataFoundationNumber(calculated ? relationship.eligibleInventoryRowCount : null)
+  });
+}
+
+function dataFoundationRelationshipCounts(relationship, inventoryPackage) {
+  return dataFoundationText("dfInventoryCounts", {
+    all: dataFoundationNumber(inventoryPackage?.sourceDescriptor?.rows),
+    considered: dataFoundationNumber(relationship?.inventoryRowCount),
+    eligible: dataFoundationNumber(relationship?.eligibleInventoryRowCount),
+    invalid: dataFoundationNumber(relationship?.status === "executed" && Array.isArray(relationship.invalidKeys)
+      ? relationship.invalidKeys.filter(item => item.inventoryRowKey).length : null)
+  });
 }
 
 function currentRelationshipQuality() {
@@ -15669,7 +15787,7 @@ function renderRelationshipExamples(relationship) {
   `;
 }
 
-function renderRelationshipReadinessItem(readiness) {
+function renderRelationshipReadinessItem(readiness, presentation) {
   const state = relationshipCompatibilityState(readiness);
   const relationship = currentInventoryMaterialMasterRelationship || currentDatasetMeta?.materialMasterRelationship?.relationship || null;
   const enrichment = currentInventoryEnrichmentDiagnostics || currentDatasetMeta?.materialMasterRelationship?.enrichment || null;
@@ -15679,11 +15797,11 @@ function renderRelationshipReadinessItem(readiness) {
       <div class="data-foundation-relationship-grid">
         <div class="data-foundation-relationship-metric">
           <span>${html(t("matchRate"))}</span>
-          <strong>${html(relationshipMatchRateText(relationship))}</strong>
+          <strong>${html(presentation.matchRateText)}</strong>
         </div>
         <div class="data-foundation-relationship-metric">
           <span>${html(t("matchedRows"))}</span>
-          <strong>${html(relationshipMatchedRowsText(relationship))}</strong>
+          <strong>${html(presentation.matchedRowsText)}</strong>
         </div>
         <div class="data-foundation-relationship-metric">
           <span>${html(t("exactMatches"))}</span>
@@ -15707,14 +15825,14 @@ function renderRelationshipReadinessItem(readiness) {
         </div>
         <div class="data-foundation-relationship-metric">
           <span>${html(t("enrichmentConflicts"))}</span>
-          <strong>${html(formatCount((enrichment?.conflictCount || 0) + (relationship.conflictCount || 0)))}</strong>
+          <strong>${html(dataFoundationNumber(enrichment?.conflictCount))}</strong>
         </div>
         <div class="data-foundation-relationship-metric">
           <span>${html(t("excessQualityTitle"))}</span>
           <strong>${html(`${relationshipQualityLabel(quality)} · ${formatCount(quality.score)}/100`)}</strong>
         </div>
       </div>
-      ${renderRelationshipExamples(relationship)}
+      <p>${html(presentation.countsText)}</p>
     ` : `
       ${readiness?.noteKey ? `<p>${html(t(readiness.noteKey))}</p>` : ""}
     `;
@@ -15962,7 +16080,45 @@ function dataFoundationSummarySegment(className, textKey, options = {}) {
   };
 }
 
-function dataFoundationMaterialSegment(materialMasterPackage) {
+function dataFoundationText(key, values = {}) {
+  return t(key).replace(/\{(\w+)\}/g, (token, name) => values[name] ?? token);
+}
+
+function dataFoundationNumber(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? formatCount(value) : t("notAvailable");
+}
+
+// Read completed diagnostics only. Do not rematch sources or synthesize DQ issues here.
+function dataFoundationMaterialDiagnostics(packageRecord, relationship, enrichment) {
+  if (!packageRecord) return [];
+  const groups = [];
+  const add = (key, label, action, items = [], count = items.length) => {
+    const textKey = count === 1 && ["dfUnmatched", "dfAmbiguous", "dfInvalidKeys", "dfKeyConflicts", "dfFieldConflicts"].includes(label) ? label + "One" : label;
+    groups.push({ key, text: dataFoundationText(textKey, { count: dataFoundationNumber(count) }), action, items });
+  };
+  if (dataFoundationSourceState(packageRecord).className === "invalid") {
+    add("source", "dfNextSource", "dfSourceReview", packageRecord.packageValidation?.blockingErrors || []);
+    return groups;
+  }
+  if (relationship?.status !== "executed") {
+    add("source", relationship?.status === "invalid" ? "dfNextSource" : "dfNotCalculated", "dfSourceReview",
+      relationship?.reason ? [{ reason: relationship.reason }] : []);
+    return groups;
+  }
+  for (const [key, label, action, items, count] of [
+    ["invalid", "dfInvalidKeys", "dfMappingReview", relationship.invalidKeys, relationship.invalidKeyCount],
+    ["ambiguous", "dfAmbiguous", "dfMappingReview", relationship.ambiguous, relationship.ambiguousCount],
+    ["fields", "dfFieldConflicts", "dfConflictReview", enrichment?.conflicts, enrichment?.conflictCount],
+    ["duplicates", "dfKeyConflicts", "dfMappingReview", relationship.conflicts, relationship.conflictCount],
+    ["unmatched", "dfUnmatched", "dfMappingReview", relationship.unmatched, relationship.unmatchedCount]
+  ]) {
+    if (count > 0 || items?.length) add(key, label, action, items || [], count);
+  }
+  return groups;
+}
+
+function dataFoundationMaterialSegment(materialMasterPackage, relationship = currentInventoryMaterialMasterRelationship,
+  enrichment = currentInventoryEnrichmentDiagnostics) {
   const state = dataFoundationSourceState(materialMasterPackage);
   if (!materialMasterPackage) {
     return dataFoundationSummarySegment("missing", "dataFoundationMaterialMissing", { missing: true });
@@ -15970,14 +16126,74 @@ function dataFoundationMaterialSegment(materialMasterPackage) {
   if (state.className === "invalid") {
     return dataFoundationSummarySegment("invalid", "dataFoundationMaterialInvalid", { review: true });
   }
-  const quality = currentRelationshipQuality();
+  const quality = packageRelationshipQualityEngine.relationshipQuality({ relationshipResult: relationship, enrichmentDiagnostics: enrichment });
   if (quality.status === "critical") {
-    return dataFoundationSummarySegment("invalid", "dataFoundationMaterialLimited", { review: true });
+    return dataFoundationSummarySegment("invalid", "dataFoundationMaterialLimited", { active: true, review: true });
   }
   if (quality.status === "limited") {
-    return dataFoundationSummarySegment("warning", "dataFoundationMaterialLimited", { review: true });
+    return dataFoundationSummarySegment("warning", "dataFoundationMaterialLimited", { active: true, review: true });
+  }
+  if (quality.status === "unavailable" || dataFoundationMaterialDiagnostics(materialMasterPackage, relationship, enrichment).length) {
+    return dataFoundationSummarySegment("warning", "dataFoundationMaterialLimited", { active: true, review: true });
   }
   return dataFoundationSummarySegment("available", "dataFoundationMaterialActive", { active: true });
+}
+
+function dataFoundationPOSegment(packageRecord, model) {
+  if (!packageRecord) return dataFoundationSummarySegment("missing", "dfPOMissing", { missing: true });
+  if (!model?.sourceValid) return dataFoundationSummarySegment("invalid", "dfPOInvalid", { review: true });
+  if (!model.inventoryValid) return dataFoundationSummarySegment("warning", "dfPOInventoryInvalid", { active: true, review: true });
+  const limited = model.rows.some(row => !row.usable || row.link_status !== "matched");
+  return dataFoundationSummarySegment(limited ? "warning" : "available", limited ? "dfPOLimited" : "dfPOUsable", { active: true, review: limited });
+}
+
+function dataFoundationPOCounts(model) {
+  const rows = model?.rows || [];
+  const valid = model?.sourceValid === true;
+  const linked = valid && model.inventoryValid;
+  return dataFoundationText("dfPOCounts", {
+    source: dataFoundationNumber(model ? rows.length : null),
+    usable: dataFoundationNumber(valid ? rows.filter(row => row.usable).length : null),
+    matched: dataFoundationNumber(linked ? rows.filter(row => row.link_status === "matched").length : null),
+    excluded: dataFoundationNumber(valid ? rows.filter(row => !row.usable).length : null)
+  });
+}
+
+function renderDataFoundationReviews(groups, relationship) {
+  if (!groups.length) return "";
+  const reasons = { missing_material_id: "dfMissingMaterial", missing_plant: "dfMissingPlant",
+    no_material_master_candidate: "dfNoCandidate", duplicate_material_key: "dfDuplicateKey",
+    duplicate_material_plant_key: "dfDuplicateKey", multiple_material_candidates: "dfMultipleCandidates" };
+  return `<section class="data-foundation-reviews" aria-label="${html(t("dfReviews"))}">
+    <div class="data-foundation-section-label">${html(t("dfReviews"))} · ${html(t("materialMaster"))}</div>
+    ${groups.map(group => `<details class="data-foundation-review" id="df-review-${html(group.key)}">
+      <summary>${html(t(group.action))}<span>${html(group.text)}</span></summary>
+      <div class="data-foundation-diagnostic-list">
+        ${!group.items.length ? `<p>${html(t("dfDiagnosticGap"))} ${html(t("dfNextSource"))}</p>` : group.items.map(item => {
+          // The row key can repeat for physical duplicates; source index disambiguates it.
+          const matchingRows = enrichedRows.filter(row => slowDeadInventoryRowKey(row) === item.inventoryRowKey
+            && (row.__sourceRowIndex ?? row.row_number) === item.inventorySourceRowIndex);
+          const row = matchingRows.length === 1 ? matchingRows[0] : null;
+          const reason = group.key === "fields" ? t("dfConflict") : reasons[item.reason] ? t(reasons[item.reason])
+            : item.key ? t(item.key) : `${t("dfDiagnosticGap")} (${item.reason || group.key})`;
+          const rowKey = item.inventoryRowKey || item.materialMasterRowKey || "";
+          const rowIndex = item.inventorySourceRowIndex ?? item.materialMasterSourceRowIndex;
+          const source = item.inventoryRowKey ? t("inventoryData") : t("materialMaster");
+          const field = item.fieldKey || (item.reason === "missing_material_id" ? "material_id" : item.reason === "missing_plant" ? "plant" : "material_id / plant");
+          const identity = [relationship?.relationshipMetadata?.inventoryDatasetId, group.key, rowKey, rowIndex, field];
+          return `<article class="data-foundation-diagnostic" data-df-diagnostic="${html(JSON.stringify(identity))}" data-inventory-row-key="${html(item.inventoryRowKey || "")}" data-source-row-index="${html(String(rowIndex ?? ""))}">
+            <strong>${html([item.materialId || row?.material_id, item.plant || row?.plant].filter(Boolean).join(" · ") || t("notAvailable"))}</strong>
+            <small>${html(dataFoundationText("dfSourceRowRef", { source, row: dataFoundationNumber(rowIndex), key: rowKey || t("notAvailable") }))}</small>
+            ${item.materialMasterRowKey && item.inventoryRowKey ? `<small>${html(dataFoundationText("dfSourceRowRef", { source: t("materialMaster"), row: dataFoundationNumber(item.materialMasterSourceRowIndex), key: item.materialMasterRowKey }))}</small>` : ""}
+            <p>${html(reason)} · ${html(t("field"))}: ${html(field)}</p>
+            ${group.key === "fields" ? `<p>${html(t("inventoryData"))}: ${html(String(item.inventoryValue ?? ""))}<br>${html(t("materialMasterValue"))}: ${html(String(item.materialMasterValue ?? ""))}</p>` : ""}
+            <p>${html(t(group.key === "fields" ? "dfNextConflict" : group.key === "source" ? "dfNextSource" : "dfNextKey"))}</p>
+          </article>`;
+        }).join("")}
+      </div>
+    </details>`).join("")}
+    <p class="data-foundation-diagnostic-note">${html(t("dfRowsOverlap"))}</p>
+  </section>`;
 }
 
 function dataFoundationHistorySegment(consumptionHistoryPackage, runtimeState) {
@@ -16049,7 +16265,7 @@ function dataFoundationSummaryFromSegments(segments = []) {
     activeCount,
     missingExtensionCount,
     reviewSourceCount: reviewCount,
-    sourceStates: segments.slice(0, 3),
+    sourceStates: segments,
     mobileText
   };
 }
@@ -16059,7 +16275,11 @@ function buildDataFoundationPresentationModel({
   materialMasterPackage,
   consumptionHistoryPackage,
   materialMasterRelationshipReadiness,
-  historicalRuntimeState
+  historicalRuntimeState,
+  materialRelationship = currentInventoryMaterialMasterRelationship,
+  materialEnrichment = currentInventoryEnrichmentDiagnostics,
+  purchaseOrdersPackage = dataPackageRegistry.getActivePackage(PURCHASE_ORDERS_PACKAGE_TYPE),
+  purchaseOrdersModel = purchaseOrdersPackage ? currentPurchaseOrdersModel() : null
 }) {
   const historyReadiness = consumptionHistoryReadiness(consumptionHistoryPackage);
   const inventorySourceState = dataFoundationSourceState(inventoryPackage);
@@ -16068,17 +16288,25 @@ function buildDataFoundationPresentationModel({
     : inventorySourceState.className === "invalid"
       ? dataFoundationSummarySegment("invalid", "dataFoundationInventoryInvalid", { review: true })
       : dataFoundationSummarySegment("missing", "dataFoundationInventoryMissing", { missing: true });
-  const materialSegment = dataFoundationMaterialSegment(materialMasterPackage);
+  const materialSegment = dataFoundationMaterialSegment(materialMasterPackage, materialRelationship, materialEnrichment);
   const historySegment = dataFoundationHistorySegment(consumptionHistoryPackage, historicalRuntimeState);
+  const poSegment = dataFoundationPOSegment(purchaseOrdersPackage, purchaseOrdersModel);
   const sourceStates = {
     inventory: inventorySegment,
     materialMaster: materialSegment,
-    consumptionHistory: historySegment
+    consumptionHistory: historySegment,
+    purchaseOrders: poSegment
   };
-  const summary = dataFoundationSummaryFromSegments([inventorySegment, materialSegment, historySegment]);
+  // Missing PO is optional and does not change the established Inventory/History capability summary.
+  const summary = dataFoundationSummaryFromSegments([inventorySegment, materialSegment, historySegment, ...(purchaseOrdersPackage ? [poSegment] : [])]);
+  const materialReviews = dataFoundationMaterialDiagnostics(materialMasterPackage, materialRelationship, materialEnrichment);
+  if (materialSegment.review && !materialReviews.length) materialReviews.push({ key: "source", text: t("dfDiagnosticGap"), action: "dfDiagnosticReview", items: [] });
   return {
     summary,
     sourceStates,
+    materialReviews,
+    purchaseOrdersModel,
+    purchaseOrdersCountsText: dataFoundationPOCounts(purchaseOrdersModel),
     sources: {
       inventory: {
         presence: inventoryPackage ? "imported" : "not_imported",
@@ -16091,10 +16319,20 @@ function buildDataFoundationPresentationModel({
       consumptionHistory: {
         presence: consumptionHistoryPackage ? "imported" : "not_imported",
         validity: dataFoundationPackageValidityState(consumptionHistoryPackage)
+      },
+      purchaseOrders: {
+        presence: purchaseOrdersPackage ? "imported" : "not_imported",
+        sourceValid: purchaseOrdersPackage ? purchaseOrdersModel?.sourceValid === true : null,
+        inventoryValid: purchaseOrdersPackage ? purchaseOrdersModel?.inventoryValid === true : null
       }
     },
     relationships: {
-      materialMaster: relationshipCompatibilityState(materialMasterRelationshipReadiness),
+      materialMaster: {
+        ...relationshipCompatibilityState(materialMasterRelationshipReadiness),
+        matchRateText: relationshipMatchRateText(materialRelationship),
+        matchedRowsText: relationshipMatchedRowsText(materialRelationship),
+        countsText: dataFoundationRelationshipCounts(materialRelationship, inventoryPackage)
+      },
       consumptionHistory: {
         label: t("inventoryConsumptionHistoryRelationship"),
         state: historicalMetricsAvailabilityState(historicalRuntimeState)
@@ -16144,6 +16382,7 @@ function renderPackageAvailability() {
   const inventoryPackage = currentInventoryPackage();
   const materialMasterPackage = currentMaterialMasterPackage();
   const consumptionHistoryPackage = currentConsumptionHistoryPackage();
+  const purchaseOrdersPackage = dataPackageRegistry.getActivePackage(PURCHASE_ORDERS_PACKAGE_TYPE);
   const readiness = packageImportService.relationshipReadiness({
     inventoryPackage,
     materialMasterPackage
@@ -16174,6 +16413,31 @@ function renderPackageAvailability() {
       : "diagnostic";
   const canShowContextEnrichment = Boolean(materialMasterPackage && materialSourceState.className === "available");
   const canShowHistoricalAnalysis = Boolean(consumptionHistoryPackage && historySourceState.className === "available");
+  const materialReviews = presentationModel.materialReviews;
+  const primaryReview = materialReviews[0];
+  const materialRow = renderDataFoundationSourceRow("materialMaster", materialMasterPackage, {
+    state: materialRowState, sourceKind: "materialMaster", variant: materialRowVariant, importAction: true,
+    statusLabel: materialMasterPackage ? t("dfLoaded") : undefined,
+    missingDescriptionKey: "materialMasterMissingAction",
+    diagnosticText: presentationModel.sourceStates.materialMaster.text,
+    detailMarkup: `${currentInventoryMaterialMasterRelationship?.status === "executed" ? `<small>${html(relationshipMatchedRowsText(currentInventoryMaterialMasterRelationship))}</small>` : ""}${primaryReview ? `<small>${html(primaryReview.text)}</small><button type="button" class="secondary data-foundation-inline-action" data-df-review="${html(primaryReview.key)}" aria-controls="df-review-${html(primaryReview.key)}">${html(t(primaryReview.action))}</button>` : ""}`
+  });
+  const historyRow = renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, {
+    state: historyRowState, sourceKind: "consumptionHistory", variant: historyRowVariant, importAction: true,
+    importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE, missingDescriptionKey: "consumptionHistoryMissingAction",
+    diagnosticText: presentationModel.sourceStates.consumptionHistory.text,
+    detailMarkup: consumptionHistoryPackage && presentationModel.sourceStates.consumptionHistory.review
+      ? `<small>${html(packageValidationReason(consumptionHistoryPackage) || translatedCodeLabel(`historyReason_${historicalRuntimeState.reasonCode}`, historicalRuntimeState.reasonCode || t("dfDiagnosticGap")))}</small><button type="button" class="secondary data-foundation-inline-action" data-df-history-review>${html(t("dfDiagnosticReview"))}</button>` : ""
+  });
+  const poState = presentationModel.sourceStates.purchaseOrders;
+  const poModel = presentationModel.purchaseOrdersModel;
+  const poRow = renderDataFoundationSourceRow("dfPOTitle", purchaseOrdersPackage, {
+    state: { className: poState.className, label: poState.text }, sourceKind: "purchaseOrders",
+    variant: purchaseOrdersPackage ? "diagnostic" : "actionable-missing", statusLabel: t("dfLoaded"),
+    missingDescriptionKey: "dfPOMissing", diagnosticText: poState.text,
+    detailMarkup: purchaseOrdersPackage ? `<small>${html(dataFoundationPOCounts(poModel))}</small>${poModel?.sourceValid && poModel.inventoryValid ? `<small>${html(dataFoundationText("dfPOLinks", Object.fromEntries([ ["unmatched", "unmatched"], ["ambiguous", "ambiguous"], ["unit", "unit_conflict"] ].map(([key, status]) => [key, dataFoundationNumber(poModel.rows.filter(row => row.link_status === status).length)]))))}</small>` : ""}<button type="button" class="secondary data-foundation-inline-action" data-df-po-open>${html(t("dfPOOpen"))}</button>` : "",
+    actionMarkup: !purchaseOrdersPackage ? `<button type="button" class="secondary data-foundation-inline-action" data-po-import>${iconHtml("upload-file", { className: "oq-icon--button" })}<span>${html(t("dfPOImport"))}</span></button>` : ""
+  });
   target.innerHTML = `
     <details class="data-foundation ${html(summary.className)}" data-data-foundation>
       <summary class="data-foundation-summary" aria-expanded="false" aria-controls="dataFoundationDetail" aria-label="${html(summaryLabel)}">
@@ -16200,39 +16464,22 @@ function renderPackageAvailability() {
           </button>
         </div>
         <div class="data-foundation-detail-body">
-          <div class="data-foundation-section-label">${html(t("activeAnalysis"))}</div>
+          <div class="data-foundation-section-label">${html(t("dfLoadedSources"))}</div>
           <div class="data-foundation-source-list">
             ${renderDataFoundationSourceRow("inventoryData", inventoryPackage, {
               sourceKind: "inventory",
               variant: inventoryPackage ? "compact-active" : "diagnostic",
               statusLabel: inventoryPackage ? t("packageActive") : t("dataFoundationReview")
             })}
+            ${materialMasterPackage ? materialRow : ""}
+            ${consumptionHistoryPackage ? historyRow : ""}
+            ${purchaseOrdersPackage ? poRow : ""}
           </div>
-          <div class="data-foundation-section-label">${html(t("extensions"))}</div>
-          <div class="data-foundation-source-list">
-            ${renderDataFoundationSourceRow("materialMaster", materialMasterPackage, {
-              state: materialRowState,
-              sourceKind: "materialMaster",
-              variant: materialRowVariant,
-              showGranularity: true,
-              importAction: true,
-              roleKey: "materialMasterRole",
-              missingDescriptionKey: "materialMasterMissingAction",
-              diagnosticText: t("materialMasterRole")
-            })}
-            ${renderDataFoundationSourceRow("consumptionHistory", consumptionHistoryPackage, {
-              state: historyRowState,
-              sourceKind: "consumptionHistory",
-              variant: historyRowVariant,
-              showGranularity: true,
-              importAction: true,
-              importActionType: CONSUMPTION_HISTORY_PACKAGE_TYPE,
-              roleKey: "consumptionHistoryRole",
-              missingDescriptionKey: "consumptionHistoryMissingAction",
-              diagnosticText: t("consumptionHistoryRole")
-            })}
-          </div>
-          <div class="data-foundation-section-label">${html(t("importTemplateHelp"))}</div>
+          ${renderDataFoundationReviews(materialReviews, currentInventoryMaterialMasterRelationship)}
+          ${!materialMasterPackage || !consumptionHistoryPackage || !purchaseOrdersPackage ? `<div class="data-foundation-section-label">${html(t("dfOptional"))}</div>
+            <div class="data-foundation-source-list">${!materialMasterPackage ? materialRow : ""}${!consumptionHistoryPackage ? historyRow : ""}${!purchaseOrdersPackage ? poRow : ""}</div>` : ""}
+          <details class="data-foundation-technical">
+          <summary>${html(t("importTemplateHelp"))}</summary>
           <div class="data-foundation-source-list">
             <button class="secondary data-foundation-template-action" type="button" data-download-data-foundation-template="materialMaster">
               ${iconHtml("export", { className: "oq-icon--button" })}<span>${html(t("downloadMaterialMasterTemplate"))}</span>
@@ -16241,15 +16488,18 @@ function renderPackageAvailability() {
               ${iconHtml("export", { className: "oq-icon--button" })}<span>${html(t("downloadConsumptionHistoryTemplate"))}</span>
             </button>
           </div>
+          </details>
           ${canShowContextEnrichment ? `
             <div class="data-foundation-section-label">${html(t("contextEnrichment"))}</div>
-            ${renderRelationshipReadinessItem(readiness)}
+            ${renderRelationshipReadinessItem(readiness, presentationModel.relationships.materialMaster)}
           ` : ""}
-          ${canShowHistoricalAnalysis ? `
+          ${consumptionHistoryPackage ? `<section id="df-history-review" tabindex="-1">
             <div class="data-foundation-section-label">${html(t("historicalAnalysis"))}</div>
+            ${!canShowHistoricalAnalysis ? `<p>${html(packageValidationReason(consumptionHistoryPackage) || t("dfNextSource"))}</p>` : ""}
             ${renderHistoryPreparationItem(presentationModel)}
             ${renderInventoryHistoryRelationshipItem(historicalRuntimeState)}
             ${renderHistoricalMetricsReadinessItem(historicalRuntimeState)}
+            </section>
           ` : ""}
           <details class="data-foundation-technical">
             <summary class="oq-icon-label">${iconHtml("expand", { className: "oq-icon--micro" })}<span>${html(t("technicalDetails"))}</span></summary>
@@ -16257,6 +16507,7 @@ function renderPackageAvailability() {
               ${renderPackageTechnicalDetails(inventoryPackage, "inventoryData")}
               ${renderPackageTechnicalDetails(materialMasterPackage, "materialMaster")}
               ${renderPackageTechnicalDetails(consumptionHistoryPackage, "consumptionHistory")}
+              ${renderPackageTechnicalDetails(purchaseOrdersPackage, "dfPOTitle")}
               <div class="data-foundation-technical-row">
                 <span>${html(t("interpretationTrust"))}</span>
                 <strong>${html(presentationModel.interpretationTrust.label)}</strong>
@@ -16288,6 +16539,7 @@ function renderOverview() {
 }
 
 function renderActions() {
+  renderPurchaseOrderReviews();
   const actionData = getActionRows();
   updateVisibleDatasetChipsForView("actions", actionData.length);
   renderActionSummary(actionData);
@@ -16789,6 +17041,7 @@ function openActionsForInventoryRiskCase(caseId) {
 }
 
 function renderCurrentView(options = {}) {
+  if (activeProcessKey === "purchase-orders") renderPurchaseOrders();
   if (currentView !== "check") cancelScheduledRemediationFilterRender();
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   if (options.globalChrome !== false) renderGlobalChrome();
@@ -17530,6 +17783,8 @@ function historicalMetricsSummaryState(runtimeState = historicalMetricsRuntimeFo
 
 function snapshotDatasetRuntimeState() {
   return {
+    purchaseOrderReviews: purchaseOrderReviews.snapshot(),
+    purchaseOrderFilters: { ...purchaseOrderFilters },
     ...snapshotRemediationRuntimeState(),
     filterState: clonePlainRecord(filterState),
     filterControlState: snapshotFilterControlState(),
@@ -17585,6 +17840,8 @@ function snapshotDatasetRuntimeState() {
 }
 
 function restoreDatasetRuntimeState(snapshot, options = {}) {
+  purchaseOrderReviews.restore(snapshot.purchaseOrderReviews);
+  Object.assign(purchaseOrderFilters, snapshot.purchaseOrderFilters || { search: "", plant: "", status: "" });
   restoreRemediationRuntimeState(snapshot);
   Object.keys(filterState).forEach(key => delete filterState[key]);
   Object.assign(filterState, clonePlainRecord(snapshot.filterState || {}));
@@ -18710,6 +18967,10 @@ const inventoryTabDescriptions = {
 };
 
 function setPlaceholderContent(processKey, label) {
+  $("purchaseOrdersPage")?.classList.toggle("hidden", processKey !== "purchase-orders");
+  $("placeholderPage")?.classList.toggle("po-active", processKey === "purchase-orders");
+  $("placeholderTitle")?.parentElement.classList.toggle("hidden", processKey === "purchase-orders");
+  if (processKey === "purchase-orders") { renderPurchaseOrders(); return; }
   $("placeholderTitle").textContent = `${label}: ${t("inProgress")}`;
   $("placeholderDescription").textContent = t(inventoryTabDescriptions[processKey]) || t("placeholderText");
 }
@@ -18743,6 +19004,7 @@ function switchProcessTab(processKey, label, options = {}) {
 }
 
 function mappingPolicyForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
+  if (packageType === PURCHASE_ORDERS_PACKAGE_TYPE) return purchaseOrdersBuilder.PURCHASE_ORDERS_MAPPING_POLICY;
   if (packageType === MATERIAL_MASTER_PACKAGE_TYPE) return MATERIAL_MASTER_MAPPING_POLICY;
   if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) return CONSUMPTION_HISTORY_MAPPING_POLICY;
   return DEFAULT_MAPPING_POLICY;
@@ -18755,7 +19017,7 @@ function mappingValidationOptionsForContext(context = {}) {
     sourceColumnMetadata: context.sourceColumnMetadata || [],
     policy: mappingPolicyForPackageType(packageType),
     fieldDefinitions,
-    ...(packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE ? { protectedFieldKeys: [] } : {})
+    ...([CONSUMPTION_HISTORY_PACKAGE_TYPE, PURCHASE_ORDERS_PACKAGE_TYPE].includes(packageType) ? { protectedFieldKeys: [] } : {})
   };
 }
 
@@ -19361,6 +19623,7 @@ function renderMappingTable(mapping) {
 
 function renderColumnMappingAssistant() {
   if (!pendingUploadContext) return;
+  if (pendingUploadContext.packageType === PURCHASE_ORDERS_PACKAGE_TYPE) return renderPurchaseOrdersMapping();
   const validationOptions = mappingValidationOptionsForContext(pendingUploadContext);
   const initialValidation = validateColumnMapping(pendingUploadContext.approvedMapping, validationOptions);
   const inputTrustAssessment = inputTrustAssessmentForContext(pendingUploadContext, initialValidation.mapping);
@@ -19504,6 +19767,7 @@ function openColumnMappingAssistant(context = {}) {
 }
 
 function mappingSubtitleForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
+  if (packageType === PURCHASE_ORDERS_PACKAGE_TYPE) return purchaseOrdersView().t("confirmNeeded");
   if (packageType === MATERIAL_MASTER_PACKAGE_TYPE) return t("materialMasterMappingSubtitle");
   if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) return t("consumptionHistoryMappingSubtitle");
   return t("columnMappingSubtitle");
@@ -19523,6 +19787,8 @@ function closeColumnMappingAssistant(options = {}) {
 
 function restoreAutomaticColumnMapping() {
   if (!pendingUploadContext) return;
+  pendingUploadContext.purchaseOrderReview = null;
+  pendingUploadContext.purchaseOrderPolicy = null;
   pendingUploadContext.approvedMapping = cloneColumnMapping(pendingUploadContext.automaticMapping);
   pendingUploadContext.normalizationPolicy = null;
   pendingUploadContext.normalizationPolicyOverrides = null;
@@ -19535,6 +19801,8 @@ function restoreAutomaticColumnMapping() {
 
 function updateColumnMappingSelection(sourceIndex, selectedCanonicalField) {
   if (!pendingUploadContext) return;
+  pendingUploadContext.purchaseOrderReview = null;
+  pendingUploadContext.purchaseOrderPolicy = null;
   const previousEntry = pendingUploadContext.approvedMapping.find(entry => String(entry.sourceIndex) === String(sourceIndex));
   const previousField = previousEntry?.selectedCanonicalField || "";
   pendingUploadContext.approvedMapping = pendingUploadContext.approvedMapping.map(entry => {
@@ -19796,7 +20064,338 @@ function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
   return { status: loaded ? "loaded" : "error", mappingState };
 }
 
+function purchaseOrdersView() {
+  return ObsoliQModules.application.purchaseOrdersView.createView({
+    language: currentLanguage, html, icon: name => iconHtml(name, { className: "oq-icon--button" }), number: value => new Intl.NumberFormat(currentLanguage === "de" ? "de-DE" : "en-US", { maximumFractionDigits: 6 }).format(value)
+  });
+}
+
+function currentPurchaseOrdersModel() {
+  return purchaseOrderReviewModule.buildModel({
+    inventoryPackage: currentInventoryPackage(),
+    poPackage: dataPackageRegistry.getActivePackage(PURCHASE_ORDERS_PACKAGE_TYPE),
+    inventoryRows: enrichedRows, cases: currentExcessPageModel(enrichedRows).cases || []
+  });
+}
+
+function renderPurchaseOrders() {
+  const target = $("purchaseOrdersPage");
+  if (target) target.innerHTML = purchaseOrdersView().page(currentPurchaseOrdersModel(), purchaseOrderFilters,
+    currentInventoryPackage()?.sourceDescriptor?.sourceType === SYNTHETIC_DEMO_SOURCE_TYPE);
+}
+
+function purchaseOrdersInspection(context = pendingUploadContext) {
+  return purchaseOrdersBuilder.inspect({ headers: context.headers, sourceRows: context.rows,
+    sourceColumnMetadata: context.sourceColumnMetadata, columnMapping: context.approvedMapping,
+    normalizationPolicy: context.purchaseOrderPolicy });
+}
+
+function renderPurchaseOrdersMapping() {
+  const context = pendingUploadContext;
+  const result = purchaseOrdersInspection(context);
+  context.approvedMapping = result.validation.mappingValidation.mapping;
+  context.purchaseOrderPolicy = result.effectivePolicy;
+  if (context.purchaseOrderReview?.binding !== result.reviewBinding) context.purchaseOrderReview = null;
+  const confirmed = context.purchaseOrderReview?.confirmed === true;
+  $("mappingSummary").innerHTML = renderMappingSummaryBadges(context, result.validation.mappingValidation);
+  $("mappingRequiredSummary").innerHTML = renderMappingRequiredSummary(context, context.approvedMapping);
+  $("mappingTable").innerHTML = renderMappingTable(context.approvedMapping);
+  $("mappingIssues").innerHTML = purchaseOrdersView().preview(result, confirmed);
+  $("mappingApplyButton").disabled = result.validation.status === "invalid" || !confirmed;
+}
+
+function handoffPurchaseOrders(caseId, ids) {
+  const model = currentPurchaseOrdersModel();
+  const item = (currentExcessPageModel(enrichedRows).cases || []).find(row => row.case_id === caseId);
+  const row = item ? excessActionRowForCase(item) : null;
+  const result = purchaseOrderReviews.handoff({ model, caseRecord: item, actionRow: row, positionIds: ids });
+  if (result.status !== "ready") { setFeedback(purchaseOrdersView().t("noneSelected"), "error", { autoReset: true }); return result; }
+  excessActionRevealTarget = excessCaseNavigationTarget(item);
+  switchProcessTab("actions", t("navActions"));
+  return result;
+}
+
+function exportPurchaseOrderReviews() {
+  const rows = purchaseOrderReviewModule.exportReviews(purchaseOrderReviews.list(currentPurchaseOrdersModel()), enrichedRows, currentDatasetMeta?.datasetId);
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  downloadBlob(csvBlob([headers, ...rows.map(row => headers.map(key => row[key] ?? ""))]), "obsoliq_po_review_list.csv");
+}
+
+function renderPurchaseOrderReviews() {
+  const target = $("purchaseOrderActionReviews");
+  if (target) target.innerHTML = purchaseOrdersView().reviews(purchaseOrderReviews.list(currentPurchaseOrdersModel()), purchaseOrderReviewFilter);
+}
+
+function exportPurchaseOrderFeedback() {
+  const rows = ObsoliQModules.purchaseOrders.reviewService.exportFeedback(purchaseOrderReviews.list(currentPurchaseOrdersModel()));
+  if (!rows.length) return;
+  const headers = Object.keys(rows[0]);
+  downloadBlob(csvBlob([headers, ...rows.map(row => headers.map(key => row[key] ?? ""))]), "obsoliq_po_implementation_reports.csv");
+}
+
+function renderPurchaseOrderFeedbackEditor(errors = []) {
+  let dialog = $("purchaseOrderFeedbackDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "purchaseOrderFeedbackDialog";
+    dialog.className = "po-decision-dialog";
+    dialog.setAttribute("aria-labelledby", "poFeedbackTitle");
+    dialog.addEventListener("cancel", event => { event.preventDefault(); closePurchaseOrderFeedbackEditor(); });
+    document.body.appendChild(dialog);
+  }
+  dialog.innerHTML = purchaseOrdersView().feedbackEditor(purchaseOrderFeedbackEditor, errors);
+  if (!dialog.open) dialog.showModal();
+  if (errors.length) dialog.querySelector(".po-decision-errors").focus();
+}
+
+async function openPurchaseOrderFeedbackEditor(version, correctsId = "") {
+  if (!purchaseOrderDecisionEditor) return;
+  if (purchaseOrderDecisionEditor.dirty) {
+    if (!window.confirm(purchaseOrdersView().t("discard"))) return;
+    openPurchaseOrderDecisionEditor(purchaseOrderDecisionEditor.review_id, purchaseOrderDecisionEditor.position_id);
+  }
+  const parent = purchaseOrderDecisionEditor, generation = ++purchaseOrderFeedbackGeneration;
+  const result = await purchaseOrderReviews.beginFeedback({ model: currentPurchaseOrdersModel(), reviewId: parent.review_id, positionId: parent.position_id, version, correctsId });
+  if (generation !== purchaseOrderFeedbackGeneration || parent !== purchaseOrderDecisionEditor) return;
+  if (result.status !== "ready") { renderPurchaseOrderDecisionEditor(result.errors); return; }
+  purchaseOrderFeedbackEditor = result.editor;
+  renderPurchaseOrderFeedbackEditor();
+}
+
+function closePurchaseOrderFeedbackEditor(force = false) {
+  if (!force && purchaseOrderFeedbackEditor?.dirty && !window.confirm(purchaseOrdersView().t("discard"))) return;
+  $("purchaseOrderFeedbackDialog")?.close();
+  purchaseOrderFeedbackEditor = null;
+  purchaseOrderFeedbackGeneration++;
+}
+
+document.addEventListener("submit", event => {
+  if (!event.target.matches?.("[data-po-feedback-form]")) return;
+  event.preventDefault();
+  if (!purchaseOrderFeedbackEditor) return;
+  const editor = purchaseOrderFeedbackEditor;
+  const result = purchaseOrderReviews.saveFeedback({ editor, input: editor.values });
+  if (result.status !== "ready") { renderPurchaseOrderFeedbackEditor(result.errors); return; }
+  closePurchaseOrderFeedbackEditor(true);
+  openPurchaseOrderDecisionEditor(editor.review_id, editor.position_id);
+  renderPurchaseOrderReviews();
+  setFeedback(purchaseOrdersView().t("feedbackSaved"), "success", { autoReset: true });
+});
+
+function showPurchaseOrderRestore(result, errors = []) {
+  let dialog = $("purchaseOrderRestoreDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "purchaseOrderRestoreDialog";
+    dialog.className = "po-decision-dialog po-restore-dialog";
+    dialog.setAttribute("aria-labelledby", "poRestoreTitle");
+    dialog.addEventListener("close", () => { purchaseOrderRestoreGeneration++; purchaseOrderRestorePreview = null; });
+    document.body.appendChild(dialog);
+  }
+  dialog.innerHTML = purchaseOrdersView().restoreDialog(result, errors);
+  if (!dialog.open) dialog.showModal();
+}
+
+async function backUpPurchaseOrderDecisions() {
+  try {
+    const result = await purchaseOrderReviews.createBackup();
+    downloadBlob(new Blob([result.json], { type: "application/json;charset=utf-8" }), "obsoliq_po_review_backup.json");
+    const view = purchaseOrdersView(), c = result.counts;
+    setFeedback(`${view.t("backupSaved")}: ${c.total} ${view.t("positions")}, ${c.drafts} ${view.t("draftCount")}, ${c.history} ${view.t("historicalCount")}`, "success", { autoReset: true });
+  } catch (error) { setFeedback(purchaseOrdersView().t(error.message.startsWith("backup_") ? error.message : "backup_apply_failed"), "error", { autoReset: true }); }
+}
+
+async function previewPurchaseOrderBackup(file, reassociate = false) {
+  const generation = ++purchaseOrderRestoreGeneration;
+  purchaseOrderRestorePreview = null;
+  try {
+    if (!reassociate && (!file || file.size > ObsoliQModules.purchaseOrders.backup.LIMITS.bytes)) throw new Error("backup_limit");
+    const result = reassociate ? await purchaseOrderReviews.previewReassociation(currentPurchaseOrdersModel())
+      : await purchaseOrderReviews.previewRestore({ json: await file.text(), model: currentPurchaseOrdersModel() });
+    if (generation !== purchaseOrderRestoreGeneration) return;
+    purchaseOrderRestorePreview = result;
+    showPurchaseOrderRestore(result);
+  } catch (error) {
+    if (generation === purchaseOrderRestoreGeneration) showPurchaseOrderRestore({ status: "blocked", errors: [error.message.startsWith("backup_") ? error.message : "backup_structure_invalid"] });
+  }
+}
+
+function choosePurchaseOrderBackup() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = ".json,application/json";
+  input.addEventListener("change", () => { if (input.files[0]) previewPurchaseOrderBackup(input.files[0]); }, { once: true });
+  input.click();
+}
+
+function applyPurchaseOrderBackup() {
+  const previous = purchaseOrderReviews.snapshot();
+  const result = purchaseOrderReviews.applyRestore({ preview: purchaseOrderRestorePreview, model: currentPurchaseOrdersModel(),
+    confirmed: $("purchaseOrderRestoreDialog")?.querySelector("[data-po-restore-confirm]")?.checked === true });
+  if (result.status !== "ready") { showPurchaseOrderRestore({ status: "blocked", errors: result.errors }); return; }
+  try { renderPurchaseOrderReviews(); }
+  catch {
+    purchaseOrderReviews.restore(previous);
+    showPurchaseOrderRestore({ status: "blocked", errors: ["backup_apply_failed"] }); return;
+  }
+  $("purchaseOrderRestoreDialog")?.close();
+  setFeedback(purchaseOrdersView().t("restored"), "success", { autoReset: true });
+}
+
+function renderPurchaseOrderDecisionEditor(errors = []) {
+  let dialog = $("purchaseOrderDecisionDialog");
+  if (!dialog) {
+    dialog = document.createElement("dialog");
+    dialog.id = "purchaseOrderDecisionDialog";
+    dialog.className = "po-decision-dialog";
+    dialog.setAttribute("aria-labelledby", "poDecisionTitle");
+    dialog.addEventListener("cancel", event => { event.preventDefault(); closePurchaseOrderDecisionEditor(); });
+    document.body.appendChild(dialog);
+  }
+  dialog.innerHTML = purchaseOrdersView().decisionEditor(purchaseOrderDecisionEditor, errors);
+  if (!dialog.open) dialog.showModal();
+  if (errors.length) dialog.querySelector(".po-decision-errors").focus();
+}
+
+function openPurchaseOrderDecisionEditor(reviewId, positionId, recheck = false) {
+  const result = purchaseOrderReviews.beginDecision({ model: currentPurchaseOrdersModel(), reviewId, positionId, recheck });
+  if (result.status !== "ready") {
+    if (purchaseOrderDecisionEditor) renderPurchaseOrderDecisionEditor(result.errors);
+    return;
+  }
+  const previous = purchaseOrderDecisionEditor;
+  purchaseOrderDecisionEditor = result.editor;
+  if (recheck && previous?.review_id === reviewId && previous.position_id === positionId) {
+    purchaseOrderDecisionEditor.values = previous.values;
+    purchaseOrderDecisionEditor.dirty = true;
+  }
+  renderPurchaseOrderDecisionEditor();
+}
+
+function closePurchaseOrderDecisionEditor(force = false) {
+  if (!force && purchaseOrderDecisionEditor?.dirty && !window.confirm(purchaseOrdersView().t("discard"))) return;
+  $("purchaseOrderDecisionDialog")?.close();
+  purchaseOrderDecisionEditor = null;
+}
+
+document.addEventListener("submit", event => {
+  if (!event.target.matches?.("[data-po-decision-form]")) return;
+  event.preventDefault();
+  if (!purchaseOrderDecisionEditor) return;
+  if ([...event.target.querySelectorAll("input")].some(input => input.validity.badInput)) {
+    renderPurchaseOrderDecisionEditor(["reduction_invalid"]); return;
+  }
+  const result = purchaseOrderReviews.saveDecision({ model: currentPurchaseOrdersModel(), editor: purchaseOrderDecisionEditor,
+    input: purchaseOrderDecisionEditor.values, confirmed: purchaseOrderDecisionEditor.confirmed === true });
+  if (result.status !== "ready") { renderPurchaseOrderDecisionEditor(result.errors); return; }
+  closePurchaseOrderDecisionEditor(true);
+  renderPurchaseOrderReviews();
+  setFeedback(purchaseOrdersView().t("saved"), "success", { autoReset: true });
+});
+
+window.addEventListener("beforeunload", event => {
+  if (purchaseOrderDecisionEditor?.dirty || purchaseOrderFeedbackEditor?.dirty) { event.preventDefault(); event.returnValue = ""; }
+});
+
+function importPurchaseOrderDemo(update = false) {
+  if (currentInventoryPackage()?.sourceDescriptor?.sourceType !== SYNTHETIC_DEMO_SOURCE_TYPE) {
+    setFeedback(purchaseOrdersView().t("needDemo"), "error", { autoReset: true }); return;
+  }
+  const demo = ObsoliQModules.purchaseOrders.demo;
+  return loadTextDataset(update ? demo.update : demo.initial, update ? "synthetic-purchase-orders-update.csv" : "synthetic-purchase-orders.csv", {
+    packageType: PURCHASE_ORDERS_PACKAGE_TYPE, sourceType: SYNTHETIC_DEMO_SOURCE_TYPE,
+    sourceDescriptor: { classification: "synthetic" }
+  });
+}
+
+document.addEventListener("click", event => {
+  if (!(event.target instanceof Element)) return;
+  const addReport = event.target.closest("[data-po-feedback-add]");
+  if (addReport) { openPurchaseOrderFeedbackEditor(Number(addReport.dataset.poFeedbackAdd)); return; }
+  const correction = event.target.closest("[data-po-feedback-correct]");
+  if (correction) { openPurchaseOrderFeedbackEditor(Number(correction.dataset.poFeedbackVersion), correction.dataset.poFeedbackCorrect); return; }
+  if (event.target.closest("[data-po-feedback-cancel]")) { closePurchaseOrderFeedbackEditor(); return; }
+  if (event.target.closest("[data-po-feedback-export]")) { exportPurchaseOrderFeedback(); return; }
+  if (event.target.closest("[data-po-backup]")) { backUpPurchaseOrderDecisions(); return; }
+  if (event.target.closest("[data-po-restore]")) { choosePurchaseOrderBackup(); return; }
+  if (event.target.closest("[data-po-reassociate]")) { previewPurchaseOrderBackup(null, true); return; }
+  if (event.target.closest("[data-po-restore-cancel]")) { $("purchaseOrderRestoreDialog")?.close(); return; }
+  if (event.target.closest("[data-po-restore-apply]")) { applyPurchaseOrderBackup(); return; }
+  const decision = event.target.closest("[data-po-decision]");
+  if (decision) { openPurchaseOrderDecisionEditor(decision.dataset.poDecision, decision.dataset.poPosition); return; }
+  if (event.target.closest("[data-po-decision-cancel]")) { closePurchaseOrderDecisionEditor(); return; }
+  if (event.target.closest("[data-po-decision-recheck]") && purchaseOrderDecisionEditor) {
+    openPurchaseOrderDecisionEditor(purchaseOrderDecisionEditor.review_id, purchaseOrderDecisionEditor.position_id, true); return;
+  }
+  if (event.target.closest("[data-po-import]")) { selectPackageTypeForUpload(PURCHASE_ORDERS_PACKAGE_TYPE); return; }
+  if (event.target.closest("[data-po-template]")) { downloadBlob(new Blob([ObsoliQModules.purchaseOrders.demo.template], { type: "text/csv;charset=utf-8" }), "purchase-orders-template.csv"); return; }
+  if (event.target.closest("[data-po-demo]")) { importPurchaseOrderDemo(); return; }
+  if (event.target.closest("[data-po-demo-update]")) { importPurchaseOrderDemo(true); return; }
+  if (event.target.closest("[data-po-export]")) { exportPurchaseOrderReviews(); return; }
+  const handoff = event.target.closest("[data-po-handoff]");
+  if (handoff) {
+    const container = handoff.closest("[data-po-case-scope]");
+    handoffPurchaseOrders(handoff.dataset.poHandoff, [...container.querySelectorAll("[data-po-select]:checked")].map(input => input.value));
+    return;
+  }
+  const caseLink = event.target.closest("[data-po-case]");
+  if (caseLink) {
+    const item = (currentExcessPageModel(enrichedRows).cases || []).find(row => row.case_id === caseLink.dataset.poCase);
+    if (item) switchProcessTab("excess-stock", t("navInventoryRisks"), { target: excessCaseNavigationTarget(item) });
+  }
+});
+
+document.addEventListener("input", event => {
+  if (event.target.matches?.("[data-po-feedback-field]") && purchaseOrderFeedbackEditor) {
+    purchaseOrderFeedbackEditor.values[event.target.dataset.poFeedbackField] = event.target.value;
+    purchaseOrderFeedbackEditor.dirty = true;
+    return;
+  }
+  if (event.target.matches?.("[data-po-decision-field], [data-po-recheck-confirm]") && purchaseOrderDecisionEditor) {
+    const target = event.target;
+    if (target.matches("[data-po-recheck-confirm]")) purchaseOrderDecisionEditor.confirmed = target.checked;
+    else purchaseOrderDecisionEditor.values[target.dataset.poDecisionField] = target.value;
+    purchaseOrderDecisionEditor.dirty = true;
+    const dialog = $("purchaseOrderDecisionDialog");
+    dialog.querySelector("[data-po-dirty]").textContent = purchaseOrdersView().t("dirty");
+    dialog.querySelectorAll("[data-po-direction-fields]").forEach(field => { field.hidden = field.dataset.poDirectionFields !== purchaseOrderDecisionEditor.values.direction; });
+    return;
+  }
+  if (!event.target.matches?.("[data-po-search]")) return;
+  const position = event.target.selectionStart;
+  purchaseOrderFilters.search = event.target.value;
+  renderPurchaseOrders();
+  const input = $("purchaseOrdersPage").querySelector("[data-po-search]");
+  input.focus();
+  if (position !== null && input.type !== "search") input.setSelectionRange(position, position);
+});
+
+document.addEventListener("change", event => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.matches("[data-po-restore-confirm]")) { $("purchaseOrderRestoreDialog").querySelector("[data-po-restore-apply]").disabled = !target.checked; return; }
+  if (target.matches("[data-po-review-filter]")) { purchaseOrderReviewFilter = target.value; renderPurchaseOrderReviews(); return; }
+  if (target.matches("[data-po-filter]")) { purchaseOrderFilters[target.dataset.poFilter] = target.value; renderPurchaseOrders(); return; }
+  if (!pendingUploadContext || pendingUploadContext.packageType !== PURCHASE_ORDERS_PACKAGE_TYPE) return;
+  if (target.matches("[data-po-confirm]")) {
+    const result = purchaseOrdersInspection();
+    pendingUploadContext.purchaseOrderReview = { confirmed: target.checked, binding: result.reviewBinding, confirmedAt: target.checked ? new Date().toISOString() : "" };
+    mappingAssistantDirty = true;
+    renderColumnMappingAssistant();
+  }
+  if (target.matches("[data-po-policy]")) {
+    const field = target.dataset.poPolicy, key = target.dataset.policyKey;
+    const policy = pendingUploadContext.purchaseOrderPolicy.fields[field];
+    policy[key] = target.value;
+    if (key === "numericLocale") policy.localeOverride = policyLocaleOverride(target.value);
+    pendingUploadContext.purchaseOrderReview = null;
+    mappingAssistantDirty = true;
+    renderColumnMappingAssistant();
+  }
+});
+
 function packageImportFeedbackKey(packageType, event) {
+  if (packageType === PURCHASE_ORDERS_PACKAGE_TYPE) return "po_" + ({ start: "import", success: "imported", failure: "failed" }[event] || "failed");
   if (packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
     if (event === "start") return "importConsumptionHistory";
     if (event === "success") return "consumptionHistoryImported";
@@ -19853,6 +20452,8 @@ function beginPackageImportWithParsedData(parsed, sourceLabel, options = {}) {
       historySemanticPolicy: prepared.interpretationResult?.effectivePolicy || null,
       historySemanticPolicyOverrides: options.semanticPolicy || null,
       historyInterpretationReviewConfirmed: Boolean(options.semanticPolicy?.reviewConfirmed) || prepared.interpretationResult?.trustState === "trusted",
+      purchaseOrderReview: options.purchaseOrderReview || null,
+      purchaseOrderPolicy: options.normalizationPolicy || null,
       forceBuildErrorForTest: options.forceBuildErrorForTest,
       forceCommitFailureForTest: options.forceCommitFailureForTest,
       forceInventoryEnrichmentFailureForTest: options.forceInventoryEnrichmentFailureForTest,
@@ -19971,6 +20572,7 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       sourceColumnMetadata: context.sourceColumnMetadata
     },
     mapping,
+    normalizationPolicy: context.purchaseOrderPolicy,
     semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null,
     sourceDescriptor: {
       ...(context.sourceDescriptor || packageSourceDescriptorForImport(context.packageType, context.sourceLabel, context)),
@@ -20009,6 +20611,8 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
         sourceColumnMetadata: context.sourceColumnMetadata
       },
       approvedMapping: validation.mappingValidation.mapping,
+      normalizationPolicy: context.purchaseOrderPolicy,
+      purchaseOrderReview: context.purchaseOrderReview,
       semanticPolicy: context.historySemanticPolicyOverrides || context.historySemanticPolicy || null,
       sourceDescriptor: {
         ...(context.sourceDescriptor || packageSourceDescriptorForImport(context.packageType, context.sourceLabel, context)),
@@ -20038,6 +20642,7 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
         throwOnFailure: true
       });
     }
+    if (context.packageType === PURCHASE_ORDERS_PACKAGE_TYPE && context.render !== false) renderCurrentView({ globalChrome: false, syncStateFromControls: false });
   } catch (error) {
     return rollbackPackageImportTransaction({
       previousRuntimeState,
@@ -21162,6 +21767,7 @@ function focusableElementsIn(container) {
     "input:not([disabled])",
     "select:not([disabled])",
     "textarea:not([disabled])",
+    "summary",
     "[tabindex]:not([tabindex='-1'])"
   ].join(","))].filter(element => element.offsetParent !== null || element === document.activeElement);
 }
@@ -21223,6 +21829,33 @@ function initDataFoundationDisclosureController() {
   dataFoundationModeQuery = window.matchMedia("(max-width: 899px)");
   document.addEventListener("click", event => {
     if (!(event.target instanceof Element)) return;
+    const reviewButton = event.target.closest("[data-df-review]");
+    if (reviewButton) {
+      const details = document.getElementById(`df-review-${reviewButton.dataset.dfReview}`);
+      if (details) {
+        details.open = true;
+        details.querySelector("summary")?.focus({ preventScroll: true });
+        details.scrollIntoView({ block: "nearest" });
+      }
+      return;
+    }
+    if (event.target.closest("[data-df-history-review]")) {
+      const detail = document.getElementById("df-history-review");
+      detail?.focus({ preventScroll: true });
+      detail?.scrollIntoView({ block: "nearest" });
+      return;
+    }
+    if (event.target.closest("[data-df-po-open]")) {
+      closeDataFoundationDetail({ focus: false });
+      switchProcessTab("purchase-orders");
+      const heading = document.querySelector('#purchaseOrdersPage h2');
+      if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+      return;
+    }
+    if (event.target.closest("[data-data-foundation] [data-po-import]")) {
+      closeDataFoundationDetail({ focus: false });
+      return;
+    }
     const closeButton = event.target.closest("[data-data-foundation-close]");
     if (closeButton) {
       event.preventDefault();
@@ -22023,7 +22656,9 @@ function createObsoliqTestBridge() {
         inventoryPackage: Object.prototype.hasOwnProperty.call(input, "inventoryPackage") ? input.inventoryPackage : currentInventoryPackage(),
         materialMasterPackage: Object.prototype.hasOwnProperty.call(input, "materialMasterPackage") ? input.materialMasterPackage : currentMaterialMasterPackage()
       }),
-      historicalRuntimeState: input.historicalRuntimeState || historicalMetricsRuntimeForPresentation()
+      historicalRuntimeState: input.historicalRuntimeState || historicalMetricsRuntimeForPresentation(),
+      ...Object.fromEntries(["materialRelationship", "materialEnrichment", "purchaseOrdersPackage", "purchaseOrdersModel"]
+        .filter(key => Object.prototype.hasOwnProperty.call(input, key)).map(key => [key, input[key]]))
     })),
     renderOverviewForTest: () => {
       renderOverview();
@@ -22049,6 +22684,10 @@ function createObsoliqTestBridge() {
     historicalInventoryFieldKeysForTest: options => activeHistoricalInventoryFieldKeys(options || {}),
     composeHistoricalInventoryRowsForTest: rows => clonePlainArray(composeHistoricalInventoryRows(rows || enrichedRows)),
     packageImportServiceForTest: packageImportService,
+    getPurchaseOrdersModelForTest: () => clonePlainRecord(currentPurchaseOrdersModel()),
+    getPurchaseOrderReviewsForTest: () => purchaseOrderReviews.list(currentPurchaseOrdersModel()),
+    purchaseOrderReviewsForTest: purchaseOrderReviews,
+    handoffPurchaseOrdersForTest: handoffPurchaseOrders,
     relationshipEngineForTest: ObsoliQModules.data.packageRelationshipEngine,
     enrichmentEngineForTest: ObsoliQModules.data.packageEnrichmentEngine,
     inventoryEnrichmentServiceForTest: inventoryEnrichmentService,

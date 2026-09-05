@@ -113,12 +113,17 @@
     return Math.max(0, index - 1);
   }
 
+  // XML prefixes are aliases; use the document's namespace for both Excel spellings.
+  function spreadsheetElements(node, name) {
+    return node.getElementsByTagNameNS(node.namespaceURI || node.documentElement?.namespaceURI || "", name);
+  }
+
   function readCell(cell, sharedStrings) {
     const type = cell.getAttribute("t");
     if (type === "inlineStr") {
-      return [...cell.getElementsByTagName("t")].map(node => node.textContent || "").join("");
+      return [...spreadsheetElements(cell, "t")].map(node => node.textContent || "").join("");
     }
-    const valueNode = cell.getElementsByTagName("v")[0];
+    const valueNode = spreadsheetElements(cell, "v")[0];
     const value = valueNode ? valueNode.textContent || "" : "";
     if (type === "s") return sharedStrings[Number(value)] || "";
     return value;
@@ -130,8 +135,8 @@
     const sharedStrings = [];
     if (entries["xl/sharedStrings.xml"]) {
       const sharedDoc = parser.parseFromString(entries["xl/sharedStrings.xml"], "application/xml");
-      [...sharedDoc.getElementsByTagName("si")].forEach(si => {
-        sharedStrings.push([...si.getElementsByTagName("t")].map(node => node.textContent || "").join(""));
+      [...spreadsheetElements(sharedDoc, "si")].forEach(si => {
+        sharedStrings.push([...spreadsheetElements(si, "t")].map(node => node.textContent || "").join(""));
       });
     }
 
@@ -142,9 +147,9 @@
     if (!sheetPath) throw createIngestionError("XLSX_NO_WORKSHEET");
 
     const sheetDoc = parser.parseFromString(entries[sheetPath], "application/xml");
-    const table = [...sheetDoc.getElementsByTagName("row")].map(rowNode => {
+    const table = [...spreadsheetElements(sheetDoc, "row")].map(rowNode => {
       const row = [];
-      [...rowNode.getElementsByTagName("c")].forEach(cell => {
+      [...spreadsheetElements(rowNode, "c")].forEach(cell => {
         row[cellColumnIndex(cell.getAttribute("r"))] = readCell(cell, sharedStrings);
       });
       return row.map(value => value ?? "");

@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026-09-05 - RECOVERY-PILOT-01
+
+- Added a contract-derived, twelve-row synthetic purchasing pilot with initial/update CSV, reordered TSV and genuine typed XLSX generation into an external directory; separate locale/date/error fixtures.
+- Fixed a reproduced shared XLSX parser failure on valid namespace-prefixed elements (`x:row`, `x:c`, shared/inline strings). Default namespace behavior remains covered.
+- Added productive-file-chooser tests for format equivalence and XLSX draft/document/report/correction/source-update/export/download/reload/restore, with dependency-bound regression.
+- Added a German expectation table, click guide and blank human feedback form. Downloads and test evidence are not runtime dependencies.
+- Preserved all existing demo sources, numeric/mapping/source-trust contracts, business calculations, decision/report/export semantics and session-only operation. No Git adoption or product release; human usability and real customer validation remain pending.
+
+## 2026-09-05 - RECOVERY-LOOP-01D: Reported PO Implementation
+
+- Added manual reports against exact documented decision versions and their historical source binding within the existing PO review owner.
+- Added required-field/partial-description validation, keep-specific wording, append-only corrections, stale-editor guards and same-operation duplicate prevention.
+- Added compact DE/EN report history/editor and separate formula-safe report CSV; no financial amounts repeated per report.
+- Extended local JSON to v2, preserving v1 import and local reports; validated IDs, correction chains, historical references and atomic additive restore.
+- Registered durable synthetic contract/product tests and the existing dependency regression. Run artifacts stay external.
+- Preserved all source imports, PO quantities/status, calculations, Action statuses, scores, readiness, History/Slow-Dead and demo data. No Git adoption or release action. Manual reports/references remain unauthenticated; release stays HOLD.
+
+## 2026-09-05 - RECOVERY-LOOP-01C
+
+### Changed
+- Added versioned, bounded local JSON backup and preview/confirmation restore within the existing PO Review Service.
+- Recompute source and existing-case relationships independently of session IDs; preserve stale and unassignable documentation for conscious recheck.
+- Preserve drafts, exact text/null/zero/missing values, original timestamps and documented history; block whole-file conflicts and stale previews atomically.
+- Add DE/EN backup controls, scope counts and responsive restore dialog in Actions; keep the CSV as a readable review list.
+- Move 01B contract/browser test sources into the repository; register 01A/01B/01C and dependency regressions permanently.
+
+### Preserved and Limits
+- Existing uncommitted 01A/01B baseline, imports, source data, financial/History/Slow-Dead logic and Action status are preserved.
+- No browser persistence, automatic reassociation, merge UI, cloud, authenticated approval or ERP execution. Files need separate source data and may contain confidential notes; checksums are not authenticity.
+- Test artifacts/reports remain external. No commit, adoption or release is authorized.
+
+## 2026-09-05 - RECOVERY-LOOP-01B
+
+### Added
+- Editable source-bound PO decisions in the existing Actions review context, with distinct direction, work and source states.
+- Draft/documentation validation, requested quantity/date checks, local responsibility and optional manual evidence references.
+- Explicit previous/current source comparison, confirmed recheck, stale edit rejection and session history of earlier documented versions.
+- Review filters and all-session CSV decision/provenance export with existing formula protection.
+- Local responsive DE/EN editor, dirty/cancel guard and explicit reload/export limitations.
+
+### Preserved
+- Existing 01A worktree and synthetic sources; no second Action registry or import pipeline.
+- Inventory/Recovery, Opportunity Score, History/Slow-Dead, evidence-readiness and actual PO/Action status.
+- No staging, commit, adoption, push, merge, tag or release; release remains HOLD.
+
+### Limits
+- Session-only decisions, manual unverified evidence and responsibility; no execution, savings, persistence or export restoration.
+- Targeted 01B tests and artifacts are external to the product tree. CSV is the verified import path; dedicated PO TSV/XLSX end-to-end runs are not part of this block.
+
+## 2026-09-05 - RECOVERY-LOOP-01A
+
+### Added
+- Productive reviewed purchase_orders import through the existing parser, Mapping Assistant, strict normalization, Builder, transaction and Registry path.
+- Open-item contract, inclusion/exclusion preview, exact grouped Inventory relationships and current source bindings.
+- PO case evidence, idempotent session-only attachments to existing Actions, source-update invalidation and evidence CSV export.
+- Explicit synthetic PO extension/update, header-only template, local descriptor generator and focused contract/UI/milestone tests.
+
+### Preserved
+- Existing three-package demo and original source files.
+- Inventory/History/SlowDead calculations, Recovery, scores, scenarios and readiness formulas.
+- Existing Action status, export sanitization, source privacy and local file execution.
+- No commit, release, deployment or renewed adoption; PRODUCT_RELEASE_GATE remains HOLD.
+
+### Limits
+- Single source system and one open item per row; no schedules, allocation, unit conversion, FX or cancellation optimization.
+- Invalid optional dates/values remain unavailable; invalid or closed items are excluded with reasons.
+- Review attachments are session-only and require human reassessment after source changes.
+
 ## 2026-09-04 - DATA-FOUNDATION-ACTIVATION-01-RERUN-01
 
 ### Added
@@ -3687,3 +3755,10 @@ Data Quality UX Polish & Interaction Stability
 - Translations, rendering and data processing should be split into dedicated modules in a later refactoring step.
 - Action tracking is not persistent yet.
 - SAP integration, login, database and cloud deployment are intentionally out of scope for this work block.
+# 2026-09-05 - DATA-FOUNDATION-UX-03
+
+- Explain loaded Material Master limitations from existing package, relationship and enrichment diagnostics; preserve the existing quality thresholds.
+- Add exact, read-only review disclosures, separating invalid keys, unmatched/ambiguous rows, duplicate keys and field conflicts. Clarify eligible-row denominators and missing versus zero.
+- Include optional PO source status and existing import/workspace actions; separate source validity from stale historical decisions. No automatic PO demo loading.
+- Reorder loaded sources, reviews, optional sources, templates and technical details; retain DE/EN, themes, keyboard and narrow-screen behavior.
+- Add targeted presentation/interaction regression and extend prior source-state tests for the explicitly authorized PO source. No calculation, matching, enrichment, import/export, decision, feedback or backup rule change. Product release remains HOLD.

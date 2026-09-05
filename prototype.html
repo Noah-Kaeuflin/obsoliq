@@ -300,6 +300,7 @@
           </div>
         </div>
         <div id="actionsActiveFilters" class="active-filter-row hidden" aria-live="polite"></div>
+        <div id="purchaseOrderActionReviews"></div>
         <div id="actionsTable" class="table-wrap action-table-wrap"></div>
       </div>
     </section>
@@ -325,6 +326,7 @@
     </div>
 
     <section id="placeholderPage" class="placeholder-page hidden">
+      <div id="purchaseOrdersPage" class="hidden"></div>
       <div class="placeholder-card">
         <strong id="placeholderTitle">In Bearbeitung</strong>
         <span id="placeholderDescription" data-i18n="placeholderText">Diese Seite wird aktuell aufgebaut.</span>
@@ -353,6 +355,10 @@
         <button id="packageTypeConsumptionHistoryButton" class="package-type-card" type="button">
           <strong data-i18n="consumptionHistory">Verbrauchshistorie</strong>
           <span data-i18n="consumptionHistoryDesc">Historische Verbrauchsbewegungen als optionale Intelligence-Quelle importieren.</span>
+        </button>
+        <button id="packageTypePurchaseOrdersButton" class="package-type-card" type="button" data-po-import>
+          <strong data-i18n="po_title">Bestellungen</strong>
+          <span data-i18n="po_subtitle">Offene Bestellpositionen mit Quellenbezug und Bestandszuordnung.</span>
         </button>
       </div>
       <p class="package-type-note" data-i18n="dropImportsInventoryNote">Drag & Drop importiert aktuell Inventory Snapshots.</p>
@@ -552,6 +558,11 @@
   <script src="js/data/consumption-history-semantics-engine.js"></script>
   <script src="js/data/consumption-history-builder.js"></script>
   <script src="js/data/consumption-history-relationship-engine.js"></script>
+  <script src="js/data/purchase-orders-builder.js"></script>
+  <script src="js/purchase-orders/po-review-backup.js"></script>
+  <script src="js/purchase-orders/purchase-order-review-service.js"></script>
+  <script src="js/purchase-orders/purchase-orders-demo.js"></script>
+  <script src="js/application/purchase-orders-view.js"></script>
   <script src="js/data/consumption-history-aggregation-engine.js"></script>
   <script src="js/data/package-relationship-engine.js"></script>
   <script src="js/data/package-enrichment-engine.js"></script>

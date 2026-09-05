@@ -498,6 +498,7 @@
   }
 
   function purchaseOrderEvidence(item = {}, options = {}) {
+    if (options.purchaseOrderEvidence?.version === "po-package-evidence-v1" && options.purchaseOrderEvidence.state === "concrete") return options.purchaseOrderEvidence;
     const row = item.source_row || {};
     const detailKeys = ["open_purchase_order_number", "purchase_order_number", "po_number", "purchase_order_item", "po_item", "supplier"];
     const valueKeys = ["open_po_value", "open_purchase_order_value", "open_po_qty", "open_purchase_order_quantity"];

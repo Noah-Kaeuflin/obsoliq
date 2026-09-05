@@ -1,0 +1,16 @@
+purchase_order,purchase_order_item,material_id,plant,open_quantity,base_unit,supplier,delivery_date,buyer,item_status,open_value,source_currency,source_system
+0004500001,00010,MAT-1090,PLANT-03,6,EA,Synthetic supplier,2026-10-01,Synthetic procurement,open,2460,EUR,SYNTHETIC-ONLY
+0004500001,00020,MAT-1090,PLANT-03,8,EA,Synthetic supplier,2026-11-01,Synthetic procurement,open,3280,EUR,SYNTHETIC-ONLY
+0004500002,00010,MAT-1090,PLANT-01,4,EA,Synthetic supplier,2026-10-01,Synthetic procurement,open,1640,EUR,SYNTHETIC-ONLY
+0004500003,00010,MAT-1001,PLANT-02,3,EA,Synthetic supplier,2026-10-01,Synthetic procurement,open,14.4,EUR,SYNTHETIC-ONLY
+0004500004,00010,MAT-UNKNOWN,PLANT-03,2,EA,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500005,00010,MAT-1090,PLANT-03,10,,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500006,00010,MAT-1090,PLANT-03,10,KG,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500007,00010,MAT-1090,PLANT-03,10,EA,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500007,00010,MAT-1090,PLANT-03,20,EA,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500008,00010,MAT-1090,PLANT-03,0,EA,Synthetic supplier,,Synthetic procurement,open,0,EUR,SYNTHETIC-ONLY
+0004500009,00010,MAT-1090,PLANT-03,12abc,EA,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500010,00010,MAT-1090,PLANT-03,-5,EA,Synthetic supplier,,Synthetic procurement,open,,,SYNTHETIC-ONLY
+0004500011,00010,MAT-1090,PLANT-03,5,EA,Synthetic supplier,,Synthetic procurement,closed,,,SYNTHETIC-ONLY
+0004500012,00010,MAT-1060,PLANT-01,5,EA,Synthetic supplier,2026-10-12,Synthetic procurement,open,2050,EUR,SYNTHETIC-ONLY
+

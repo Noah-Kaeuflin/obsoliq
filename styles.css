@@ -12034,6 +12034,77 @@ button > span {
   gap: 6px;
 }
 
+/* DATA-FOUNDATION-UX-03: source-bound, read-only review disclosures. */
+.data-foundation-source-copy .data-foundation-inline-action {
+  grid-column: 1;
+  justify-self: start;
+  margin-top: 5px;
+}
+
+.data-foundation-reviews {
+  min-width: 0;
+  padding: 8px 0;
+}
+
+.data-foundation-review {
+  border-bottom: 1px solid var(--line);
+  padding: 9px 0;
+}
+
+.data-foundation-review > summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.data-foundation-review > summary span {
+  display: block;
+  margin: 3px 0 0 16px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.data-foundation-diagnostic-list {
+  max-height: 260px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 4px;
+}
+
+.data-foundation-diagnostic {
+  display: grid;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.data-foundation-diagnostic p,
+.data-foundation-diagnostic-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.data-foundation-diagnostic-note { margin-top: 8px; }
+.data-foundation-detail-body small { overflow-wrap: anywhere; }
+.data-foundation-detail-body .data-foundation-inline-action {
+  height: auto;
+  min-height: 32px;
+  white-space: normal;
+  max-width: 100%;
+  text-align: left;
+}
+.data-foundation-review > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* 6. Inventory Risk KPI icons */
 .inventory-risk-summary-card,
 .inventory-risk-financial-card {
@@ -13347,4 +13418,70 @@ button > span {
   .inventory-risk-detail .excess-decision-surface .excess-case-head {
     align-items: flex-start;
   }
+}
+/* RECOVERY-LOOP-01A: scoped PO worklist and review context. */
+.placeholder-page.po-active { display: block; min-height: 0; min-width: 0; width: 100%; max-width: 100%; border: 0; background: transparent; box-shadow: none; }
+#purchaseOrdersPage { width: 100%; min-width: 0; }
+.po-header, .po-buttons, .po-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.po-header { justify-content: space-between; }
+.po-header h2, .po-header h3 { margin: 0; }
+.po-header p, .po-source { color: var(--muted); margin: 6px 0; }
+.po-workspace, .po-preview, .po-reviews { min-width: 0; }
+.po-workspace .workspace-control-card { padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.po-toolbar { margin: 12px 0; align-items: end; }
+.po-toolbar label { display: grid; gap: 4px; font-size: 12px; }
+.po-toolbar input, .po-toolbar select { min-height: 36px; max-width: 100%; }
+.po-table-wrap { max-height: 420px; overflow: auto; }
+.po-table-wrap table { min-width: 850px; width: 100%; }
+.po-table-wrap td { vertical-align: top; }
+.po-table-wrap small { display: block; color: var(--muted); }
+.po-table-wrap .number { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.po-case-link { display: block; white-space: normal; overflow-wrap: anywhere; padding: 2px 0; border: 0; background: none; font-size: 11px; text-align: left; }
+.po-confirm { display: flex; align-items: start; gap: 8px; margin: 12px 0; font-size: 13px; }
+.po-preview { border-top: 1px solid var(--border); padding-top: 12px; }
+.po-reviews { margin: 0 0 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.po-reviews details { padding: 8px 0; font-size: 12px; overflow-wrap: anywhere; }
+.po-detail .po-table-wrap { max-height: 280px; }
+@media (max-width: 600px) { .po-buttons button { white-space: normal; max-width: 100%; } .po-toolbar label { width: 100%; } }
+/* RECOVERY-LOOP-01B: the editor is local to the existing PO review context. */
+.po-decision-dialog { width: min(760px, calc(100% - 24px)); max-height: calc(100dvh - 32px); box-sizing: border-box; overflow: auto; border: 1px solid var(--border); border-radius: 8px; padding: 20px; color: var(--text); background: var(--surface); }
+.po-decision-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+.po-decision-dialog h3 { font-size: 18px; }
+.po-editor-context { display: grid; gap: 5px; margin: 12px 0; overflow-wrap: anywhere; font-size: 13px; }
+.po-decision-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.po-decision-fields label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+.po-decision-fields input, .po-decision-fields select, .po-decision-fields textarea { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+.po-decision-fields textarea { resize: vertical; }
+.po-decision-wide { grid-column: 1 / -1; }
+.po-decision-dialog .po-buttons { margin-top: 14px; }
+.po-decision-dialog .po-buttons button { max-width: 100%; white-space: normal; }
+.po-decision-dialog .po-buttons button[type="submit"] { display: inline-flex; align-items: center; gap: 6px; }
+.po-decision-errors:not(:empty) { border-left: 3px solid #b84343; padding-left: 10px; color: var(--text); margin: 12px 0; }
+.po-decision-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; max-height: 180px; overflow: auto; }
+.po-decision-dialog details { padding: 9px 0; border-top: 1px solid var(--border); font-size: 12px; }
+.po-source-comparison table { width: 100%; font-size: 12px; }
+.po-source-comparison td { white-space: normal; overflow-wrap: anywhere; }
+.po-decision-dialog [hidden] { display: none; }
+@media (max-width: 600px) { .po-decision-dialog { padding: 14px; } .po-decision-fields { grid-template-columns: minmax(0, 1fr); } }
+.po-backup-counts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 14px 0; }
+.po-feedback-section { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 14px; }
+.po-feedback-version { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.po-feedback-report { margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+.po-feedback-report p, .po-feedback-basis p { margin: 6px 0; overflow-wrap: anywhere; }
+.po-feedback-text { white-space: pre-wrap; }
+.po-feedback-basis { padding: 12px 0; }
+#purchaseOrderFeedbackDialog h4 { margin: 6px 0; font-size: 14px; }
+#purchaseOrderFeedbackDialog p { margin: 6px 0; }
+#purchaseOrderFeedbackDialog .po-feedback-basis { padding: 8px 0; }
+.po-backup-counts dt { color: var(--muted); font-size: 12px; }
+.po-backup-counts dd { margin: 3px 0 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.po-restore-dialog .po-table-wrap { max-height: 300px; }
+.po-restore-dialog p { line-height: 1.5; }
+@media (max-width: 600px) {
+  .po-restore-dialog .po-table-wrap table { min-width: 0; width: 100%; }
+  .po-restore-dialog thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .po-restore-dialog tbody { display: block; }
+  .po-restore-dialog tr { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); }
+  .po-restore-dialog td { display: block; min-width: 0; white-space: normal; overflow-wrap: anywhere; border: 0; }
+  .po-restore-dialog td:last-child { grid-column: 1 / -1; padding-top: 0; font-weight: 700; }
 }
