@@ -203,10 +203,22 @@ async function main() {
     await page.locator("#overviewGlobalSearch").fill("__KPI_NO_MATCH__");
     await page.waitForFunction(() => window.__obsoliqTestBridge.getOverviewRows().length === 0);
     const filteredUi = await visibleKpiState(page);
-    check(filteredUi.Inventory.coverage.includes("Keine Positionen im aktuellen Filter"), "Empty filter result is identified as a filter state");
+    const filteredState = await page.evaluate(() => ({
+      overviewState: document.getElementById("overviewWorkspace")?.dataset.overviewState || "",
+      message: document.getElementById("overviewFilterEmptyState")?.textContent.trim() || "",
+      messageVisible: getComputedStyle(document.getElementById("overviewFilterEmptyState")).display !== "none",
+      analysisVisible: getComputedStyle(document.querySelector(".overview-main")).display !== "none",
+      dashboardVisible: getComputedStyle(document.getElementById("view-dashboard")).display !== "none",
+      visibleCoverageMessages: [...document.querySelectorAll("[id$='Coverage']")]
+        .filter(element => getComputedStyle(element).display !== "none")
+        .map(element => element.textContent.trim())
+    }));
+    assert.equal(filteredState.overviewState, "filtered_empty");
+    check(filteredState.messageVisible && filteredState.message.includes("Keine Positionen im aktuellen Filter"), "Empty filter result is identified once in the central filter state");
+    check(!filteredState.analysisVisible && !filteredState.dashboardVisible && filteredState.visibleCoverageMessages.length === 0, "Empty filter result does not repeat global guidance in KPI cards");
     check(["Inventory", "Excess", "Bad", "NoNeed", "NoPlan", "Recovery", "Share"].every(name => filteredUi[name].actionHidden), "Empty filter result has no stale cause action");
     assert.equal((await page.evaluate(() => window.__obsoliqTestBridge.getState().rawRows)), 102);
-    await page.locator("#overviewGlobalSearch").fill("");
+    await page.locator("#overviewFilterEmptyState [data-overview-reset]").click();
     await page.waitForFunction(() => window.__obsoliqTestBridge.getOverviewRows().length === 102);
 
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("en"));

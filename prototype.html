@@ -16,13 +16,13 @@
       </div>
     </div>
     <div class="top-actions">
-      <button id="navToggleButton" class="nav-toggle" type="button" aria-expanded="true" aria-haspopup="menu"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="expand"><use href="#oq-expand"></use></svg><span data-i18n="navSections">Bereiche</span></button>
+      <button id="navToggleButton" class="nav-toggle" type="button" aria-expanded="false" aria-haspopup="menu"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="expand"><use href="#oq-expand"></use></svg><span data-i18n="navSections">Bereiche</span></button>
       <span id="currentSectionLabel" class="current-section-label">Overview</span>
       <button id="uploadButton" class="primary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="upload-file"><use href="#oq-upload-file"></use></svg><span data-i18n="uploadButton">Datei hochladen</span></button>
       <input id="fileInput" type="file" accept=".xlsx,.csv,.tsv" />
       <button id="sampleButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="sample-data"><use href="#oq-sample-data"></use></svg><span data-i18n="sampleButton">Beispieldaten</span></button>
       <button id="exportInventoryButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportInventory">Bestand exportieren</span></button>
-      <span id="actionFeedback" class="action-feedback"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="data-loaded" hidden><use href="#oq-data-loaded"></use></svg><span class="action-feedback-text" data-i18n="noDataLoaded">Noch keine Daten geladen</span></span>
+      <span id="actionFeedback" class="action-feedback" role="status" aria-live="polite" aria-atomic="true"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="data-loaded" hidden><use href="#oq-data-loaded"></use></svg><span class="action-feedback-text" data-i18n="noDataLoaded">Noch keine Daten geladen</span></span>
     </div>
   </header>
 
@@ -44,7 +44,7 @@
   <main>
     <section id="dropZone" class="drop-zone" data-i18n="dropZone">Datei hier ablegen: XLSX, CSV oder TSV</section>
 
-    <div id="overviewWorkspace" class="workspace" data-view="dashboard">
+    <div id="overviewWorkspace" class="workspace" data-view="dashboard" data-overview-state="missing" aria-busy="false">
 
     <section class="overview-header">
       <div class="overview-heading">
@@ -55,15 +55,17 @@
     </section>
 
     <section class="overview-top">
-      <section id="overviewEmptyState" class="panel data-quality-empty-state" aria-live="polite">
-        <strong data-empty-state-title data-i18n="noDataLoaded">Noch keine Daten geladen</strong>
-        <p data-empty-state-body data-i18n="noDataLoadedBody">Lade die verknüpften Beispieldaten oder importiere eine eigene Datei, um die Analyse zu starten.</p>
-        <div class="empty-state-actions">
+      <section id="overviewEmptyState" class="panel overview-start-state" aria-labelledby="overviewEmptyStateTitle" aria-live="polite">
+        <h3 id="overviewEmptyStateTitle" data-empty-state-title data-i18n="overviewStartTitle">Bestandsanalyse starten</h3>
+        <p data-empty-state-body data-i18n="overviewStartBody">Lade die verknüpften Beispieldaten oder importiere deinen Bestand.</p>
+        <div class="empty-state-actions" data-empty-state-actions>
           <button class="primary" type="button" data-empty-load-sample><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="sample-data"><use href="#oq-sample-data"></use></svg><span data-i18n="loadSampleData">Beispieldaten laden</span></button>
-          <button class="secondary" type="button" data-empty-upload><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="upload-file"><use href="#oq-upload-file"></use></svg><span data-i18n="uploadButton">Datei hochladen</span></button>
+          <button class="secondary" type="button" data-empty-upload><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="upload-file"><use href="#oq-upload-file"></use></svg><span data-i18n="overviewImportOwnFile">Eigene Datei importieren</span></button>
+          <button class="secondary hidden" type="button" data-empty-review-source hidden><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="data-quality"><use href="#oq-data-quality"></use></svg><span data-i18n="overviewReviewSource">Import prüfen</span></button>
         </div>
+        <p class="overview-start-note" data-empty-state-note data-i18n="overviewStartNote">Beispieldaten sind synthetisch. Eigene Sitzungsdaten werden nicht automatisch gespeichert.</p>
       </section>
-      <div class="overview-main">
+      <div class="overview-main hidden" hidden>
         <div class="metric-section-head" data-i18n="summarySectionLabel">Kernkennzahlen</div>
 
         <section class="metrics">
@@ -148,7 +150,7 @@
       </div>
     </section>
 
-    <section id="overviewGlobalFilterBlock" class="overview-global-filter" aria-label="Overview filters" data-i18n-aria-label="overviewFiltersAria">
+    <section id="overviewGlobalFilterBlock" class="overview-global-filter hidden" aria-label="Overview filters" data-i18n-aria-label="overviewFiltersAria" hidden>
       <div class="overview-global-filter-field">
         <label class="oq-icon-label" for="overviewGlobalSearch"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="search"><use href="#oq-search"></use></svg><span data-i18n="searchLabel">Suche</span></label>
         <input id="overviewGlobalSearch" type="search" placeholder="Material oder Beschreibung suchen …" data-i18n-placeholder="searchPlaceholder" />
@@ -166,6 +168,12 @@
         <select id="overviewGlobalCategory"><option value="all" data-i18n="all">Alle</option></select>
       </div>
       <button id="overviewGlobalReset" class="secondary overview-global-reset" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="reset-filter"><use href="#oq-reset-filter"></use></svg><span data-i18n="resetFilters">Filter zurücksetzen</span></button>
+    </section>
+
+    <section id="overviewFilterEmptyState" class="panel overview-filter-empty-state hidden" aria-live="polite" hidden>
+      <strong data-i18n="overviewFilterEmptyTitle">Keine passenden Positionen</strong>
+      <p data-i18n="kpiCoverageNoRows">Keine Positionen im aktuellen Filter. Die Datenquelle bleibt unverändert.</p>
+      <button class="secondary" type="button" data-overview-reset><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="reset-filter"><use href="#oq-reset-filter"></use></svg><span data-i18n="resetFilters">Filter zurücksetzen</span></button>
     </section>
 
     <section id="inventoryExplorerHeader" class="tab-page-header control-card explorer-control-card">
@@ -265,7 +273,7 @@
       </section>
     </div>
 
-    <section id="view-dashboard" class="view overview-grid active">
+    <section id="view-dashboard" class="view overview-grid active hidden" hidden>
       <div class="panel chart-panel category-chart-panel">
         <div class="panel-head">
           <div class="panel-title">

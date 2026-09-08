@@ -45,6 +45,7 @@ async function main() {
         icon: icon?.dataset.oqIcon || "",
         text: target.textContent.trim(),
         hidden: icon.hidden,
+        display: iconStyle.display,
         width: rect.width,
         height: rect.height,
         color: iconStyle.color,
@@ -72,6 +73,21 @@ async function main() {
   await page.locator("#packageTypeCloseButton").click();
   await clickIcon(page, "#sampleButton");
   await page.waitForFunction(() => document.getElementById("actionFeedback")?.textContent.trim() === "Daten geladen");
+  const loadedFeedback = await page.evaluate(() => {
+    const target = document.getElementById("actionFeedback");
+    const icon = target.querySelector("svg.oq-icon[data-oq-icon='data-loaded']");
+    const rect = icon.getBoundingClientRect();
+    const style = getComputedStyle(icon);
+    return {
+      hidden: icon.hidden,
+      display: style.display,
+      width: rect.width,
+      height: rect.height,
+      color: style.color,
+      parentColor: getComputedStyle(target).color,
+      pointerEvents: style.pointerEvents
+    };
+  });
   await clickIcon(page, "#exportInventoryButton");
   await page.waitForSelector("#downloadModal.active");
   await page.locator("#downloadCancelButton").click();
@@ -148,11 +164,12 @@ async function main() {
   if (initial.unknownHas || initial.unknownRender !== null) failures.push("unknown-icon-not-rejected");
   if (initial.navigation.length !== 8 || initial.navigation.some(item => item.icon !== expectedNavigation[item.route] || !item.text)) failures.push("navigation-mapping");
   if (initial.actions.some(item => item.icon !== expectedActions[item.id] || !item.text)) failures.push("action-mapping");
-  if (initial.actions.some(item => {
-    const expectedSize = item.id === "actionFeedback" ? 14 : 16;
-    return item.width !== expectedSize || item.height !== expectedSize || item.color !== item.parentColor || item.pointerEvents !== "none";
+  if (initial.actions.filter(item => item.id !== "actionFeedback").some(item => {
+    return item.width !== 16 || item.height !== 16 || item.color !== item.parentColor || item.pointerEvents !== "none";
   })) failures.push("icon-layout-or-current-color");
-  if (!initial.actions.find(item => item.id === "actionFeedback")?.hidden) failures.push("empty-status-icon-visible");
+  const initialFeedback = initial.actions.find(item => item.id === "actionFeedback");
+  if (!initialFeedback?.hidden || initialFeedback.display !== "none" || initialFeedback.width !== 0 || initialFeedback.height !== 0) failures.push("empty-status-icon-visible");
+  if (loadedFeedback.hidden || loadedFeedback.display === "none" || loadedFeedback.width !== 14 || loadedFeedback.height !== 14 || loadedFeedback.color !== loadedFeedback.parentColor || loadedFeedback.pointerEvents !== "none") failures.push("loaded-status-icon-hidden-or-misaligned");
   if (JSON.stringify(mappingBefore) !== JSON.stringify(mappingAfter) || !/Overview/.test(englishOverview || "")) failures.push("language-mapping-regression");
   if (iconNetworkRequests.length) failures.push("icon-network-request");
   if (failedRequests.length) failures.push("failed-requests");
@@ -165,6 +182,7 @@ async function main() {
     status: failures.length ? "failed" : "passed",
     url: productUrl,
     initial,
+    loadedFeedback,
     interactions: {
       uploadModal: true,
       sampleReload: true,

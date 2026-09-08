@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-09 - OVERVIEW-STARTUP-UX-02
+
+- Replaced the contradictory no-source dashboard shell with one neutral, accessible start panel that offers the existing linked demo loader and productive file import without automatic activation.
+- Separated missing, loading, mapping-review, unusable-source, filtered-empty and loaded presentation states; duplicate demo activation is blocked and a failed replacement import retains the prior valid analysis while reporting the error.
+- Removed repeated global filter messages from KPI cards, corrected the hidden success icon, and balanced the six money KPIs into responsive 3/2/1-column layouts without a Recovery span.
+- Added keyboard-operable compact area navigation, a live status region, responsive overflow/sticky checks and a real `file://` startup Product Smoke covering the visible click path, exact values, zero versus missing and rollback behavior.
+- Preserved financial formulas, thresholds, source data, fixtures, currency rules and import contracts. Product release remains HOLD.
+
 ## 2026-09-08 - KPI-EXACT-VALUE-01
 
 - Added a native, keyboard-accessible amount disclosure to each Overview money KPI while retaining the compact card values.

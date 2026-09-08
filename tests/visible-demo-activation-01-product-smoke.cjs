@@ -62,12 +62,18 @@ async function main() {
 
     const empty = await productionPage.evaluate(() => ({
       feedback: document.getElementById("actionFeedback")?.textContent.trim() || "",
+      feedbackClasses: document.getElementById("actionFeedback")?.className || "",
+      feedbackIconDisplay: getComputedStyle(document.querySelector("#actionFeedback [data-oq-icon='data-loaded']")).display,
       emptyText: document.getElementById("overviewEmptyState")?.textContent || "",
       emptyHidden: document.getElementById("overviewEmptyState")?.hidden,
       emptyVisible: getComputedStyle(document.getElementById("overviewEmptyState")).display !== "none",
       emptyState: document.getElementById("overviewEmptyState")?.dataset.emptyState || "",
       sampleActions: document.querySelectorAll("#overviewEmptyState [data-empty-load-sample]").length,
       uploadActions: document.querySelectorAll("#overviewEmptyState [data-empty-upload]").length,
+      analysisVisible: getComputedStyle(document.querySelector(".overview-main")).display !== "none",
+      filterVisible: getComputedStyle(document.getElementById("overviewGlobalFilterBlock")).display !== "none",
+      dashboardVisible: getComputedStyle(document.getElementById("view-dashboard")).display !== "none",
+      filterWarningVisible: getComputedStyle(document.getElementById("overviewFilterEmptyState")).display !== "none",
       foundationText: document.getElementById("dataPackagesPanel")?.textContent || "",
       sourceTexts: [...document.querySelectorAll(".dataset-source-chip")].map(element => element.textContent.trim()),
       metrics: ["mInventory", "mExcess", "mBad", "mNoNeed", "mNoPlan", "mRecovery"]
@@ -80,10 +86,14 @@ async function main() {
     assert.equal(empty.emptyHidden, false);
     assert.equal(empty.emptyVisible, true);
     assert.equal(empty.emptyState, "missing");
-    check(empty.emptyText.includes("Noch keine Daten geladen"), "Empty start explains that no data has been loaded yet");
-    check(empty.emptyText.includes("Beispieldaten laden") && empty.emptyText.includes("Datei hochladen"), "Empty start offers both productive load actions");
+    check(empty.emptyText.includes("Bestandsanalyse starten"), "Empty start presents the next meaningful step");
+    check(empty.emptyText.includes("Beispieldaten laden") && empty.emptyText.includes("Eigene Datei importieren"), "Empty start offers both productive load actions");
+    check(empty.emptyText.includes("synthetisch") && empty.emptyText.includes("nicht automatisch gespeichert"), "Empty start explains demo and session-data handling");
     assert.equal(empty.sampleActions, 1);
     assert.equal(empty.uploadActions, 1);
+    check(!empty.feedbackClasses.includes("ok") && !empty.feedbackClasses.includes("error"), "Empty start keeps the header status neutral");
+    assert.equal(empty.feedbackIconDisplay, "none");
+    check(!empty.analysisVisible && !empty.filterVisible && !empty.dashboardVisible && !empty.filterWarningVisible, "Empty start hides KPI, filter, and chart analysis surfaces");
     check(!empty.foundationText.includes("Bestandsanalyse aktiv"), "Empty start does not claim an active inventory analysis");
     check(empty.sourceTexts.every(text => text === ""), "Empty start does not claim a sample source");
     check(empty.metrics.every(metric => metric.unavailable && !/^0(?:\s|$)/.test(metric.text)), "Empty start does not present calculated financial zeroes");
@@ -118,8 +128,8 @@ async function main() {
         translations: bridge.getTranslationsForTest().en
       };
     });
-    check(english.emptyText.includes("No data loaded yet"), "English empty-state title is available");
-    check(english.emptyText.includes("Load sample data") && english.emptyText.includes("Upload file"), "English empty-state actions are available");
+    check(english.emptyText.includes("Start inventory analysis"), "English empty-state title is available");
+    check(english.emptyText.includes("Load sample data") && english.emptyText.includes("Import your own file"), "English empty-state actions are available");
     assert.equal(english.translations.noFilterMatches, "No results for these filters.");
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("de"));
 
@@ -232,22 +242,30 @@ async function main() {
 
     await page.locator("[data-process='overview']").click();
     await page.locator("#overviewGlobalSearch").fill("__VISIBLE_DEMO_NO_MATCH__");
-    await page.waitForFunction(() => document.getElementById("topTable")?.textContent.includes("Keine Treffer für diese Filter"));
+    await page.waitForFunction(() => document.getElementById("overviewWorkspace")?.dataset.overviewState === "filtered_empty");
     const filtered = await page.evaluate(() => ({
       rawRows: window.__obsoliqTestBridge.getState().rawRows,
       activePackageId: window.__obsoliqTestBridge.getState().activeInventoryPackageId,
       overviewRows: window.__obsoliqTestBridge.getOverviewRows().length,
       emptyHidden: document.getElementById("overviewEmptyState")?.hidden,
       emptyVisible: getComputedStyle(document.getElementById("overviewEmptyState")).display !== "none",
-      resetVisible: Boolean(document.querySelector("#topTable [data-reset-filters]"))
+      filterEmptyVisible: getComputedStyle(document.getElementById("overviewFilterEmptyState")).display !== "none",
+      filterEmptyText: document.getElementById("overviewFilterEmptyState")?.textContent || "",
+      analysisVisible: getComputedStyle(document.querySelector(".overview-main")).display !== "none",
+      dashboardVisible: getComputedStyle(document.getElementById("view-dashboard")).display !== "none",
+      filterVisible: getComputedStyle(document.getElementById("overviewGlobalFilterBlock")).display !== "none",
+      resetVisible: getComputedStyle(document.querySelector("#overviewFilterEmptyState [data-overview-reset]")).display !== "none"
     }));
     assert.equal(filtered.rawRows, 102);
     check(Boolean(filtered.activePackageId), "Filter-empty state keeps the active Inventory package");
     assert.equal(filtered.overviewRows, 0);
     assert.equal(filtered.emptyHidden, true);
     assert.equal(filtered.emptyVisible, false);
+    assert.equal(filtered.filterEmptyVisible, true);
+    check(filtered.filterEmptyText.includes("Keine Positionen im aktuellen Filter") && filtered.filterEmptyText.includes("Filter zurücksetzen"), "Filter-empty state explains and resolves the active filter centrally");
+    check(!filtered.analysisVisible && !filtered.dashboardVisible && filtered.filterVisible, "Filter-empty state hides empty analysis while retaining filter context");
     assert.equal(filtered.resetVisible, true);
-    await page.locator("#topTable [data-reset-filters]").click();
+    await page.locator("#overviewFilterEmptyState [data-overview-reset]").click();
     await page.waitForFunction(() => document.querySelectorAll("#topTable .overview-top-list-row[role='row']").length > 1);
 
     const zeroCsv = [

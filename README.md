@@ -103,11 +103,17 @@ History Coverage is the inclusive span between the earliest and latest valid obs
 ## Quick Start
 
 1. Open `prototype.html` in a browser.
-2. Select `Beispieldaten` / `Sample data` to atomically load the linked three-source demo, or upload a supported local Inventory file.
+2. In the central start panel, select `Beispieldaten laden` / `Load sample data` to atomically load the linked three-source demo, or `Eigene Datei importieren` / `Import your own file` for a supported local Inventory file.
 3. No server, database or login is required for the current MVP.
 
 Supported local upload formats include `.xlsx`, `.csv` and `.tsv`. Uploaded data stays in the browser session.
 The built-in full demo is explicitly synthetic and uses the frozen analysis date `2026-08-31` in UTC. A user Inventory upload deactivates demo-owned Material Master and Consumption History before analysis; loading the demo over user data requires confirmation.
+
+## Overview Startup and KPI Layout
+
+The application starts without loading demo data automatically. Until an active Inventory source exists, Overview presents one neutral, keyboard-accessible start panel and keeps unavailable KPIs, charts, progress, analysis filters and the Data Foundation disclosure out of view. Loading, mapping review, unusable-source, filtered-empty and loaded states have separate presentation paths. A failed replacement import preserves the last valid dataset and reports the failure alongside it.
+
+After data is available, the six money KPIs use a balanced three-column desktop, two-column medium and one-column narrow grid. Recovery keeps its visual priority without spanning an extra column. A filter with no matches produces one central explanation and visible reset action; it does not repeat the same message across KPI cards. The compact area menu used at narrower widths moves focus into the menu and supports Arrow, Home, End, Escape and Tab keyboard navigation.
 
 ## Exact Overview KPI Amounts
 
@@ -146,9 +152,10 @@ When unset, the shared test runtime creates a unique directory under the OS temp
 Use a fresh artifact root for each complete run; concurrent runs use separate roots. Existing
 screenshots are never overwritten. Logical report paths stay `screenshots/<suite>/<name>.png`.
 The standard catalog remains 82 images across 14 suites. `OBSOLIQ_SMOKE_SCREENSHOT=1` enables
-one additional `screenshots/ex-ux-01-2/excess-workspace.png`; other values, including legacy
-physical paths and empty values, are rejected before screenshot output. The optional image is
-not part of the standard catalog. No generated screenshot is a product-package input.
+suite-declared optional evidence, including the Excess workspace and the focused Overview startup,
+loaded, sticky-navigation and narrow exact-value viewports. Other values, including legacy physical
+paths and empty values, are rejected before screenshot output. Optional images are not part of the
+standard catalog. No generated screenshot is a product-package input.
 Run `node tests/test-artifact-containment-product-smoke.cjs` for path, isolation and bypass checks.
 
 The canonical review package includes the root `.gitattributes` file exactly once as

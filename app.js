@@ -1455,6 +1455,15 @@ const translations = {
     dataLoaded: "Daten geladen",
     noDataLoaded: "Noch keine Daten geladen",
     noDataLoadedBody: "Lade die verknüpften Beispieldaten oder importiere eine eigene Datei, um die Analyse zu starten.",
+    overviewStartTitle: "Bestandsanalyse starten",
+    overviewStartBody: "Lade die verknüpften Beispieldaten oder importiere deinen Bestand.",
+    overviewStartNote: "Beispieldaten sind synthetisch. Eigene Sitzungsdaten werden nicht automatisch gespeichert.",
+    overviewImportOwnFile: "Eigene Datei importieren",
+    overviewLoadingBody: "Bitte warte, während die Datenbasis geprüft und vollständig geladen wird.",
+    overviewImportReviewTitle: "Importprüfung erforderlich",
+    overviewImportReviewBody: "Prüfe die erkannten Spalten und bestätige die Zuordnung, bevor die Bestandsanalyse startet.",
+    overviewFilterEmptyTitle: "Keine passenden Positionen",
+    overviewReviewSource: "Import prüfen",
     loadSampleData: "Beispieldaten laden",
     noUsableInventoryRows: "Importierte Bestandsquelle nicht verwendbar",
     noUsableInventoryRowsBody: "Die importierte Quelle enthält keine analytisch verwendbaren Bestandszeilen. Prüfe Import und Datenqualität oder lade eine andere Quelle.",
@@ -3331,6 +3340,15 @@ const translations = {
     dataLoaded: "Data loaded",
     noDataLoaded: "No data loaded yet",
     noDataLoadedBody: "Load the linked sample data or import your own file to start the analysis.",
+    overviewStartTitle: "Start inventory analysis",
+    overviewStartBody: "Load the linked sample data or import your inventory.",
+    overviewStartNote: "Sample data is synthetic. Your session data is not saved automatically.",
+    overviewImportOwnFile: "Import your own file",
+    overviewLoadingBody: "Please wait while the data foundation is checked and loaded completely.",
+    overviewImportReviewTitle: "Import review required",
+    overviewImportReviewBody: "Review the detected columns and confirm the mapping before inventory analysis starts.",
+    overviewFilterEmptyTitle: "No matching items",
+    overviewReviewSource: "Review import",
     loadSampleData: "Load sample data",
     noUsableInventoryRows: "Imported inventory source is not usable",
     noUsableInventoryRowsBody: "The imported source contains no analytically usable inventory rows. Review the import and data quality or load a different source.",
@@ -4658,6 +4676,7 @@ let activeColumnFilterDraft = null;
 let activeColumnFilterTrigger = null;
 let activeColumnFilterScrollHandler = null;
 let activeSectionsPopover = null;
+let activeSectionsPopoverTrigger = null;
 let activeExcessCaseId = "";
 const EXCESS_DETAIL_TABS = Object.freeze([
   Object.freeze({ key: "decision", labelKey: "excessSectionDecision", iconId: "decision" }),
@@ -4989,7 +5008,7 @@ function readNavCollapsedPreference() {
 }
 
 function shouldUseCompactNavigation() {
-  return window.matchMedia("(max-width: 899px)").matches;
+  return window.matchMedia("(max-width: 1099px)").matches;
 }
 
 function updateNavigationSummary() {
@@ -5004,7 +5023,9 @@ function updateNavigationSummary() {
   if (!toggle) return;
 
   const collapsed = nav?.classList.contains("collapsed");
-  toggle.textContent = t("navSections");
+  const labelTarget = toggle.querySelector("[data-i18n='navSections']");
+  if (labelTarget) labelTarget.textContent = t("navSections");
+  else toggle.textContent = t("navSections");
   toggle.classList.toggle("nav-collapsed", Boolean(collapsed));
   toggle.classList.toggle("sections-open", Boolean(activeSectionsPopover));
   toggle.setAttribute("aria-label", collapsed ? t("navShowSections") : t("navCollapse"));
@@ -5037,16 +5058,20 @@ function initNavigationCollapse() {
   });
 }
 
-function closeSectionsPopover() {
+function closeSectionsPopover(options = {}) {
+  const trigger = activeSectionsPopoverTrigger;
   if (activeSectionsPopover) {
     activeSectionsPopover.remove();
     activeSectionsPopover = null;
   }
+  activeSectionsPopoverTrigger = null;
   const toggle = $("navToggleButton");
   if (toggle) {
     toggle.classList.remove("sections-open");
     toggle.setAttribute("aria-expanded", "false");
+    toggle.removeAttribute("aria-controls");
   }
+  if (options.restoreFocus) trigger?.focus({ preventScroll: true });
 }
 
 function positionSectionsPopover(popover, trigger) {
@@ -5060,29 +5085,77 @@ function positionSectionsPopover(popover, trigger) {
   popover.style.top = `${Math.min(window.innerHeight - 12, rect.bottom + 8)}px`;
 }
 
+function focusSectionsPopoverItem(popover, index) {
+  const items = [...popover.querySelectorAll("[role='menuitem']")];
+  if (!items.length) return;
+  const normalizedIndex = (index + items.length) % items.length;
+  items.forEach((item, itemIndex) => item.tabIndex = itemIndex === normalizedIndex ? 0 : -1);
+  items[normalizedIndex].focus({ preventScroll: true });
+}
+
+function handleSectionsPopoverKeydown(event) {
+  const popover = event.currentTarget;
+  const items = [...popover.querySelectorAll("[role='menuitem']")];
+  const currentIndex = Math.max(0, items.indexOf(event.target.closest?.("[role='menuitem']")));
+  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const targetIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : currentIndex + (event.key === "ArrowDown" ? 1 : -1);
+    focusSectionsPopoverItem(popover, targetIndex);
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeSectionsPopover({ restoreFocus: true });
+    updateNavigationSummary();
+    return;
+  }
+  if (event.key === "Tab") {
+    const trigger = activeSectionsPopoverTrigger;
+    const focusable = focusableElementsIn(document.body).filter(element => !popover.contains(element));
+    const triggerIndex = Math.max(0, focusable.indexOf(trigger));
+    const targetIndex = event.shiftKey
+      ? (triggerIndex - 1 + focusable.length) % focusable.length
+      : (triggerIndex + 1) % focusable.length;
+    event.preventDefault();
+    closeSectionsPopover();
+    focusable[targetIndex]?.focus({ preventScroll: true });
+    updateNavigationSummary();
+  }
+}
+
 function openSectionsPopover(trigger) {
   closeSectionsPopover();
   const tabs = [...document.querySelectorAll(".process-tabs button")];
   const popover = document.createElement("div");
+  popover.id = "sectionsPopover";
   popover.className = "sections-popover";
   popover.setAttribute("role", "menu");
+  popover.setAttribute("aria-label", t("navSections"));
   popover.innerHTML = `
     <div class="sections-popover-list">
       ${tabs.map(tab => `
-        <button type="button" role="menuitem" class="${tab.classList.contains("active") ? "active" : ""}"
+        <button type="button" role="menuitem" tabindex="-1" class="${tab.classList.contains("active") ? "active" : ""}"
+          ${tab.classList.contains("active") ? 'aria-current="page"' : ""}
           data-nav-section="${html(tab.dataset.process)}">${html(tab.textContent.trim())}</button>
       `).join("")}
     </div>
-    <div class="sections-popover-footer">
-      <button type="button" data-nav-expand>${html(t("navShowFullBar"))}</button>
-    </div>
   `;
+  popover.addEventListener("keydown", handleSectionsPopoverKeydown);
   document.body.appendChild(popover);
   window.ObsoliQIcons?.enhanceShell(popover);
   activeSectionsPopover = popover;
+  activeSectionsPopoverTrigger = trigger;
   positionSectionsPopover(popover, trigger);
   trigger.classList.add("sections-open");
   trigger.setAttribute("aria-expanded", "true");
+  trigger.setAttribute("aria-controls", popover.id);
+  const activeIndex = Math.max(0, tabs.findIndex(tab => tab.classList.contains("active")));
+  focusSectionsPopoverItem(popover, activeIndex);
 }
 
 function handleNavigationControl(event) {
@@ -5812,10 +5885,15 @@ function setFeedback(text, type = "", options = {}) {
   const target = $("actionFeedback");
   if (!target) return;
   const textTarget = target.querySelector(".action-feedback-text");
-  if (textTarget) textTarget.textContent = text;
+  if (textTarget) {
+    textTarget.textContent = text;
+    textTarget.removeAttribute("data-i18n");
+  }
   else target.textContent = text;
-  target.classList.remove("ok", "error");
+  target.classList.remove("ok", "error", "loading");
   if (type) target.classList.add(type);
+  if (options.feedbackKind) target.dataset.feedbackKind = options.feedbackKind;
+  else delete target.dataset.feedbackKind;
   syncHeaderFeedbackIcon();
   updateAnalysisPanel(text);
   if (options.autoReset) {
@@ -5831,8 +5909,11 @@ function syncHeaderFeedbackIcon() {
   if (!target) return;
   window.ObsoliQIcons?.enhanceShell(target);
   const icon = target.querySelector(".oq-icon[data-oq-icon='data-loaded']");
-  const text = target.querySelector(".action-feedback-text")?.textContent || target.textContent;
-  if (icon) icon.hidden = text.trim() !== t("dataLoaded");
+  if (icon) {
+    const hidden = target.dataset.feedbackKind !== "dataset-loaded";
+    icon.hidden = hidden;
+    icon.toggleAttribute("hidden", hidden);
+  }
 }
 
 function resetDatasetStatusUi() {
@@ -5910,6 +5991,7 @@ function snapshotDatasetUiState() {
     statusText: $("statusText")?.textContent || "",
     feedbackText: feedback?.textContent || "",
     feedbackClassName: feedback?.className || "",
+    feedbackKind: feedback?.dataset.feedbackKind || "",
     analysisDataState: $("analysisDataState")?.textContent || "",
     analysisRows: $("analysisRows")?.textContent || "",
     analysisColumns: $("analysisColumns")?.textContent || "",
@@ -5948,6 +6030,8 @@ function restoreDatasetUiState(snapshot = {}) {
     if (feedbackText) feedbackText.textContent = snapshot.feedbackText || "";
     else feedback.textContent = snapshot.feedbackText || "";
     feedback.className = snapshot.feedbackClassName || feedback.className;
+    if (snapshot.feedbackKind) feedback.dataset.feedbackKind = snapshot.feedbackKind;
+    else delete feedback.dataset.feedbackKind;
     syncHeaderFeedbackIcon();
   }
   if ($("analysisDataState")) $("analysisDataState").textContent = snapshot.analysisDataState || "";
@@ -5971,7 +6055,8 @@ function restoreHeaderDataStatus() {
   const displayState = inventoryDatasetDisplayState();
   setFeedback(
     t(displayState === "loaded" ? "dataLoaded" : displayState === "unusable" ? "noUsableInventoryRows" : "noDataLoaded"),
-    displayState === "loaded" ? "ok" : displayState === "unusable" ? "error" : ""
+    displayState === "loaded" ? "ok" : displayState === "unusable" ? "error" : "",
+    displayState === "loaded" ? { feedbackKind: "dataset-loaded" } : {}
   );
 }
 
@@ -6276,15 +6361,46 @@ function applyTranslations(options = {}) {
   if (pendingUploadContext) renderColumnMappingAssistant();
   window.ObsoliQIcons?.enhanceShell(document);
   syncHeaderFeedbackIcon();
+  syncOverviewEmptyState();
   if (options.render !== false && enrichedRows.length) renderAfterPresentationChange();
 }
 
-function setBusy(isBusy, text = t("pleaseWait")) {
-  ["uploadButton", "sampleButton", "exportInventoryButton", "packageTypeInventoryButton", "packageTypeMaterialMasterButton", "packageTypeConsumptionHistoryButton"].forEach(id => {
+function setBusy(isBusy, text = t("pleaseWait"), options = {}) {
+  ["uploadButton", "sampleButton", "exportInventoryButton", "packageTypeInventoryButton", "packageTypeMaterialMasterButton", "packageTypeConsumptionHistoryButton", "packageTypePurchaseOrdersButton"].forEach(id => {
     const control = $(id);
     if (control) control.disabled = isBusy;
   });
-  if (isBusy) setFeedback(text);
+  document.querySelectorAll("[data-empty-load-sample], [data-empty-upload], [data-empty-review-source]").forEach(control => {
+    control.disabled = isBusy;
+  });
+  const overviewWorkspace = $("overviewWorkspace");
+  if (overviewWorkspace) {
+    if (isBusy && options.dataOperation) overviewWorkspace.dataset.dataOperation = options.dataOperation;
+    if (!isBusy) delete overviewWorkspace.dataset.dataOperation;
+    const freezeWorkspace = Boolean(isBusy && options.dataOperation && overviewWorkspace.dataset.view !== "dashboard");
+    overviewWorkspace.inert = freezeWorkspace;
+    overviewWorkspace.toggleAttribute("inert", freezeWorkspace);
+  }
+  const placeholderPage = $("placeholderPage");
+  if (placeholderPage) {
+    const freezePlaceholder = Boolean(isBusy && options.dataOperation);
+    placeholderPage.inert = freezePlaceholder;
+    placeholderPage.toggleAttribute("inert", freezePlaceholder);
+  }
+  if ((isBusy && options.dataOperation) || !isBusy) {
+    if (isBusy) closeSectionsPopover();
+    document.querySelectorAll(".process-tabs button[data-process]").forEach(control => {
+      control.disabled = isBusy;
+    });
+    const navigationToggle = $("navToggleButton");
+    if (navigationToggle) navigationToggle.disabled = isBusy;
+  }
+  if (isBusy) setFeedback(text, "loading");
+  syncOverviewEmptyState();
+}
+
+function dataOperationInProgress() {
+  return Boolean($("overviewWorkspace")?.dataset.dataOperation);
 }
 
 function ensureData() {
@@ -7566,9 +7682,10 @@ function renderKpiAvailabilityDetails(metricSpec, model) {
   const partialTarget = metricSpec.partialId ? $(metricSpec.partialId) : null;
   const actionTarget = $(metricSpec.actionId);
   if (coverageTarget) {
-    coverageTarget.hidden = available;
-    coverageTarget.classList.toggle("hidden", available);
-    coverageTarget.textContent = available ? "" : kpiCoverageText(model);
+    const showCoverage = !available && model.relevantCount > 0;
+    coverageTarget.hidden = !showCoverage;
+    coverageTarget.classList.toggle("hidden", !showCoverage);
+    coverageTarget.textContent = showCoverage ? kpiCoverageText(model) : "";
   }
   if (partialTarget) {
     const showPartial = !available && model.partial.status === "available";
@@ -8423,17 +8540,66 @@ function inventoryDatasetDisplayState() {
   return "loaded";
 }
 
-function syncOverviewEmptyState() {
+function setOverviewRegionVisible(target, visible) {
+  if (!target) return;
+  target.hidden = !visible;
+  target.classList.toggle("hidden", !visible);
+}
+
+function overviewPresentationState(overviewRows = null) {
+  const workspace = $("overviewWorkspace");
+  const dataOperation = workspace?.dataset.dataOperation || "";
+  const datasetState = inventoryDatasetDisplayState();
+  if (dataOperation) return "loading";
+  if (datasetState === "loaded") {
+    const rows = Array.isArray(overviewRows) ? overviewRows : getOverviewRows();
+    return rows.length === 0 && hasOverviewFiltersActive() ? "filtered_empty" : "loaded";
+  }
+  if (datasetState === "missing" && pendingUploadContext
+    && (pendingUploadContext.packageType || INVENTORY_PACKAGE_TYPE) === INVENTORY_PACKAGE_TYPE) return "review";
+  return datasetState;
+}
+
+function syncOverviewEmptyState(options = {}) {
   const target = $("overviewEmptyState");
-  if (!target) return "missing";
-  const state = inventoryDatasetDisplayState();
-  const titleKey = state === "unusable" ? "noUsableInventoryRows" : "noDataLoaded";
-  const bodyKey = state === "unusable" ? "noUsableInventoryRowsBody" : "noDataLoadedBody";
+  const workspace = $("overviewWorkspace");
+  if (!target || !workspace) return "missing";
+  const state = overviewPresentationState(options.overviewRows);
+  const dataOperation = workspace.dataset.dataOperation || "";
+  const startVisible = ["missing", "loading", "review", "unusable"].includes(state);
+  const analysisVisible = state === "loaded";
+  const filtersVisible = state === "loaded" || state === "filtered_empty";
+  const filterEmptyVisible = state === "filtered_empty";
+  const titleKey = state === "loading"
+    ? (dataOperation === "demo" ? "fullDemoLoading" : "loadingFile")
+    : state === "review"
+      ? "overviewImportReviewTitle"
+      : state === "unusable"
+        ? "noUsableInventoryRows"
+        : "overviewStartTitle";
+  const bodyKey = state === "loading"
+    ? "overviewLoadingBody"
+    : state === "review"
+      ? "overviewImportReviewBody"
+      : state === "unusable"
+        ? "noUsableInventoryRowsBody"
+        : "overviewStartBody";
   const title = target.querySelector("[data-empty-state-title]");
   const body = target.querySelector("[data-empty-state-body]");
+  const note = target.querySelector("[data-empty-state-note]");
+  const actions = target.querySelector("[data-empty-state-actions]");
+  const reviewAction = target.querySelector("[data-empty-review-source]");
+  const showReviewAction = state === "unusable";
+  const showStartActions = state !== "review";
+  workspace.dataset.overviewState = state;
+  workspace.setAttribute("aria-busy", state === "loading" ? "true" : "false");
   target.dataset.emptyState = state;
-  target.hidden = state === "loaded";
-  target.classList.toggle("hidden", state === "loaded");
+  setOverviewRegionVisible(target, startVisible);
+  setOverviewRegionVisible(workspace.querySelector(":scope > .overview-top .overview-main"), analysisVisible);
+  setOverviewRegionVisible($("overviewGlobalFilterBlock"), filtersVisible);
+  setOverviewRegionVisible($("overviewFilterEmptyState"), filterEmptyVisible);
+  setOverviewRegionVisible($("view-dashboard"), analysisVisible);
+  setOverviewRegionVisible($("dataPackagesPanel"), state === "loaded" || state === "filtered_empty" || state === "unusable");
   if (title) {
     title.dataset.i18n = titleKey;
     title.textContent = t(titleKey);
@@ -8442,6 +8608,9 @@ function syncOverviewEmptyState() {
     body.dataset.i18n = bodyKey;
     body.textContent = t(bodyKey);
   }
+  if (note) setOverviewRegionVisible(note, state === "missing" || state === "loading");
+  if (actions) setOverviewRegionVisible(actions, showStartActions);
+  if (reviewAction) setOverviewRegionVisible(reviewAction, showReviewAction);
   return state;
 }
 
@@ -17715,10 +17884,16 @@ function renderPackageAvailability() {
 
 function renderOverview() {
   const overviewData = getOverviewRows();
-  syncOverviewEmptyState();
+  const presentationState = syncOverviewEmptyState({ overviewRows: overviewData });
   updateVisibleDatasetChipsForView("dashboard", overviewData.length);
   renderPackageAvailability();
   renderMetrics(overviewData);
+  if (presentationState === "filtered_empty") {
+    if ($("categoryBars")) $("categoryBars").innerHTML = "";
+    if ($("plantBars")) $("plantBars").innerHTML = "";
+    if ($("topTable")) $("topTable").innerHTML = "";
+    return;
+  }
   renderBars("categoryBars", groupSum(overviewData, "category", "stock_value"), { limit: 5 });
   renderBars("plantBars", groupSum(overviewData, "profit_center", "recovery_potential"), { limit: 5 });
   $("topTable").innerHTML = renderTopRecoveryTable(overviewData);
@@ -18809,6 +18984,7 @@ function handleHistoricalMetricsRuntimeStateChange(state, options = {}) {
       errorSource: "slow_dead_runtime"
     });
   }
+  if (dataOperationInProgress()) return;
   renderPackageAvailability();
   updateDownloadVariantAvailability();
   if (currentView === "inventory") {
@@ -19032,9 +19208,11 @@ function snapshotDatasetRuntimeState() {
 }
 
 function restoreDatasetRuntimeState(snapshot, options = {}) {
+  const preservedLanguage = currentLanguage;
   purchaseOrderReviews.restore(snapshot.purchaseOrderReviews);
   Object.assign(purchaseOrderFilters, snapshot.purchaseOrderFilters || { search: "", plant: "", status: "" });
   restoreRemediationRuntimeState(snapshot);
+  if (options.preserveLanguage === true) currentLanguage = preservedLanguage;
   Object.keys(filterState).forEach(key => delete filterState[key]);
   Object.assign(filterState, clonePlainRecord(snapshot.filterState || {}));
   restoreFilterControlState(snapshot.filterControlState || {});
@@ -19086,13 +19264,15 @@ function restoreDatasetRuntimeState(snapshot, options = {}) {
   currentInventoryRiskSlowDeadRuntimeRef = inventoryRiskState.slowDeadRuntimeCurrent && currentInventoryRiskPortfolio
     ? slowDeadRecoveryCaseRuntime
     : null;
-  const navigationState = snapshot.navigationState || {};
-  currentView = navigationState.currentView || currentView;
-  activeProcessKey = navigationState.activeProcessKey || activeProcessKey;
-  activeProcessLabel = navigationState.activeProcessLabel || activeProcessLabel;
-  pendingDownloadType = navigationState.pendingDownloadType || pendingDownloadType;
-  pendingDownloadScope = navigationState.pendingDownloadScope || pendingDownloadScope;
-  pendingDownloadVariant = navigationState.pendingDownloadVariant || pendingDownloadVariant;
+  if (options.preserveNavigation !== true) {
+    const navigationState = snapshot.navigationState || {};
+    currentView = navigationState.currentView || currentView;
+    activeProcessKey = navigationState.activeProcessKey || activeProcessKey;
+    activeProcessLabel = navigationState.activeProcessLabel || activeProcessLabel;
+    pendingDownloadType = navigationState.pendingDownloadType || pendingDownloadType;
+    pendingDownloadScope = navigationState.pendingDownloadScope || pendingDownloadScope;
+    pendingDownloadVariant = navigationState.pendingDownloadVariant || pendingDownloadVariant;
+  }
   dirtyDataViews.clear();
   (snapshot.dirtyDataViews || []).forEach(view => dirtyDataViews.add(view));
   if (options.syncUi !== false) {
@@ -19767,26 +19947,26 @@ function loadDataset(headers, rows, sourceLabel, options = {}) {
         });
       }
       if (!originalDataQualitySnapshot) originalDataQualitySnapshot = currentDataQualityScoreSnapshot();
-      refreshFilterOptions({ syncStateFromControls: false });
+      if (options.syncUi !== false) refreshFilterOptions({ syncStateFromControls: false });
       if (options.forcePostCommitFailureForTest === "filters") {
         throw new Error("Forced dataset filter finalization failure for transactional rollback self-test.");
       }
-      syncDatasetUiFromMeta(currentDatasetMeta);
+      if (options.syncUi !== false) syncDatasetUiFromMeta(currentDatasetMeta);
       if (options.forcePostCommitFailureForTest === "render") {
         throw new Error("Forced dataset render failure for transactional rollback self-test.");
       }
       if (options.render !== false) renderAfterDatasetChange({ syncStateFromControls: false });
     } catch (commitOrFinalizeError) {
-      restoreDatasetRuntimeState(previousState);
+      restoreDatasetRuntimeState(previousState, options.syncUi === false ? { syncUi: false, restoreUi: false } : {});
       runtimeRestored = true;
       if (options.render !== false) renderRestoredDatasetState();
       throw commitOrFinalizeError;
     }
-    if (!options.suppressSuccessFeedback) setFeedback(t("dataLoaded"), "ok");
+    if (!options.suppressSuccessFeedback) restoreHeaderDataStatus();
     return true;
   } catch (error) {
     if (!runtimeRestored) {
-      restoreDatasetRuntimeState(previousState);
+      restoreDatasetRuntimeState(previousState, options.syncUi === false ? { syncUi: false, restoreUi: false } : {});
       if (options.render !== false) renderRestoredDatasetState();
     }
     if (!options.suppressErrorLog) console.error("ObsoliQ dataset load failed", error);
@@ -19946,8 +20126,14 @@ function loadInventoryDatasetWithSourceIsolation(headers, rows, sourceLabel, opt
   if (mustDetachDemoExtensions) detachSyntheticDemoExtensionsForUserInventory();
   const loaded = loadDataset(headers, rows, sourceLabel, options);
   if (!loaded && previousState) {
+    const failureFeedback = $("actionFeedback")?.querySelector(".action-feedback-text")?.textContent
+      || $("actionFeedback")?.textContent
+      || t("uploadFailed");
     restoreDatasetRuntimeState(previousState, { preserveHistoricalGeneration: true });
     if (options.render !== false) renderRestoredDatasetState();
+    if (!options.suppressFeedback) {
+      setFeedback(failureFeedback.trim(), "error", { autoReset: !options.preserveFailureFeedback });
+    }
   }
   return loaded;
 }
@@ -19970,14 +20156,16 @@ function forceFullDemoFailure(options, stage) {
 }
 
 async function executeFullDemoLoad(options = {}) {
-  const descriptor = linkedFullDemoDescriptor();
   const previousState = snapshotDatasetRuntimeState();
   const baselineState = fullDemoBaselineSnapshot || previousState;
   try {
+    const descriptor = linkedFullDemoDescriptor();
     restoreDatasetRuntimeState(baselineState, {
       preserveHistoricalGeneration: true,
       restoreUi: false,
-      syncUi: false
+      syncUi: false,
+      preserveNavigation: true,
+      preserveLanguage: true
     });
 
     const inventorySource = descriptor.sources.inventorySnapshot;
@@ -19991,6 +20179,7 @@ async function executeFullDemoLoad(options = {}) {
       operationType: "full_demo_inventory_load",
       allowMappingReview: false,
       render: false,
+      syncUi: false,
       suppressErrorLog: options.suppressErrorLog,
       suppressFeedback: true,
       suppressSuccessFeedback: true
@@ -20004,6 +20193,7 @@ async function executeFullDemoLoad(options = {}) {
       sourceDescriptor: linkedFullDemoSourceDescriptor(descriptor, "materialMaster"),
       allowMappingReview: false,
       render: false,
+      syncUi: false,
       suppressErrorLog: options.suppressErrorLog,
       suppressFeedback: true,
       suppressSuccessFeedback: true
@@ -20021,6 +20211,7 @@ async function executeFullDemoLoad(options = {}) {
       },
       allowMappingReview: false,
       render: false,
+      syncUi: false,
       suppressErrorLog: options.suppressErrorLog,
       suppressFeedback: true,
       suppressSuccessFeedback: true
@@ -20041,7 +20232,7 @@ async function executeFullDemoLoad(options = {}) {
       renderAfterDatasetChange({ syncStateFromControls: false });
     }
     if (!options.suppressFeedback) {
-      setFeedback(t("dataLoaded"), "ok");
+      setFeedback(t("dataLoaded"), "ok", { feedbackKind: "dataset-loaded" });
       updateAnalysisPanel(t("fullDemoLoaded"));
     }
     return {
@@ -20168,6 +20359,7 @@ function setPlaceholderContent(processKey, label) {
 }
 
 function switchProcessTab(processKey, label, options = {}) {
+  if (dataOperationInProgress() && options.allowDuringDataOperation !== true) return false;
   const aliasSegment = inventoryRiskRouteAliases[processKey] || "";
   const canonicalProcessKey = aliasSegment ? "inventory-risks" : processKey;
   const target = options.target || options.caseId || options.familyCaseId || options.portfolioCaseId || null;
@@ -20186,13 +20378,14 @@ function switchProcessTab(processKey, label, options = {}) {
     $("overviewWorkspace").classList.remove("hidden");
     $("placeholderPage").classList.add("hidden");
     switchView(inventoryTabViewRoutes[canonicalProcessKey]);
-    return;
+    return true;
   }
 
   $("overviewWorkspace").classList.add("hidden");
   $("placeholderPage").classList.remove("hidden");
   setPlaceholderContent(canonicalProcessKey, activeProcessLabel);
   if (canonicalProcessKey === "settings") openSettingsDialog();
+  return true;
 }
 
 function mappingPolicyForPackageType(packageType = INVENTORY_PACKAGE_TYPE) {
@@ -20955,6 +21148,7 @@ function openColumnMappingAssistant(context = {}) {
   if ($("mappingSubtitle")) {
     $("mappingSubtitle").textContent = mappingSubtitleForPackageType(context.packageType || INVENTORY_PACKAGE_TYPE);
   }
+  syncOverviewEmptyState();
   focusInitialMappingControl(validateColumnMapping(pendingUploadContext.approvedMapping, sourceOptions));
 }
 
@@ -20974,7 +21168,8 @@ function closeColumnMappingAssistant(options = {}) {
   document.body.classList.remove("modal-open");
   lastMappingOpener?.focus?.({ preventScroll: true });
   lastMappingOpener = null;
-  if (options.cancelled) setFeedback(t("mappingCancelled"), "ok", { autoReset: true });
+  if (options.cancelled) setFeedback(t("mappingCancelled"), "", { autoReset: true });
+  syncOverviewEmptyState();
 }
 
 function restoreAutomaticColumnMapping() {
@@ -21223,7 +21418,7 @@ function beginUploadWithParsedData(parsed, sourceLabel, options = {}) {
     const feedback = inputTrustAssessment.trustState === "blocked"
       ? inputTrustBlockedFeedback(inputTrustAssessment)
       : t("mappingReviewRequired");
-    setFeedback(feedback, inputTrustAssessment.trustState === "blocked" || !mappingState.valid ? "error" : "ok");
+    setFeedback(feedback, inputTrustAssessment.trustState === "blocked" || !mappingState.valid ? "error" : "");
     return { status: "mapping", mappingState };
   }
   if (!mappingState.valid) {
@@ -22056,6 +22251,7 @@ function localizedIngestionErrorMessage(error) {
 }
 
 function openPackageTypeDialog() {
+  if (dataOperationInProgress()) return;
   pendingUploadPackageType = INVENTORY_PACKAGE_TYPE;
   $("packageTypeModal")?.classList.add("active");
   document.body.classList.add("modal-open");
@@ -22074,14 +22270,17 @@ function closePackageTypeDialog() {
 }
 
 function selectPackageTypeForUpload(packageType) {
+  if (dataOperationInProgress()) return false;
   pendingUploadPackageType = packageType || INVENTORY_PACKAGE_TYPE;
   closePackageTypeDialog();
   $("fileInput")?.click();
+  return true;
 }
 
 async function handleFile(file, options = {}) {
   if (!file) return;
-  setBusy(true, t("loadingFile"));
+  if (dataOperationInProgress()) return { status: "busy" };
+  setBusy(true, t("loadingFile"), { dataOperation: "import" });
   const packageType = options.packageType || pendingUploadPackageType || INVENTORY_PACKAGE_TYPE;
   const lower = file.name.toLowerCase();
   try {
@@ -23143,12 +23342,17 @@ $("fileInput").addEventListener("change", event => {
     });
 });
 $("sampleButton").addEventListener("click", () => {
+  if (dataOperationInProgress()) return;
   if (fullDemoReplacementRequiresConfirmation() && !window.confirm(t("fullDemoReplaceConfirm"))) return;
-  setBusy(true, t("fullDemoLoading"));
+  setBusy(true, t("fullDemoLoading"), { dataOperation: "demo" });
   loadFullDemoData()
     .then(result => {
       if (result?.status === "error") return;
       restoreHeaderDataStatus();
+    })
+    .catch(error => {
+      console.error("ObsoliQ full-demo load failed before rollback completed", error);
+      setFeedback(t("fullDemoLoadFailed"), "error", { autoReset: false });
     })
     .finally(() => {
       setBusy(false);
@@ -23227,6 +23431,10 @@ window.addEventListener("keydown", event => {
 });
 window.addEventListener("dragover", event => {
   event.preventDefault();
+  if (dataOperationInProgress()) {
+    $("dropZone").classList.remove("active");
+    return;
+  }
   $("dropZone").classList.add("active");
 });
 window.addEventListener("dragleave", event => {
@@ -23237,6 +23445,7 @@ window.addEventListener("dragleave", event => {
 window.addEventListener("drop", event => {
   event.preventDefault();
   $("dropZone").classList.remove("active");
+  if (dataOperationInProgress()) return;
   const file = event.dataTransfer.files[0];
   handleFile(file).catch(error => {
     setBusy(false);
@@ -23319,6 +23528,25 @@ document.addEventListener("click", event => {
   if (emptyUploadButton) {
     event.preventDefault();
     $("uploadButton")?.click();
+    return;
+  }
+  if (event.target.closest("[data-overview-reset]")) {
+    event.preventDefault();
+    resetOverviewFilters();
+    return;
+  }
+  if (event.target.closest("[data-empty-review-source]")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const details = document.querySelector("[data-data-foundation]");
+    const summary = details?.querySelector(":scope > summary");
+    if (details && !details.open) {
+      details.open = true;
+      syncDataFoundationDisclosureState();
+    }
+    summary?.focus({ preventScroll: true });
+    window.requestAnimationFrame(() => summary?.focus({ preventScroll: true }));
+    details?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     return;
   }
   const scoreDiagnosticToggle = event.target.closest("[data-score-diagnostic-toggle]");
@@ -23464,13 +23692,8 @@ document.addEventListener("click", event => {
     const processKey = navSectionButton.dataset.navSection;
     const sourceTab = [...document.querySelectorAll(".process-tabs button")].find(button => button.dataset.process === processKey);
     switchProcessTab(processKey, sourceTab?.textContent?.trim() || navSectionButton.textContent.trim());
-    closeSectionsPopover();
+    closeSectionsPopover({ restoreFocus: true });
     updateNavigationSummary();
-    return;
-  }
-  if (event.target.closest("[data-nav-expand]")) {
-    event.preventDefault();
-    setNavigationCollapsed(false);
     return;
   }
   if (activeSectionsPopover && !event.target.closest(".sections-popover") && !event.target.closest("#navToggleButton")) {
@@ -23689,6 +23912,7 @@ function createObsoliqTestBridge() {
     restoreDatasetRuntimeState,
     snapshotDatasetUiState,
     restoreDatasetUiState,
+    restoreHeaderDataStatusForTest: () => restoreHeaderDataStatus(),
     applyFilterStateToControls,
     renderRestoredDatasetState,
     syncDatasetUiFromMeta,
