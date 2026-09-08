@@ -60,7 +60,6 @@ async function main() {
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => Boolean(window.__obsoliqTestBridge), null, { timeout: 10000 });
   await page.evaluate(() => window.__obsoliqTestBridge.loadSample());
-  await page.waitForFunction(() => !/^0(?:\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 30000 });
   await page.locator('[data-process="inventory-risks"]').click();
   const results = [];
   for (const viewport of viewports) results.push(await presentationState(page, viewport));

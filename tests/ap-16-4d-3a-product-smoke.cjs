@@ -14,8 +14,9 @@ async function main() {
   page.on("requestfailed", request => failedRequests.push({ url: request.url(), error: request.failure()?.errorText || "" }));
 
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
+  await page.locator("#sampleButton").click();
+  await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 30000 });
   await page.waitForFunction(() => Boolean(window.ObsoliQ?.slowDead?.conditionEngine), null, { timeout: 20000 });
-  await page.waitForFunction(() => !/^0(?:\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
   const productCalibrationModulesAbsent = await page.evaluate(() => !(
     window.ObsoliQ?.slowDead?.calibrationContract
     || window.ObsoliQ?.slowDead?.calibrationRunner

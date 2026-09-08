@@ -18,7 +18,8 @@ async function main() {
 
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => Boolean(window.ObsoliQ?.data?.packageRegistry && window.ObsoliQIcons), null, { timeout: 20000 });
-  await page.waitForFunction(() => !/^0(?:\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
+  await page.locator("#sampleButton").click();
+  await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 30000 });
 
   const initial = await page.evaluate(() => ({
     protocol: location.protocol,

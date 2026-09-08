@@ -84,7 +84,7 @@ function main() {
   check(sha256(read("sample-data.js")) === "51884fb9e5e6f35d6bdfdd7491a129b2d088145d72898616ff0151e818510796", "sample-data.js must remain unchanged");
   check(sha256(read("js/recovery/recovery-engine.js")) === "9d50e4603f92b33fa0f92e28d3b7d8ea2a11a05dca79d42c2a151768b581b3da", "Recovery formulas must remain unchanged from candidate E");
   check(sha256(read("js/slow-dead/slow-dead-condition-engine.js")) === "7c7a4e3e51b39d89e12daf93dadb20908a87234061677a3fcf4aa8784469e03f", "Slow/Dead condition policy must remain unchanged from candidate E");
-  check(sha256(read("styles.css")) === "f8ad361ad102eb63a5fbc0c7e68a273f480998a981201bae09d1f86c3d380aa7", "styles.css must remain unchanged from candidate E");
+  check(sha256(read("styles.css")) === "ee52702b3683d47ab70959c31b7e22dc395d2e48fa7b72c4e9d37c43eff9d218", "styles.css must remain unchanged from approved handoff baseline 2dbf1514");
 
   const prototype = text("prototype.html");
   check(prototype.indexOf('<script src="sample-data.js"></script>') < prototype.indexOf('<script src="demo-data.js"></script>'), "Compatibility sample must load before the generated full-demo descriptor");

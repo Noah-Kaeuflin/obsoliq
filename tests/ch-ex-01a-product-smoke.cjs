@@ -13,7 +13,8 @@ async function main() {
   });
 
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
+  await page.locator("#sampleButton").click();
+  await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 30000 });
   const routeState = await openUnifiedExcessSegment(page);
   await page.waitForSelector("#view-inventory-risks.active .excess-decision-core [data-header-value-basis-valid]", { timeout: 10000 });
 

@@ -24,7 +24,6 @@ async function main() {
   page.on("requestfailed", request => failedRequests.push(`${request.url()} :: ${request.failure()?.errorText || "failed"}`));
 
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
   await page.waitForFunction(() => document.querySelectorAll(".process-tabs .oq-icon").length === 8);
 
   const initial = await page.evaluate(() => {
@@ -153,7 +152,7 @@ async function main() {
     const expectedSize = item.id === "actionFeedback" ? 14 : 16;
     return item.width !== expectedSize || item.height !== expectedSize || item.color !== item.parentColor || item.pointerEvents !== "none";
   })) failures.push("icon-layout-or-current-color");
-  if (initial.actions.find(item => item.id === "actionFeedback")?.hidden) failures.push("loaded-status-icon-hidden");
+  if (!initial.actions.find(item => item.id === "actionFeedback")?.hidden) failures.push("empty-status-icon-visible");
   if (JSON.stringify(mappingBefore) !== JSON.stringify(mappingAfter) || !/Overview/.test(englishOverview || "")) failures.push("language-mapping-regression");
   if (iconNetworkRequests.length) failures.push("icon-network-request");
   if (failedRequests.length) failures.push("failed-requests");

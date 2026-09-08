@@ -19,7 +19,8 @@ async function main() {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => !/^0(\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 20000 });
+  await page.locator("#sampleButton").click();
+  await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 30000 });
   const routeState = await openUnifiedExcessSegment(page);
   await activateExcessDetailTab(page, "decision");
 

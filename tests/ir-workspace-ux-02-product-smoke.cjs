@@ -84,7 +84,8 @@ async function main() {
   page.on("requestfailed", request => failedRequests.push({ url: request.url(), error: request.failure()?.errorText || "" }));
 
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => !/^0(?:\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 30000 });
+  await page.locator("#sampleButton").click();
+  await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 30000 });
   await page.locator('[data-process="inventory-risks"]').click();
   await page.waitForSelector("#view-inventory-risks.active .inventory-risk-workspace", { timeout: 15000 });
   await page.locator('[data-inventory-risk-segment="excess_demand"]').click();

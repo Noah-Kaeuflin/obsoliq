@@ -58,7 +58,8 @@ async function main() {
   page.on("requestfailed", request => failedRequests.push(`${request.url()} :: ${request.failure()?.errorText || "failed"}`));
 
   await page.goto(productUrl, { waitUntil: "domcontentloaded" });
-  await page.waitForFunction(() => !/^0(?:\s|$)/.test((document.querySelector("#mInventory")?.textContent || "").trim()), null, { timeout: 30000 });
+  await page.locator("#sampleButton").click();
+  await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 30000 });
   await page.waitForFunction(() => document.querySelectorAll("#obsoliq-icon-sprite symbol").length === 43);
 
   await setTheme(page, false);

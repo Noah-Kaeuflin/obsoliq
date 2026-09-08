@@ -193,6 +193,7 @@ const {
   inferNumericLocaleProfile,
   numericEvidence,
   parseLocalizedNumericValue,
+  strictNonNegativeFinancialValue,
   toNumber
 } = ObsoliQModules.core.valueUtils;
 
@@ -200,6 +201,7 @@ const {
   buildSourceColumnMetadata,
   buildParsedSourceDataset,
   isValidSourceIndex,
+  physicalSourceIdentityForMappingEntry,
   sourceMetaForColumn: moduleSourceMetaForColumn,
   sourceOriginalHeader: moduleSourceOriginalHeader,
   sourceTechnicalKey: moduleSourceTechnicalKey
@@ -866,7 +868,56 @@ const translations = {
     metricNoPlan: "Ohne Plan",
     metricNoPlanSub: "Bestand ohne Planbezug",
     metricRecovery: "Recovery-Potenzial",
+    metricRecoveryShare: "Recovery-Anteil",
     recoveryAddressable: "des Gesamtbestands adressierbar",
+    kpiCoverageTemplate: "{usable} von {relevant} Positionen im aktuellen Datenumfang bewertbar ({imported} importiert).",
+    kpiSafeCoverageTemplate: "{usable} von {relevant} Positionen für eine sichere Teilsumme bewertbar ({imported} importiert).",
+    kpiCoverageMissing: "{count} fehlend",
+    kpiCoverageInvalid: "{count} ungültig",
+    kpiCoverageAmbiguous: "{count} mehrdeutig",
+    kpiCoverageNegative: "{count} negativ",
+    kpiCoverageOverflow: "{count} mit Überlauf",
+    kpiCoverageUnknownMapping: "{count} ohne eindeutige Zuordnung",
+    kpiCoverageInsufficientCurrency: "unzureichender Währungskontext",
+    kpiCoverageNonBaseCurrency: "Quellwährung {source} entspricht nicht der internen Bewertungsbasis EUR",
+    kpiCoverageNoRows: "Keine Positionen im aktuellen Filter. Die Datenquelle bleibt unverändert.",
+    kpiPartialLabel: "Summe der bewertbaren Positionen — unvollständig",
+    kpiSafeProjectionLabel: "Summe der nichtnegativen bewertbaren Positionen — unvollständige Projektion",
+    kpiPartialUnavailable: "Keine sichere Teilsumme: {reason}.",
+    kpiReviewAffectedData: "Betroffene Daten prüfen",
+    kpiReviewMetricData: "{metric} prüfen",
+    kpiShareUnavailableDependency: "Nicht berechenbar: vollständiger Recovery-Wert und vollständiger Bestandswert erforderlich.",
+    kpiShareZeroDenominator: "Nicht berechenbar: Der vollständige Bestandswert ist 0; der Anteil hat keinen positiven Nenner.",
+    kpiCauseFocusTitle: "Ursachen für {metric}",
+    kpiCauseFocusSubtitle: "Exakter Quellenfokus für Paket {package}, Revision {revision}.",
+    kpiCauseFocusCleared: "Der Quellenstand hat sich geändert. Die frühere KPI-Ursache wurde verworfen.",
+    kpiCauseFocusNoLongerCurrent: "Für den aktuellen Quellenstand besteht diese KPI-Ursache nicht mehr.",
+    kpiCausePackage: "Quellpaket",
+    kpiCausePhysicalRow: "Physische Quellzeile",
+    kpiCauseSourceColumn: "Quellspalte",
+    kpiCauseCanonicalField: "Kanonisches Feld",
+    kpiCauseRawValue: "Rohwert",
+    kpiCauseStatus: "Status",
+    kpiCauseDependency: "Abhängigkeit",
+    kpiCauseEmptyRawValue: "(leer)",
+    kpiCauseMissing: "fehlend",
+    kpiCauseInvalid: "ungültig",
+    kpiCauseAmbiguous: "mehrdeutig",
+    kpiCauseNegative: "negativ",
+    kpiCauseOverflow: "Überlauf",
+    kpiCauseUnknownMapping: "unbekannte Zuordnung",
+    kpiCauseInsufficientCurrency: "unzureichender Währungskontext",
+    kpiCauseCalculationUnavailable: "Berechnung nicht verfügbar",
+    kpiDependencyDirect: "direkter Beitrag zu {metric}",
+    kpiDependencyStockFallback: "Direkter Bestandswert fehlt; die bestehende Ableitung aus Bestandsmenge und Standardpreis ist nicht verfügbar",
+    kpiDependencyDerivedStock: "Eingangsgröße der bestehenden Bestandswert-Ableitung aus Bestandsmenge × Standardpreis",
+    kpiDependencyNoDemandSum: "Eingangsgröße der bestehenden Ohne-Bedarf-Summe",
+    kpiDependencyRecoveryStock: "Bestandswert ist Eingangsgröße des Recovery-Waterfalls",
+    kpiDependencyRecoveryInput: "direkte Eingangsgröße des Recovery-Waterfalls",
+    kpiDependencyShareStock: "Bestandswert ist Nenner des Recovery-Anteils",
+    kpiDependencyShareRecovery: "Recovery-Potenzial ist Zähler des Recovery-Anteils",
+    kpiDependencyShareBoth: "Bestandswert blockiert den Nenner und damit auch den Recovery-Zähler",
+    kpiClearCauseFocus: "KPI-Fokus aufheben",
     overviewFiltersAria: "Overview-Filter",
     searchLabel: "Suche",
     searchPlaceholder: "Material oder Beschreibung suchen …",
@@ -1373,6 +1424,7 @@ const translations = {
     fromInventory: "vom Gesamtbestand",
     noDataSelection: "Keine Daten für diese Auswahl.",
     noRowsSelection: "Keine Zeilen für die aktuelle Auswahl.",
+    noFilterMatches: "Keine Treffer für diese Filter.",
     noInventoryRows: "Keine Bestandszeilen für die aktuelle Auswahl.",
     shown: "Angezeigt",
     visible: "sichtbar",
@@ -1396,7 +1448,11 @@ const translations = {
     languageUpdated: "Sprache aktualisiert",
     sampleData: "Beispieldaten",
     dataLoaded: "Daten geladen",
-    noDataLoaded: "Keine Daten geladen",
+    noDataLoaded: "Noch keine Daten geladen",
+    noDataLoadedBody: "Lade die verknüpften Beispieldaten oder importiere eine eigene Datei, um die Analyse zu starten.",
+    loadSampleData: "Beispieldaten laden",
+    noUsableInventoryRows: "Importierte Bestandsquelle nicht verwendbar",
+    noUsableInventoryRowsBody: "Die importierte Quelle enthält keine analytisch verwendbaren Bestandszeilen. Prüfe Import und Datenqualität oder lade eine andere Quelle.",
     uploadPrompt: "Bitte zuerst eine Datei hochladen oder Beispieldaten laden.",
     pleaseWait: "Bitte warten",
     loadingFile: "Datei wird geladen",
@@ -2682,7 +2738,56 @@ const translations = {
     metricNoPlan: "Unplanned",
     metricNoPlanSub: "inventory without planning reference",
     metricRecovery: "Recovery Potential",
+    metricRecoveryShare: "Recovery Share",
     recoveryAddressable: "of total inventory addressable",
+    kpiCoverageTemplate: "{usable} of {relevant} items in the current scope are assessable ({imported} imported).",
+    kpiSafeCoverageTemplate: "{usable} of {relevant} items are assessable for a safe subtotal ({imported} imported).",
+    kpiCoverageMissing: "{count} missing",
+    kpiCoverageInvalid: "{count} invalid",
+    kpiCoverageAmbiguous: "{count} ambiguous",
+    kpiCoverageNegative: "{count} negative",
+    kpiCoverageOverflow: "{count} overflow",
+    kpiCoverageUnknownMapping: "{count} without an exact mapping",
+    kpiCoverageInsufficientCurrency: "insufficient currency context",
+    kpiCoverageNonBaseCurrency: "source currency {source} does not match the internal EUR valuation basis",
+    kpiCoverageNoRows: "No items match the current filter. The source dataset is unchanged.",
+    kpiPartialLabel: "Sum of assessable items — incomplete",
+    kpiSafeProjectionLabel: "Sum of non-negative assessable items — incomplete projection",
+    kpiPartialUnavailable: "No safe subtotal: {reason}.",
+    kpiReviewAffectedData: "Review affected data",
+    kpiReviewMetricData: "Review {metric}",
+    kpiShareUnavailableDependency: "Unavailable: complete recovery and complete inventory values are required.",
+    kpiShareZeroDenominator: "Unavailable: the complete inventory value is 0, so the share has no positive denominator.",
+    kpiCauseFocusTitle: "Causes for {metric}",
+    kpiCauseFocusSubtitle: "Exact source focus for package {package}, revision {revision}.",
+    kpiCauseFocusCleared: "The source revision changed. The previous KPI cause was discarded.",
+    kpiCauseFocusNoLongerCurrent: "This KPI cause no longer exists for the current source revision.",
+    kpiCausePackage: "Source package",
+    kpiCausePhysicalRow: "Physical source row",
+    kpiCauseSourceColumn: "Source column",
+    kpiCauseCanonicalField: "Canonical field",
+    kpiCauseRawValue: "Raw value",
+    kpiCauseStatus: "Status",
+    kpiCauseDependency: "Dependency",
+    kpiCauseEmptyRawValue: "(empty)",
+    kpiCauseMissing: "missing",
+    kpiCauseInvalid: "invalid",
+    kpiCauseAmbiguous: "ambiguous",
+    kpiCauseNegative: "negative",
+    kpiCauseOverflow: "overflow",
+    kpiCauseUnknownMapping: "unknown mapping",
+    kpiCauseInsufficientCurrency: "insufficient currency context",
+    kpiCauseCalculationUnavailable: "calculation unavailable",
+    kpiDependencyDirect: "direct contribution to {metric}",
+    kpiDependencyStockFallback: "the direct inventory value is missing and the existing quantity × standard-price derivation is unavailable",
+    kpiDependencyDerivedStock: "input to the existing inventory-value derivation from quantity × standard price",
+    kpiDependencyNoDemandSum: "input to the existing no-demand sum",
+    kpiDependencyRecoveryStock: "inventory value is an input to the recovery waterfall",
+    kpiDependencyRecoveryInput: "direct input to the recovery waterfall",
+    kpiDependencyShareStock: "inventory value is the denominator of recovery share",
+    kpiDependencyShareRecovery: "recovery potential is the numerator of recovery share",
+    kpiDependencyShareBoth: "inventory value blocks the denominator and therefore also the recovery numerator",
+    kpiClearCauseFocus: "Clear KPI focus",
     overviewFiltersAria: "Overview filters",
     searchLabel: "Search",
     searchPlaceholder: "Search material or description …",
@@ -3190,6 +3295,7 @@ const translations = {
     fromInventory: "of total inventory",
     noDataSelection: "No data for this selection.",
     noRowsSelection: "No rows for the current selection.",
+    noFilterMatches: "No results for these filters.",
     noInventoryRows: "No inventory rows for the current selection.",
     shown: "Shown",
     visible: "visible",
@@ -3213,7 +3319,11 @@ const translations = {
     languageUpdated: "Language updated",
     sampleData: "Sample data",
     dataLoaded: "Data loaded",
-    noDataLoaded: "No data loaded",
+    noDataLoaded: "No data loaded yet",
+    noDataLoadedBody: "Load the linked sample data or import your own file to start the analysis.",
+    loadSampleData: "Load sample data",
+    noUsableInventoryRows: "Imported inventory source is not usable",
+    noUsableInventoryRowsBody: "The imported source contains no analytically usable inventory rows. Review the import and data quality or load a different source.",
     uploadPrompt: "Please upload a file first or load sample data.",
     pleaseWait: "Please wait",
     loadingFile: "Loading file",
@@ -4475,6 +4585,7 @@ let excludedSourceRows = new Set();
 let remediationHistory = [];
 let remediationPreview = null;
 let activeRemediationIssueId = null;
+let activeKpiCauseFocus = null;
 const REMEDIATION_PREVIEW_DEBOUNCE_MS = 250;
 const REMEDIATION_FILTER_DEBOUNCE_MS = 140;
 const remediationPreviewSchedulerState = {
@@ -5640,13 +5751,18 @@ function decorateActionRows(analyticalRows = []) {
 function updateAnalysisPanel(lastAction, datasetMeta = currentDatasetMeta) {
   const stateTarget = $("analysisDataState");
   if (!stateTarget) return;
-  const hasData = Boolean(datasetMeta);
-  stateTarget.textContent = hasData ? t("dataLoaded") : t("noDataLoaded");
+  const displayState = inventoryDatasetDisplayState();
+  const hasDataset = Boolean(datasetMeta);
+  stateTarget.textContent = t(displayState === "loaded"
+    ? "dataLoaded"
+    : displayState === "unusable"
+      ? "noUsableInventoryRows"
+      : "noDataLoaded");
   const rowsTarget = $("analysisRows");
   const columnsTarget = $("analysisColumns");
   const actionTarget = $("analysisLastAction");
-  if (rowsTarget) rowsTarget.textContent = hasData ? formatCount(datasetMeta.rows) : "0";
-  if (columnsTarget) columnsTarget.textContent = hasData ? formatCount(datasetMeta.columns) : "0";
+  if (rowsTarget) rowsTarget.textContent = hasDataset ? formatCount(datasetMeta.rows) : "0";
+  if (columnsTarget) columnsTarget.textContent = hasDataset ? formatCount(datasetMeta.columns) : "0";
   if (actionTarget && lastAction !== undefined) actionTarget.textContent = lastAction || t("ready");
 }
 
@@ -5655,6 +5771,15 @@ function setStatus(text) {
   if (target) target.textContent = text;
   document.querySelectorAll(".dataset-status-text").forEach(element => {
     element.textContent = text;
+  });
+}
+
+function setDatasetStatusAvailability(available) {
+  document.querySelectorAll(".dataset-status-text").forEach(element => {
+    const chip = element.closest(".dataset-chip");
+    if (chip) chip.classList.toggle("state", available);
+    const dot = chip?.querySelector(".status-dot");
+    if (dot) dot.hidden = !available;
   });
 }
 
@@ -5690,7 +5815,8 @@ function syncHeaderFeedbackIcon() {
 }
 
 function resetDatasetStatusUi() {
-  setStatus(t("ready"));
+  setStatus(t("noDataLoaded"));
+  setDatasetStatusAvailability(false);
   document.querySelectorAll(".dataset-rows-chip").forEach(element => {
     element.textContent = `0 ${t("rows")}`;
   });
@@ -5702,7 +5828,7 @@ function resetDatasetStatusUi() {
     element.title = "";
   });
   updateVisibleDatasetChips(0);
-  updateAnalysisPanel(t("ready"), null);
+  updateAnalysisPanel(t("noDataLoaded"), null);
 }
 
 function setDatasetStatus(datasetMeta = currentDatasetMeta) {
@@ -5710,10 +5836,16 @@ function setDatasetStatus(datasetMeta = currentDatasetMeta) {
     resetDatasetStatusUi();
     return;
   }
+  const displayState = inventoryDatasetDisplayState();
   const source = sourceLabelText(datasetMeta.sourceLabel);
   const rows = `${formatCount(datasetMeta.rows)} ${t("rows")}`;
   const columns = `${formatCount(datasetMeta.columns)} ${t("columns")}`;
-  setStatus(t("dataLoaded"));
+  setStatus(t(displayState === "loaded"
+    ? "dataLoaded"
+    : displayState === "unusable"
+      ? "noUsableInventoryRows"
+      : "noDataLoaded"));
+  setDatasetStatusAvailability(displayState === "loaded");
   document.querySelectorAll(".dataset-rows-chip").forEach(element => {
     element.textContent = rows;
   });
@@ -5815,8 +5947,11 @@ function restoreDatasetUiState(snapshot = {}) {
 }
 
 function restoreHeaderDataStatus() {
-  const hasData = Boolean(currentDatasetMeta && enrichedRows.length);
-  setFeedback(hasData ? t("dataLoaded") : t("ready"), hasData ? "ok" : "");
+  const displayState = inventoryDatasetDisplayState();
+  setFeedback(
+    t(displayState === "loaded" ? "dataLoaded" : displayState === "unusable" ? "noUsableInventoryRows" : "noDataLoaded"),
+    displayState === "loaded" ? "ok" : displayState === "unusable" ? "error" : ""
+  );
 }
 
 function updateVisibleDatasetChips(count) {
@@ -6653,28 +6788,746 @@ function groupSum(data, groupKey, valueKey) {
     });
 }
 
-function renderMetrics(data) {
-  const inventoryAggregate = numericAggregate(data, "stock_value", { type: "currency" });
-  const recoveryAggregate = numericAggregate(data, "recovery_potential", { type: "currency" });
-  const inventory = inventoryAggregate.value;
-  const recovery = recoveryAggregate.value;
-  const recoveryShare = inventory !== null && recovery !== null && inventory > 0
+const KPI_AVAILABILITY_SPECS = Object.freeze({
+  inventory: Object.freeze({
+    key: "inventory",
+    labelKey: "metricInventory",
+    fieldKey: "stock_value",
+    valueId: "mInventory",
+    coverageId: "mInventoryCoverage",
+    partialId: "mInventoryPartial",
+    actionId: "mInventoryReview",
+    currencyFields: Object.freeze(["stock_value"]),
+    dependencyKey: "kpiDependencyDirect"
+  }),
+  excess: Object.freeze({
+    key: "excess",
+    labelKey: "metricExcess",
+    fieldKey: "excess_value",
+    valueId: "mExcess",
+    coverageId: "mExcessCoverage",
+    partialId: "mExcessPartial",
+    actionId: "mExcessReview",
+    currencyFields: Object.freeze(["excess_value"]),
+    dependencyKey: "kpiDependencyDirect"
+  }),
+  blocked: Object.freeze({
+    key: "blocked",
+    labelKey: "metricBad",
+    fieldKey: "bad_stock_value",
+    valueId: "mBad",
+    coverageId: "mBadCoverage",
+    partialId: "mBadPartial",
+    actionId: "mBadReview",
+    currencyFields: Object.freeze(["bad_stock_value"]),
+    dependencyKey: "kpiDependencyDirect"
+  }),
+  noDemand: Object.freeze({
+    key: "noDemand",
+    labelKey: "metricNoNeed",
+    fieldKey: "no_need_value",
+    valueId: "mNoNeed",
+    coverageId: "mNoNeedCoverage",
+    partialId: "mNoNeedPartial",
+    actionId: "mNoNeedReview",
+    currencyFields: Object.freeze(["direct_no_need_value", "no_need_conso_value", "no_need_no_con_value"]),
+    dependencyKey: "kpiDependencyDirect",
+    derived: "no_demand"
+  }),
+  noPlan: Object.freeze({
+    key: "noPlan",
+    labelKey: "metricNoPlan",
+    fieldKey: "no_plan_value",
+    valueId: "mNoPlan",
+    coverageId: "mNoPlanCoverage",
+    partialId: "mNoPlanPartial",
+    actionId: "mNoPlanReview",
+    currencyFields: Object.freeze(["no_plan_value"]),
+    dependencyKey: "kpiDependencyDirect"
+  }),
+  recovery: Object.freeze({
+    key: "recovery",
+    labelKey: "metricRecovery",
+    fieldKey: "recovery_potential",
+    valueId: "mRecovery",
+    coverageId: "mRecoveryCoverage",
+    partialId: "mRecoveryPartial",
+    actionId: "mRecoveryReview",
+    currencyFields: Object.freeze([
+      "stock_value",
+      "direct_no_need_value",
+      "no_need_conso_value",
+      "no_need_no_con_value",
+      "no_plan_value",
+      "excess_value",
+      "bad_stock_value"
+    ]),
+    dependencyKey: "kpiDependencyRecoveryStock",
+    derived: "recovery"
+  }),
+  share: Object.freeze({
+    key: "share",
+    labelKey: "metricRecoveryShare",
+    valueId: "mShare",
+    coverageId: "mShareCoverage",
+    actionId: "mShareReview",
+    ratio: true
+  })
+});
+
+function formatKpiText(key, replacements = {}) {
+  return Object.entries(replacements).reduce(
+    (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+    String(t(key) || key)
+  );
+}
+
+function currentKpiSourceIdentity() {
+  const packageRecord = currentInventoryPackage();
+  const sourceDescriptor = packageRecord?.sourceDescriptor || {};
+  return {
+    datasetId: currentDatasetId(),
+    packageId: packageRecord?.packageId || currentDatasetMeta?.packageId || "",
+    packageRevision: Number(packageRecord?.revision || currentDatasetMeta?.inventoryPackageRevision || 0),
+    mappingSignature: columnMappingSignature(currentDatasetMeta?.columnMapping || [], { policy: DEFAULT_MAPPING_POLICY }),
+    sourceId: sourceDescriptor.inventory_source_id || sourceDescriptor.sourceId || sourceDescriptor.sourceLabel || "",
+    sourceHash: sourceDescriptor.content_hashes?.inventory_snapshot_csv || sourceDescriptor.contentHash || ""
+  };
+}
+
+function kpiSourceIdentityToken(identity = currentKpiSourceIdentity()) {
+  return [
+    identity.datasetId,
+    identity.packageId,
+    identity.packageRevision,
+    hashIssueKey(identity.mappingSignature || ""),
+    identity.sourceId,
+    identity.sourceHash
+  ].map(value => encodeURIComponent(String(value ?? ""))).join("|");
+}
+
+function exactKpiMappingEvidence(fieldKey, mapping = currentDatasetMeta?.columnMapping || [], metadata = sourceColumnMetadata) {
+  const mappingEntry = mappingSourceForField(refreshColumnMappingStatuses(mapping), fieldKey) || null;
+  const identity = mappingEntry ? physicalSourceIdentityForMappingEntry(mappingEntry, metadata) : null;
+  return { mappingEntry, identity };
+}
+
+function parseKpiSourceCell(rowIndex, fieldKey) {
+  const { mappingEntry, identity } = exactKpiMappingEvidence(fieldKey);
+  if (!mappingEntry || !identity) {
+    return {
+      mappingEntry,
+      identity: null,
+      rawValue: "",
+      parseResult: null,
+      kind: "unknown_mapping"
+    };
+  }
+  const rawValue = sourceRow(rowIndex)?.[identity.sourceKey] ?? "";
+  const profile = mappingEntry.profileEvidence || {};
+  const normalizationPolicy = mappingEntry.normalizationPolicy || {};
+  const parseResult = parseLocalizedNumericValue({
+    rawValue,
+    fieldDefinition: numericDefinition(fieldKey, "currency"),
+    localeProfile: {
+      status: profile.localeStatus || "",
+      dominantLocale: profile.detectedLocale || normalizationPolicy.localeOverride || "",
+      confidence: mappingEntry.localeConfidence === "high" ? 0.95 : 0.8
+    },
+    headerHints: {
+      sourceScaleFactor: profile.headerScaleFactor || normalizationPolicy.sourceScaleFactor || 1,
+      sourceCurrency: normalizationPolicy.sourceCurrency || profile.headerCurrency || "",
+      sourceUnit: normalizationPolicy.detectedUnit || profile.headerUnit || ""
+    },
+    normalizationPolicy
+  });
+  return {
+    mappingEntry,
+    identity,
+    rawValue,
+    parseResult,
+    kind: kpiCauseKind(parseResult, { mappingAvailable: true })
+  };
+}
+
+function kpiCauseKind(parseResult = null, options = {}) {
+  if (options.mappingAvailable === false) return "unknown_mapping";
+  if (options.calculationReason === "derived_value_overflow" || options.overflow === true) return "overflow";
+  const status = String(parseResult?.status || "");
+  if (status === "missing") return "missing";
+  if (["ambiguous", "double_scale"].includes(status)) return "ambiguous";
+  if (status && status !== "valid") return "invalid";
+  const value = parseResult?.normalizedValue;
+  if (status === "valid" && !Number.isFinite(value)) return "overflow";
+  if (status === "valid" && value < 0) return "negative";
+  return options.fallback || "valid";
+}
+
+function kpiCauseIssue(rowIndex, fieldKey, identity = null) {
+  const datasetId = currentDatasetId();
+  return dataQualityIssues.find(issue => {
+    if (issue.datasetId && datasetId && issue.datasetId !== datasetId) return false;
+    if (!(issue.sourceRowIndexes || []).map(Number).includes(Number(rowIndex))) return false;
+    if (!(issue.canonicalFields || []).includes(fieldKey)) return false;
+    if (identity?.sourceColumn && (issue.sourceColumns || []).length && !(issue.sourceColumns || []).includes(identity.sourceColumn)) return false;
+    return true;
+  }) || null;
+}
+
+function createKpiCause(row, fieldKey, metricSpec, options = {}) {
+  const rowIndex = Number(row?.row_number || row?.__sourceRowIndex || 0);
+  const sourceEvidence = parseKpiSourceCell(rowIndex, fieldKey);
+  const calculationReason = options.calculationReason || "";
+  const kind = options.kind || kpiCauseKind(sourceEvidence.parseResult, {
+    mappingAvailable: Boolean(sourceEvidence.identity),
+    calculationReason,
+    fallback: options.fallbackKind || "calculation_unavailable"
+  });
+  const issue = kpiCauseIssue(rowIndex, fieldKey, sourceEvidence.identity);
+  const packageIdentity = currentKpiSourceIdentity();
+  const sourceColumn = sourceEvidence.identity
+    ? moduleSourceOriginalHeader(sourceEvidence.identity.sourceColumn, sourceEvidence.identity.sourceIndex, sourceColumnMetadata)
+    : "";
+  return {
+    metricKey: metricSpec.key,
+    metricLabelKey: metricSpec.labelKey,
+    datasetId: packageIdentity.datasetId,
+    packageId: packageIdentity.packageId,
+    packageRevision: packageIdentity.packageRevision,
+    sourceId: packageIdentity.sourceId,
+    sourceHash: packageIdentity.sourceHash,
+    sourceRowIndex: rowIndex,
+    materialId: String(row?.material_id || normalizedRow(rowIndex)?.material_id || ""),
+    plant: String(row?.plant || normalizedRow(rowIndex)?.plant || row?.profit_center || ""),
+    profitCenter: String(row?.profit_center || normalizedRow(rowIndex)?.profit_center || ""),
+    canonicalField: fieldKey,
+    sourceIndex: sourceEvidence.identity?.sourceIndex ?? null,
+    sourceKey: sourceEvidence.identity?.sourceKey || "",
+    sourceColumn,
+    rawValue: sourceEvidence.rawValue,
+    kind,
+    normalizationStatus: sourceEvidence.parseResult?.status || (sourceEvidence.identity ? "unavailable" : "unknown_mapping"),
+    normalizationCodes: [...(sourceEvidence.parseResult?.warnings || sourceEvidence.parseResult?.reasonCodes || [])],
+    normalizedValue: sourceEvidence.parseResult?.normalizedValue ?? null,
+    calculationStatus: options.calculationStatus || "",
+    calculationReason,
+    dependencyKey: options.dependencyKey || metricSpec.dependencyKey || "kpiDependencyDirect",
+    blocksMetric: options.blocksMetric !== false,
+    blocksSafeSubtotal: options.blocksSafeSubtotal !== false,
+    issueId: issue?.issueId || "",
+    issueKey: issue?.issueKey || ""
+  };
+}
+
+function uniqueKpiCauses(causes = []) {
+  const seen = new Set();
+  return causes.filter(cause => {
+    const key = [
+      cause.sourceRowIndex,
+      cause.sourceIndex,
+      cause.sourceKey,
+      cause.canonicalField,
+      cause.kind,
+      cause.dependencyKey
+    ].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function stockValueKpiCauses(row, metricSpec, options = {}) {
+  const calculationReason = row?.stock_value_derivation_reason || "";
+  const calculationStatus = row?.stock_value_derivation_status || row?.stock_value_availability || "unavailable";
+  const sharedDependency = options.dependencyKey || "";
+  if (row?.stock_value_source !== "derived") {
+    return [createKpiCause(row, "stock_value", metricSpec, {
+      calculationStatus,
+      calculationReason,
+      dependencyKey: sharedDependency || metricSpec.dependencyKey
+    })];
+  }
+
+  const rowIndex = Number(row?.row_number || row?.__sourceRowIndex || 0);
+  const causes = [];
+  const stockSource = parseKpiSourceCell(rowIndex, "stock_value");
+  if (stockSource.kind !== "valid") {
+    causes.push(createKpiCause(row, "stock_value", metricSpec, {
+      kind: stockSource.kind,
+      calculationStatus,
+      calculationReason,
+      dependencyKey: sharedDependency || "kpiDependencyStockFallback"
+    }));
+  }
+
+  const derivationInputs = ["stock_quantity", "standard_price"].map(fieldKey => ({
+    fieldKey,
+    evidence: parseKpiSourceCell(rowIndex, fieldKey)
+  }));
+  const inputFailures = derivationInputs.filter(({ evidence }) => evidence.kind !== "valid");
+  if (calculationReason === "derived_value_overflow" && !inputFailures.length) {
+    derivationInputs.forEach(({ fieldKey }) => {
+      causes.push(createKpiCause(row, fieldKey, metricSpec, {
+        kind: "overflow",
+        calculationStatus,
+        calculationReason,
+        dependencyKey: sharedDependency || "kpiDependencyDerivedStock"
+      }));
+    });
+  } else {
+    inputFailures.forEach(({ fieldKey, evidence }) => {
+      causes.push(createKpiCause(row, fieldKey, metricSpec, {
+        kind: evidence.kind,
+        calculationStatus,
+        calculationReason,
+        dependencyKey: sharedDependency || "kpiDependencyDerivedStock"
+      }));
+    });
+  }
+
+  if (!causes.length) {
+    causes.push(createKpiCause(row, "stock_value", metricSpec, {
+      kind: calculationReason === "derived_value_overflow" ? "overflow" : "calculation_unavailable",
+      calculationStatus,
+      calculationReason,
+      dependencyKey: sharedDependency || "kpiDependencyDerivedStock"
+    }));
+  }
+  return uniqueKpiCauses(causes);
+}
+
+function directKpiCauses(rows, metricSpec) {
+  const causes = [];
+  rows.forEach(row => {
+    const result = numericValueEvidence(row?.[metricSpec.fieldKey], metricSpec.fieldKey, {
+      type: "currency",
+      parseResult: rowNumericParseResult(row, metricSpec.fieldKey)
+    });
+    if (result.status !== "valid") {
+      if (metricSpec.fieldKey === "stock_value") {
+        causes.push(...stockValueKpiCauses(row, metricSpec));
+      } else {
+        causes.push(createKpiCause(row, metricSpec.fieldKey, metricSpec, {
+          calculationStatus: result.status
+        }));
+      }
+      return;
+    }
+    if (result.normalizedValue < 0) {
+      causes.push(createKpiCause(row, metricSpec.fieldKey, metricSpec, {
+        kind: "negative",
+        calculationStatus: "parsed",
+        blocksMetric: false,
+        blocksSafeSubtotal: true
+      }));
+    }
+  });
+  return uniqueKpiCauses(causes);
+}
+
+function noDemandKpiCauses(rows, metricSpec) {
+  const causes = [];
+  rows.forEach(row => {
+    const output = numericValueEvidence(row?.no_need_value, "no_need_value", { type: "currency" });
+    if (output.status === "valid") return;
+    const rowIndex = Number(row?.row_number || row?.__sourceRowIndex || 0);
+    const sourceInputs = ["direct_no_need_value", "no_need_conso_value", "no_need_no_con_value"]
+      .map(fieldKey => ({ fieldKey, evidence: parseKpiSourceCell(rowIndex, fieldKey) }));
+    const invalidInputs = sourceInputs
+      .filter(({ evidence }) => ["invalid", "ambiguous", "overflow"].includes(evidence.kind));
+    if (invalidInputs.length) {
+      invalidInputs.forEach(({ fieldKey }) => causes.push(createKpiCause(row, fieldKey, metricSpec, {
+        calculationStatus: "unavailable",
+        calculationReason: "invalid_no_demand_input"
+      })));
+      return;
+    }
+    let derivedSum = 0;
+    const positiveInputs = [];
+    sourceInputs.forEach(input => {
+      const value = input.evidence.parseResult?.normalizedValue;
+      const contribution = Number.isFinite(value) && value > 0 ? value : 0;
+      if (contribution > 0) positiveInputs.push(input);
+      derivedSum += contribution;
+    });
+    if (!Number.isFinite(derivedSum) && positiveInputs.length) {
+      positiveInputs.forEach(({ fieldKey }) => causes.push(createKpiCause(row, fieldKey, metricSpec, {
+        kind: "overflow",
+        calculationStatus: "unavailable",
+        calculationReason: "derived_value_overflow",
+        dependencyKey: "kpiDependencyNoDemandSum"
+      })));
+      return;
+    }
+    const physicalInputs = sourceInputs.filter(({ evidence }) => evidence.identity);
+    if (physicalInputs.length) {
+      physicalInputs.forEach(({ fieldKey }) => causes.push(createKpiCause(row, fieldKey, metricSpec, {
+        kind: "calculation_unavailable",
+        calculationStatus: "unavailable",
+        calculationReason: "no_demand_calculation_unavailable",
+        dependencyKey: "kpiDependencyNoDemandSum"
+      })));
+      return;
+    }
+    causes.push(createKpiCause(row, "no_need_value", metricSpec, {
+      kind: "unknown_mapping",
+      calculationStatus: "unavailable",
+      calculationReason: "no_demand_calculation_unavailable",
+      dependencyKey: "kpiDependencyNoDemandSum"
+    }));
+  });
+  return uniqueKpiCauses(causes);
+}
+
+function recoveryKpiCauses(rows, metricSpec) {
+  const causes = [];
+  rows.forEach(row => {
+    const output = numericValueEvidence(row?.recovery_potential, "recovery_potential", { type: "currency" });
+    if (output.status === "valid") return;
+    const rowCauses = [];
+    if (row?.stock_value_availability === "unavailable" || row?.stock_value === null || row?.stock_value === undefined) {
+      rowCauses.push(...stockValueKpiCauses(row, metricSpec, {
+        dependencyKey: "kpiDependencyRecoveryStock"
+      }));
+    }
+    const rowIndex = Number(row?.row_number || row?.__sourceRowIndex || 0);
+    const invalidInputs = recoveryInputFieldKeys
+      .map(fieldKey => ({ fieldKey, evidence: parseKpiSourceCell(rowIndex, fieldKey) }))
+      .filter(({ evidence }) => ["invalid", "ambiguous", "overflow"].includes(evidence.kind));
+    if (invalidInputs.length) {
+      invalidInputs.forEach(({ fieldKey }) => rowCauses.push(createKpiCause(row, fieldKey, metricSpec, {
+        calculationStatus: row?.recovery_calculation_status || "unavailable",
+        calculationReason: row?.recovery_unavailable_reason || "invalid_recovery_input",
+        dependencyKey: "kpiDependencyRecoveryInput"
+      })));
+    }
+    if (rowCauses.length) {
+      causes.push(...rowCauses);
+      return;
+    }
+    causes.push(createKpiCause(row, "recovery_potential", metricSpec, {
+      kind: "calculation_unavailable",
+      calculationStatus: row?.recovery_calculation_status || "unavailable",
+      calculationReason: row?.recovery_unavailable_reason || "recovery_calculation_unavailable",
+      dependencyKey: "kpiDependencyRecoveryInput"
+    }));
+  });
+  return uniqueKpiCauses(causes);
+}
+
+function mappedCurrencyForKpiField(fieldKey, rows = []) {
+  const { mappingEntry, identity } = exactKpiMappingEvidence(fieldKey);
+  if (!mappingEntry || !identity) return { mapped: false, currency: "", currencies: [], fieldKey };
+  const policy = mappingEntry.normalizationPolicy || {};
+  const profile = mappingEntry.profileEvidence || {};
+  const currencies = new Set([
+    String(policy.sourceCurrency || policy.detectedCurrency || profile.headerCurrency || "").toUpperCase()
+  ].filter(Boolean));
+  rows.forEach(row => {
+    const rowIndex = Number(row?.row_number || row?.__sourceRowIndex || 0);
+    const detectedCurrency = String(parseKpiSourceCell(rowIndex, fieldKey).parseResult?.detectedCurrency || "").toUpperCase();
+    if (detectedCurrency) currencies.add(detectedCurrency);
+  });
+  return {
+    mapped: true,
+    currency: currencies.size === 1 ? [...currencies][0] : "",
+    currencies: [...currencies].sort(),
+    fieldKey,
+    sourceIndex: identity.sourceIndex,
+    sourceKey: identity.sourceKey
+  };
+}
+
+function kpiPartialCurrencyContext(metricSpec, rows = []) {
+  const fields = metricSpec.currencyFields || [];
+  const mapped = fields.map(fieldKey => mappedCurrencyForKpiField(fieldKey, rows)).filter(item => item.mapped);
+  const currencies = [...new Set(mapped.flatMap(item => item.currencies || []).filter(Boolean))].sort();
+  const fieldsWithoutCurrency = mapped.filter(item => !(item.currencies || []).length).map(item => item.fieldKey);
+  if (currencies.length > 1) {
+    return { safe: false, reason: "mixed_currency", currencies, fieldsWithoutCurrency };
+  }
+  if (!currencies.length || fieldsWithoutCurrency.length) {
+    return { safe: false, reason: "insufficient_currency", currencies, fieldsWithoutCurrency };
+  }
+  if (currencies[0] !== "EUR") {
+    return { safe: false, reason: "non_base_currency", currencies, fieldsWithoutCurrency };
+  }
+  return { safe: true, reason: "", currencies, fieldsWithoutCurrency };
+}
+
+function safeKpiSubtotal(rows, metricSpec, strictAggregate, causes) {
+  if (strictAggregate.value !== null || !rows.length) {
+    return { status: "not_needed", value: null, validCount: strictAggregate.validCount, excludedCount: 0, kind: "subtotal", reason: "" };
+  }
+  let value = 0;
+  let validCount = 0;
+  rows.forEach(row => {
+    const evidence = strictNonNegativeFinancialValue(row?.[metricSpec.fieldKey], {
+      fieldKey: metricSpec.fieldKey,
+      fieldDefinition: numericDefinition(metricSpec.fieldKey, "currency"),
+      rawValue: row?.[metricSpec.fieldKey]
+    });
+    if (evidence.status !== "available") return;
+    validCount += 1;
+    value += evidence.value;
+  });
+  const currencyContext = kpiPartialCurrencyContext(metricSpec, rows);
+  if (!currencyContext.safe) {
+    return {
+      status: "unavailable",
+      value: null,
+      validCount,
+      excludedCount: rows.length - validCount,
+      kind: "subtotal",
+      reason: currencyContext.reason,
+      currencyContext
+    };
+  }
+  if (!validCount || !Number.isFinite(value)) {
+    return {
+      status: "unavailable",
+      value: null,
+      validCount,
+      excludedCount: rows.length - validCount,
+      kind: "subtotal",
+      reason: Number.isFinite(value) ? "no_valid_contributions" : "overflow",
+      currencyContext
+    };
+  }
+  const excludesNegative = causes.some(cause => cause.kind === "negative" && cause.blocksSafeSubtotal);
+  return {
+    status: "available",
+    value: value === 0 ? 0 : value,
+    validCount,
+    excludedCount: rows.length - validCount,
+    kind: excludesNegative ? "nonnegative_projection" : "subtotal",
+    reason: "",
+    currencyContext
+  };
+}
+
+function buildKpiAvailabilityModel(rows, metricSpec, options = {}) {
+  const data = Array.isArray(rows) ? rows : [];
+  const strictAggregate = numericAggregate(data, metricSpec.fieldKey, { type: "currency" });
+  const causes = metricSpec.derived === "recovery"
+    ? recoveryKpiCauses(data, metricSpec)
+    : metricSpec.derived === "no_demand"
+      ? noDemandKpiCauses(data, metricSpec)
+      : directKpiCauses(data, metricSpec);
+  const partial = safeKpiSubtotal(data, metricSpec, strictAggregate, causes);
+  return {
+    key: metricSpec.key,
+    labelKey: metricSpec.labelKey,
+    fieldKey: metricSpec.fieldKey,
+    importedCount: Number.isFinite(Number(options.importedCount)) ? Number(options.importedCount) : rawRows.length,
+    relevantCount: data.length,
+    strictAggregate,
+    causes,
+    blockingCauses: causes.filter(cause => cause.blocksMetric),
+    partial,
+    sourceIdentity: currentKpiSourceIdentity(),
+    sourceToken: kpiSourceIdentityToken()
+  };
+}
+
+function buildRecoveryShareAvailabilityModel(rows, inventoryModel, recoveryModel, options = {}) {
+  const data = Array.isArray(rows) ? rows : [];
+  const inventory = inventoryModel.strictAggregate.value;
+  const recovery = recoveryModel.strictAggregate.value;
+  const value = inventory !== null && recovery !== null && inventory > 0
     ? recovery / inventory * 100
     : null;
-  setMoneyMetric("mInventory", inventory);
+  const pairedUsableCount = data.filter(row => (
+    numericValueEvidence(row?.stock_value, "stock_value", { type: "currency" }).status === "valid"
+    && numericValueEvidence(row?.recovery_potential, "recovery_potential", { type: "currency" }).status === "valid"
+  )).length;
+  const sourceCauses = uniqueKpiCauses([
+    ...inventoryModel.blockingCauses.map(cause => ({
+      ...cause,
+      metricKey: "share",
+      metricLabelKey: "metricRecoveryShare",
+      dependencyKey: cause.canonicalField === "stock_value" ? "kpiDependencyShareBoth" : "kpiDependencyShareStock"
+    })),
+    ...recoveryModel.blockingCauses
+      .filter(recoveryCause => !inventoryModel.blockingCauses.some(inventoryCause => (
+        inventoryCause.sourceRowIndex === recoveryCause.sourceRowIndex
+        && inventoryCause.sourceKey === recoveryCause.sourceKey
+        && inventoryCause.canonicalField === recoveryCause.canonicalField
+      )))
+      .map(cause => ({
+        ...cause,
+        metricKey: "share",
+        metricLabelKey: "metricRecoveryShare",
+        dependencyKey: "kpiDependencyShareRecovery"
+      }))
+  ]);
+  return {
+    key: "share",
+    labelKey: "metricRecoveryShare",
+    fieldKey: "",
+    importedCount: Number.isFinite(Number(options.importedCount)) ? Number(options.importedCount) : rawRows.length,
+    relevantCount: data.length,
+    strictAggregate: {
+      status: value === null ? (data.length ? "unavailable" : "incomplete") : "complete",
+      value,
+      totalCount: data.length,
+      validCount: pairedUsableCount,
+      missingCount: data.length - pairedUsableCount,
+      invalidCount: 0,
+      ambiguousCount: 0,
+      limited: value === null,
+      reasonCodes: value === null && inventory === 0 ? ["zero_denominator"] : []
+    },
+    causes: sourceCauses,
+    blockingCauses: sourceCauses,
+    partial: { status: "not_allowed", value: null, validCount: pairedUsableCount, excludedCount: data.length - pairedUsableCount, kind: "ratio", reason: "ratio_requires_complete_inputs" },
+    sourceIdentity: currentKpiSourceIdentity(),
+    sourceToken: kpiSourceIdentityToken()
+  };
+}
+
+function buildKpiAvailabilityModels(rows, options = {}) {
+  const models = {};
+  ["inventory", "excess", "blocked", "noDemand", "noPlan", "recovery"].forEach(key => {
+    models[key] = buildKpiAvailabilityModel(rows, KPI_AVAILABILITY_SPECS[key], options);
+  });
+  models.share = buildRecoveryShareAvailabilityModel(rows, models.inventory, models.recovery, options);
+  return models;
+}
+
+function kpiCauseLabel(kind) {
+  return t({
+    missing: "kpiCauseMissing",
+    invalid: "kpiCauseInvalid",
+    ambiguous: "kpiCauseAmbiguous",
+    negative: "kpiCauseNegative",
+    overflow: "kpiCauseOverflow",
+    unknown_mapping: "kpiCauseUnknownMapping",
+    insufficient_currency: "kpiCauseInsufficientCurrency",
+    calculation_unavailable: "kpiCauseCalculationUnavailable"
+  }[kind] || "kpiCauseCalculationUnavailable");
+}
+
+function kpiCoverageCauseSummary(model) {
+  const byField = new Map();
+  model.causes.forEach(cause => {
+    const fieldKey = cause.canonicalField || model.fieldKey || model.key;
+    if (!byField.has(fieldKey)) byField.set(fieldKey, new Map());
+    const kindCounts = byField.get(fieldKey);
+    kindCounts.set(cause.kind, (kindCounts.get(cause.kind) || 0) + 1);
+  });
+  return [...byField.entries()].map(([fieldKey, counts]) => {
+    const field = inventoryFieldDefinitions[fieldKey] ? fieldLabel(fieldKey) : t(model.labelKey);
+    const details = [...counts.entries()].map(([kind, count]) => {
+      const translationKey = {
+        missing: "kpiCoverageMissing",
+        invalid: "kpiCoverageInvalid",
+        ambiguous: "kpiCoverageAmbiguous",
+        negative: "kpiCoverageNegative",
+        overflow: "kpiCoverageOverflow",
+        unknown_mapping: "kpiCoverageUnknownMapping"
+      }[kind];
+      return translationKey ? formatKpiText(translationKey, { count: formatCount(count) }) : `${formatCount(count)} ${kpiCauseLabel(kind)}`;
+    });
+    return `${field}: ${details.join(", ")}`;
+  }).join("; ");
+}
+
+function kpiCoverageText(model) {
+  if (!model.relevantCount) return t("kpiCoverageNoRows");
+  const safeCountDiffers = model.partial.status === "available"
+    && model.partial.validCount !== model.strictAggregate.validCount;
+  const usable = safeCountDiffers ? model.partial.validCount : model.strictAggregate.validCount;
+  const base = formatKpiText(safeCountDiffers ? "kpiSafeCoverageTemplate" : "kpiCoverageTemplate", {
+    usable: formatCount(usable),
+    relevant: formatCount(model.relevantCount),
+    imported: formatCount(model.importedCount)
+  });
+  const causeText = kpiCoverageCauseSummary(model);
+  const coverage = causeText ? `${base} ${causeText}.` : base;
+  if (model.key !== "share") return coverage;
+  return model.strictAggregate.reasonCodes?.includes("zero_denominator")
+    ? `${coverage} ${t("kpiShareZeroDenominator")}`
+    : `${coverage} ${t("kpiShareUnavailableDependency")}`;
+}
+
+function renderKpiAvailabilityDetails(metricSpec, model) {
+  const available = model.strictAggregate.value !== null;
+  const coverageTarget = $(metricSpec.coverageId);
+  const partialTarget = metricSpec.partialId ? $(metricSpec.partialId) : null;
+  const actionTarget = $(metricSpec.actionId);
+  if (coverageTarget) {
+    coverageTarget.hidden = available;
+    coverageTarget.classList.toggle("hidden", available);
+    coverageTarget.textContent = available ? "" : kpiCoverageText(model);
+  }
+  if (partialTarget) {
+    const showPartial = !available && model.partial.status === "available";
+    const showUnavailableReason = !available
+      && model.relevantCount > 0
+      && model.partial.status === "unavailable"
+      && ["mixed_currency", "insufficient_currency", "non_base_currency", "overflow"].includes(model.partial.reason);
+    partialTarget.hidden = !(showPartial || showUnavailableReason);
+    partialTarget.classList.toggle("hidden", !(showPartial || showUnavailableReason));
+    if (showPartial) {
+      const labelKey = model.partial.kind === "nonnegative_projection" ? "kpiSafeProjectionLabel" : "kpiPartialLabel";
+      partialTarget.textContent = `${t(labelKey)}: ${formatCompactMoney(model.partial.value)}`;
+      partialTarget.title = `${t(labelKey)}: ${money(model.partial.value)}`;
+    } else if (showUnavailableReason) {
+      const reason = model.partial.reason === "insufficient_currency"
+        ? t("kpiCoverageInsufficientCurrency")
+        : model.partial.reason === "non_base_currency"
+          ? formatKpiText("kpiCoverageNonBaseCurrency", { source: model.partial.currencyContext?.currencies?.[0] || t("notAvailable") })
+        : model.partial.reason === "mixed_currency"
+          ? t("importBlockedMixedCurrency")
+          : t("kpiCauseOverflow");
+      partialTarget.textContent = formatKpiText("kpiPartialUnavailable", { reason });
+      partialTarget.title = partialTarget.textContent;
+    } else {
+      partialTarget.textContent = "";
+      partialTarget.title = "";
+    }
+  }
+  if (actionTarget) {
+    const showAction = !available && model.causes.some(cause => cause.sourceRowIndex > 0);
+    actionTarget.hidden = !showAction;
+    actionTarget.classList.toggle("hidden", !showAction);
+    actionTarget.dataset.kpiReview = metricSpec.key;
+    actionTarget.dataset.kpiSourceToken = model.sourceToken;
+    const labelTarget = actionTarget.querySelector("[data-kpi-review-label]") || actionTarget;
+    labelTarget.textContent = formatKpiText("kpiReviewMetricData", { metric: t(model.labelKey) });
+  }
+}
+
+function renderMetrics(data) {
+  const models = buildKpiAvailabilityModels(data);
+  setMoneyMetric("mInventory", models.inventory.strictAggregate.value);
   $("mRows").textContent = currentLanguage === "de"
     ? `${formatCount(data.length)} Bestandspositionen`
     : `${formatCount(data.length)} inventory items`;
-  setMoneyMetric("mExcess", sum(data, "excess_value"));
-  setMoneyMetric("mBad", sum(data, "bad_stock_value"));
-  setMoneyMetric("mNoNeed", sum(data, "no_need_value"));
-  setMoneyMetric("mNoPlan", sum(data, "no_plan_value"));
-  setMoneyMetric("mRecovery", recovery);
-  $("mShare").textContent = `${pct(recoveryShare)} ${t("recoveryAddressable")}`;
+  setMoneyMetric("mExcess", models.excess.strictAggregate.value);
+  setMoneyMetric("mBad", models.blocked.strictAggregate.value);
+  setMoneyMetric("mNoNeed", models.noDemand.strictAggregate.value);
+  setMoneyMetric("mNoPlan", models.noPlan.strictAggregate.value);
+  setMoneyMetric("mRecovery", models.recovery.strictAggregate.value);
+  ["inventory", "excess", "blocked", "noDemand", "noPlan", "recovery"].forEach(key => {
+    renderKpiAvailabilityDetails(KPI_AVAILABILITY_SPECS[key], models[key]);
+  });
+  const shareTarget = $("mShare");
+  if (shareTarget) {
+    const recoveryShare = models.share.strictAggregate.value;
+    shareTarget.textContent = recoveryShare === null
+      ? pct(null)
+      : `${pct(recoveryShare)} ${t("recoveryAddressable")}`;
+    shareTarget.classList.toggle("metric-value-unavailable", recoveryShare === null);
+  }
+  renderKpiAvailabilityDetails(KPI_AVAILABILITY_SPECS.share, models.share);
   const progressFill = $("recoveryProgressFill");
   if (progressFill) {
+    const recoveryShare = models.share.strictAggregate.value;
     progressFill.style.width = `${recoveryShare === null ? 0 : Math.max(0, Math.min(recoveryShare, 100))}%`;
   }
+  return models;
 }
 
 function renderBars(targetId, items, options = {}) {
@@ -7449,6 +8302,52 @@ function renderTableHeaderCell(key, label, options = {}) {
         </button>
       </div>
     </th>
+  `;
+}
+
+function inventoryDatasetDisplayState() {
+  const inventoryPackage = currentInventoryPackage();
+  if (!inventoryPackage) return "missing";
+  const sourceState = dataFoundationSourceState(inventoryPackage);
+  if (sourceState.className === "invalid" || !currentDatasetMeta || enrichedRows.length === 0) return "unusable";
+  return "loaded";
+}
+
+function syncOverviewEmptyState() {
+  const target = $("overviewEmptyState");
+  if (!target) return "missing";
+  const state = inventoryDatasetDisplayState();
+  const titleKey = state === "unusable" ? "noUsableInventoryRows" : "noDataLoaded";
+  const bodyKey = state === "unusable" ? "noUsableInventoryRowsBody" : "noDataLoadedBody";
+  const title = target.querySelector("[data-empty-state-title]");
+  const body = target.querySelector("[data-empty-state-body]");
+  target.dataset.emptyState = state;
+  target.hidden = state === "loaded";
+  target.classList.toggle("hidden", state === "loaded");
+  if (title) {
+    title.dataset.i18n = titleKey;
+    title.textContent = t(titleKey);
+  }
+  if (body) {
+    body.dataset.i18n = bodyKey;
+    body.textContent = t(bodyKey);
+  }
+  return state;
+}
+
+function renderDatasetEmptyState() {
+  const unusable = inventoryDatasetDisplayState() === "unusable";
+  const titleKey = unusable ? "noUsableInventoryRows" : "noDataLoaded";
+  const bodyKey = unusable ? "noUsableInventoryRowsBody" : "noDataLoadedBody";
+  return `
+    <div class="empty data-quality-empty-state filter-empty-state" data-dataset-empty-state="${unusable ? "unusable" : "missing"}">
+      <strong>${html(t(titleKey))}</strong>
+      <p>${html(t(bodyKey))}</p>
+      <div class="empty-state-actions">
+        <button class="primary" type="button" data-empty-load-sample>${iconHtml("sample-data", { className: "oq-icon--button" })}<span>${html(t("loadSampleData"))}</span></button>
+        <button class="secondary" type="button" data-empty-upload>${iconHtml("upload-file", { className: "oq-icon--button" })}<span>${html(t("uploadButton"))}</span></button>
+      </div>
+    </div>
   `;
 }
 
@@ -9217,7 +10116,13 @@ function renderOverviewTopHeadCell({ key, label, filterable = true }) {
 
 function renderTopRecoveryTable(data) {
   const rows = visibleTopRows(data).slice(0, 100);
-  if (!rows.length) return renderEmptyState();
+  if (!rows.length) {
+    const hasColumnFilters = Object.keys(filterState.columnFilters.top || {})
+      .some(key => isColumnFilterActive("top", key));
+    return renderEmptyState(hasOverviewFiltersActive() || hasColumnFilters
+      ? t("noFilterMatches")
+      : t("noRowsSelection"));
+  }
 
   const headers = [
     { key: "material_action", label: "Material" },
@@ -11811,6 +12716,7 @@ function resetRemediationState() {
   remediationHistory = [];
   remediationPreview = null;
   activeRemediationIssueId = null;
+  activeKpiCauseFocus = null;
   originalDataQualitySnapshot = null;
 }
 
@@ -12881,7 +13787,10 @@ function remediationCorrectedLabel(value) {
 }
 
 function sourceRow(rowIndex) {
-  return rawRows[Number(rowIndex) - 1] || null;
+  const physicalRowIndex = Number(rowIndex);
+  return rawRows.find(row => Number(row?.__sourceRowIndex) === physicalRowIndex)
+    || rawRows[physicalRowIndex - 1]
+    || null;
 }
 
 function normalizedRow(rowIndex) {
@@ -13232,6 +14141,72 @@ function remediationStatusMatches(issue, status) {
   return issueStatus === status;
 }
 
+function resetRemediationFiltersForKpiFocus() {
+  filterState.remediationType = "all";
+  filterState.remediationSeverity = "all";
+  filterState.remediationStatus = "all";
+  filterState.remediationQuick = "all";
+  filterState.remediationSearch = "";
+  filterState.remediationField = "";
+  filterState.remediationMaterial = "";
+  filterState.remediationCorrected = "all";
+}
+
+function currentKpiFocusModel(options = {}) {
+  if (!activeKpiCauseFocus) return null;
+  const identity = currentKpiSourceIdentity();
+  if (kpiSourceIdentityToken(identity) !== activeKpiCauseFocus.sourceToken) {
+    activeKpiCauseFocus = null;
+    if (options.feedback === true) setFeedback(t("kpiCauseFocusCleared"), "warning", { autoReset: true });
+    return null;
+  }
+  const model = buildKpiAvailabilityModels(getOverviewRows())[activeKpiCauseFocus.metricKey] || null;
+  if (!model || !model.causes.length) {
+    activeKpiCauseFocus = null;
+    if (options.feedback === true) setFeedback(t("kpiCauseFocusNoLongerCurrent"), "warning", { autoReset: true });
+    return null;
+  }
+  activeKpiCauseFocus = {
+    metricKey: model.key,
+    sourceToken: model.sourceToken,
+    sourceIdentity: model.sourceIdentity
+  };
+  return model;
+}
+
+function openKpiCauseFocus(metricKey, expectedSourceToken = "") {
+  const model = buildKpiAvailabilityModels(getOverviewRows())[metricKey] || null;
+  if (!model || (expectedSourceToken && model.sourceToken !== expectedSourceToken)) {
+    activeKpiCauseFocus = null;
+    setFeedback(t("kpiCauseFocusCleared"), "warning", { autoReset: true });
+    return false;
+  }
+  if (!model.causes.length) {
+    activeKpiCauseFocus = null;
+    setFeedback(t("kpiCauseFocusNoLongerCurrent"), "warning", { autoReset: true });
+    return false;
+  }
+  activeKpiCauseFocus = {
+    metricKey: model.key,
+    sourceToken: model.sourceToken,
+    sourceIdentity: model.sourceIdentity
+  };
+  resetRemediationFiltersForKpiFocus();
+  switchProcessTab("data-quality", t("navDataQuality"));
+  return true;
+}
+
+function kpiFocusMatchesIssue(issue, model) {
+  if (!model) return true;
+  return model.causes.some(cause => {
+    if (!(issue.sourceRowIndexes || []).map(Number).includes(Number(cause.sourceRowIndex))) return false;
+    if (cause.canonicalField && !(issue.canonicalFields || []).includes(cause.canonicalField)) return false;
+    const physicalSourceKey = cause.sourceKey || cause.sourceColumn || "";
+    if (physicalSourceKey && (issue.sourceColumns || []).length && !(issue.sourceColumns || []).includes(physicalSourceKey)) return false;
+    return true;
+  });
+}
+
 function remediationWorklistSource(currentIssues) {
   const status = activeValue(filterState.remediationStatus);
   const wantsLedgerHistory = ["corrected", "accepted", "ignored", "all_statuses"].includes(status)
@@ -13241,6 +14216,7 @@ function remediationWorklistSource(currentIssues) {
 }
 
 function filteredRemediationIssues(issues) {
+  const kpiFocusModel = currentKpiFocusModel();
   const type = activeValue(filterState.remediationType);
   const severity = activeValue(filterState.remediationSeverity);
   const status = activeValue(filterState.remediationStatus);
@@ -13250,6 +14226,7 @@ function filteredRemediationIssues(issues) {
   const materialQuery = String(filterState.remediationMaterial || "").trim().toLocaleLowerCase(locale());
   const corrected = activeValue(filterState.remediationCorrected);
   return issues.filter(issue => {
+    if (kpiFocusModel && !kpiFocusMatchesIssue(issue, kpiFocusModel)) return false;
     if (type && issue.issueType !== type) return false;
     if (severity && issue.severity !== severity) return false;
     if (status && !remediationStatusMatches(issue, status)) return false;
@@ -13769,6 +14746,81 @@ function scheduleRemediationFilterResults(options = {}) {
   return true;
 }
 
+function kpiCauseDependencyText(cause, model) {
+  if (cause.dependencyKey === "kpiDependencyDirect") {
+    return formatKpiText("kpiDependencyDirect", { metric: t(model.labelKey) });
+  }
+  return t(cause.dependencyKey || "kpiCauseCalculationUnavailable");
+}
+
+function kpiCauseStatusText(cause) {
+  const details = [
+    kpiCauseLabel(cause.kind),
+    ...(cause.normalizationCodes || []),
+    cause.calculationStatus && cause.calculationStatus !== cause.normalizationStatus
+      ? `${currentLanguage === "de" ? "Berechnung" : "calculation"}: ${cause.calculationStatus}`
+      : "",
+    cause.calculationReason ? cause.calculationReason : ""
+  ].filter(Boolean);
+  return [...new Set(details)].join(" · ");
+}
+
+function renderKpiCauseFocusPanel() {
+  const model = currentKpiFocusModel();
+  if (!model) return "";
+  const identity = model.sourceIdentity;
+  const rows = model.causes.map(cause => {
+    const sourceLabel = cause.sourceColumn
+      ? `${cause.sourceColumn} · ${currentLanguage === "de" ? "Spalte" : "column"} ${Number(cause.sourceIndex) + 1}${cause.sourceKey && cause.sourceKey !== cause.sourceColumn ? ` · ${cause.sourceKey}` : ""}`
+      : t("kpiCauseUnknownMapping");
+    const rawValue = String(cause.rawValue ?? "").trim() === "" ? t("kpiCauseEmptyRawValue") : String(cause.rawValue);
+    return `
+      <tr data-kpi-cause-row="${html(cause.sourceRowIndex)}" data-kpi-cause-field="${html(cause.canonicalField)}">
+        <td>${html(`${cause.packageId} · ${t("revision")} ${cause.packageRevision}`)}</td>
+        <td>${html(cause.sourceRowIndex)}</td>
+        <td>${html(cause.materialId || t("notAvailable"))}</td>
+        <td>${html(cause.plant || cause.profitCenter || t("notAvailable"))}</td>
+        <td>${html(sourceLabel)}</td>
+        <td>${html(`${fieldLabel(cause.canonicalField)} · ${cause.canonicalField}`)}</td>
+        <td>${html(rawValue)}</td>
+        <td>${html(kpiCauseStatusText(cause))}</td>
+        <td>${html(kpiCauseDependencyText(cause, model))}</td>
+        <td>${cause.issueId ? `<button class="secondary small" type="button" data-remediation-review="${html(cause.issueId)}">${html(t("review"))}</button>` : html(t("notAvailable"))}</td>
+      </tr>
+    `;
+  }).join("");
+  return `
+    <section class="data-quality-section" data-kpi-cause-focus="${html(model.key)}" data-kpi-source-token="${html(model.sourceToken)}">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h3>${html(formatKpiText("kpiCauseFocusTitle", { metric: t(model.labelKey) }))}</h3>
+          <small>${html(formatKpiText("kpiCauseFocusSubtitle", { package: identity.packageId || t("notAvailable"), revision: identity.packageRevision || t("notAvailable") }))}</small>
+        </div>
+        <button class="secondary small" type="button" data-kpi-focus-clear>${html(t("kpiClearCauseFocus"))}</button>
+      </div>
+      <div class="table-wrap data-quality-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>${html(t("kpiCausePackage"))}</th>
+              <th>${html(t("kpiCausePhysicalRow"))}</th>
+              <th>${html(t("material"))}</th>
+              <th>${html(t("plant"))}</th>
+              <th>${html(t("kpiCauseSourceColumn"))}</th>
+              <th>${html(t("kpiCauseCanonicalField"))}</th>
+              <th>${html(t("kpiCauseRawValue"))}</th>
+              <th>${html(t("kpiCauseStatus"))}</th>
+              <th>${html(t("kpiCauseDependency"))}</th>
+              <th>${html(t("actions"))}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
 function renderDataRemediationWorkspace(model, options = {}) {
   const { issues, stats, worklistIssues, filteredIssues } = remediationRenderModel();
   return `
@@ -13782,6 +14834,7 @@ function renderDataRemediationWorkspace(model, options = {}) {
         ${renderRemediationHeaderActions()}
       </div>
       ${renderRemediationOverview(model, stats)}
+      ${renderKpiCauseFocusPanel()}
       ${renderRemediationFilters()}
       <div id="remediationActiveFiltersRegion">${renderRemediationActiveFilters()}</div>
       <div id="remediationResultMetaRegion">${renderRemediationResultMeta(filteredIssues, worklistIssues)}</div>
@@ -15400,6 +16453,7 @@ function snapshotRemediationRuntimeState() {
     remediationHistory: clonePlainArray(remediationHistory),
     remediationPreview: clonePlainRecord(remediationPreview),
     activeRemediationIssueId,
+    activeKpiCauseFocus: clonePlainRecord(activeKpiCauseFocus),
     originalDataQualitySnapshot: clonePlainRecord(originalDataQualitySnapshot),
     dataPackageRegistrySnapshot: dataPackageRegistry.snapshot(),
     activeInventoryPackageInvariantSatisfied: activeInventoryPackageInvariantCurrentlySatisfied(),
@@ -15420,6 +16474,7 @@ function restoreRemediationRuntimeState(snapshot) {
   remediationHistory = clonePlainArray(snapshot.remediationHistory);
   remediationPreview = clonePlainRecord(snapshot.remediationPreview);
   activeRemediationIssueId = snapshot.activeRemediationIssueId;
+  activeKpiCauseFocus = clonePlainRecord(snapshot.activeKpiCauseFocus);
   originalDataQualitySnapshot = clonePlainRecord(snapshot.originalDataQualitySnapshot);
   dataPackageRegistry.restore(snapshot.dataPackageRegistrySnapshot || {});
   if (snapshot.activeInventoryPackageInvariantSatisfied !== false) {
@@ -15594,6 +16649,11 @@ function packageValidationReason(packageRecord) {
 
 function dataFoundationSourceState(packageRecord) {
   if (!packageRecord) return { className: "missing", label: t("packageMissing") };
+  if (packageRecord.packageType === INVENTORY_PACKAGE_TYPE
+    && Number.isFinite(packageRecord.buildData?.analyticalRowCount)
+    && packageRecord.buildData.analyticalRowCount === 0) {
+    return { className: "invalid", label: t("sourceImportedButNotUsable") };
+  }
   if (packageRecord.status === "invalid" || packageRecord.packageValidation?.statusKey === "invalid") {
     return { className: "invalid", label: t("packageInvalid") };
   }
@@ -15602,6 +16662,11 @@ function dataFoundationSourceState(packageRecord) {
 
 function dataFoundationPackageValidityState(packageRecord) {
   if (!packageRecord) return { key: "unknown", className: "missing", label: t("packageValidityUnknown") };
+  if (packageRecord.packageType === INVENTORY_PACKAGE_TYPE
+    && Number.isFinite(packageRecord.buildData?.analyticalRowCount)
+    && packageRecord.buildData.analyticalRowCount === 0) {
+    return { key: "unusable", className: "invalid", label: t("sourceImportedButNotUsable") };
+  }
   if (packageRecord.status === "invalid" || packageRecord.packageValidation?.statusKey === "invalid") {
     return { key: "invalid", className: "invalid", label: t("packageValidityInvalid") };
   }
@@ -16376,6 +17441,20 @@ function renderHistoryPreparationItem(presentationModel) {
   `;
 }
 
+function renderInventoryDataFoundationSourceRow(packageRecord) {
+  const state = dataFoundationSourceState(packageRecord);
+  const available = state.className === "available";
+  return renderDataFoundationSourceRow("inventoryData", packageRecord, {
+    state,
+    sourceKind: "inventory",
+    variant: packageRecord && available ? "compact-active" : "diagnostic",
+    statusLabel: packageRecord
+      ? available ? t("packageActive") : state.label
+      : t("dataFoundationReview"),
+    diagnosticText: packageRecord && !available ? state.label : ""
+  });
+}
+
 function renderPackageAvailability() {
   const target = $("dataPackagesPanel");
   if (!target) return;
@@ -16466,11 +17545,7 @@ function renderPackageAvailability() {
         <div class="data-foundation-detail-body">
           <div class="data-foundation-section-label">${html(t("dfLoadedSources"))}</div>
           <div class="data-foundation-source-list">
-            ${renderDataFoundationSourceRow("inventoryData", inventoryPackage, {
-              sourceKind: "inventory",
-              variant: inventoryPackage ? "compact-active" : "diagnostic",
-              statusLabel: inventoryPackage ? t("packageActive") : t("dataFoundationReview")
-            })}
+            ${renderInventoryDataFoundationSourceRow(inventoryPackage)}
             ${materialMasterPackage ? materialRow : ""}
             ${consumptionHistoryPackage ? historyRow : ""}
             ${purchaseOrdersPackage ? poRow : ""}
@@ -16530,6 +17605,7 @@ function renderPackageAvailability() {
 
 function renderOverview() {
   const overviewData = getOverviewRows();
+  syncOverviewEmptyState();
   updateVisibleDatasetChipsForView("dashboard", overviewData.length);
   renderPackageAvailability();
   renderMetrics(overviewData);
@@ -17045,6 +18121,11 @@ function renderCurrentView(options = {}) {
   if (currentView !== "check") cancelScheduledRemediationFilterRender();
   if (options.syncStateFromControls !== false) updateFilterStateFromControls();
   if (options.globalChrome !== false) renderGlobalChrome();
+  if (inventoryDatasetDisplayState() !== "loaded") {
+    renderEmptyDatasetState({ globalChrome: false });
+    dirtyDataViews.delete(currentView);
+    return;
+  }
   if (currentView === "dashboard") renderOverview();
   if (currentView === "excess") renderExcessPage();
   if (currentView === "slow-dead") renderSlowDeadPage();
@@ -17068,20 +18149,21 @@ function renderAfterDatasetChange(options = {}) {
   renderCurrentView({ globalChrome: false, syncStateFromControls: false });
 }
 
-function renderEmptyDatasetState() {
-  renderGlobalChrome({ syncStateFromControls: false });
+function renderEmptyDatasetState(options = {}) {
+  if (options.globalChrome !== false) renderGlobalChrome({ syncStateFromControls: false });
   renderPackageAvailability();
+  syncOverviewEmptyState();
   renderMetrics([]);
   renderBars("categoryBars", []);
   renderBars("plantBars", []);
-  if ($("topTable")) $("topTable").innerHTML = renderEmptyState(t("noDataLoaded"));
-  if ($("excessPage")) $("excessPage").innerHTML = renderEmptyState(t("noDataLoaded"));
-  if ($("slowDeadPage")) $("slowDeadPage").innerHTML = renderEmptyState(t("noDataLoaded"));
-  if ($("inventoryRisksPage")) $("inventoryRisksPage").innerHTML = renderEmptyState(t("noDataLoaded"));
+  if ($("topTable")) $("topTable").innerHTML = renderDatasetEmptyState();
+  if ($("excessPage")) $("excessPage").innerHTML = renderDatasetEmptyState();
+  if ($("slowDeadPage")) $("slowDeadPage").innerHTML = renderDatasetEmptyState();
+  if ($("inventoryRisksPage")) $("inventoryRisksPage").innerHTML = renderDatasetEmptyState();
   renderActionSummary([]);
-  if ($("actionsTable")) $("actionsTable").innerHTML = renderEmptyState(t("noDataLoaded"));
-  if ($("inventoryTable")) $("inventoryTable").innerHTML = renderEmptyState(t("noDataLoaded"));
-  if ($("dataCheck")) $("dataCheck").innerHTML = renderEmptyState(t("noDataLoaded"));
+  if ($("actionsTable")) $("actionsTable").innerHTML = renderDatasetEmptyState();
+  if ($("inventoryTable")) $("inventoryTable").innerHTML = renderDatasetEmptyState();
+  if ($("dataCheck")) $("dataCheck").innerHTML = renderDatasetEmptyState();
   updateVisibleDatasetChips(0);
 }
 
@@ -21605,6 +22687,7 @@ function updateLanguage(language) {
   saveSettings();
   applyTranslations({ render: false });
   if (enrichedRows.length) renderAfterPresentationChange();
+  else renderEmptyDatasetState();
   setFeedback(t("languageUpdated"), "ok", { autoReset: true });
 }
 
@@ -22104,6 +23187,30 @@ document.addEventListener("input", handleFilterControlEvent);
 document.addEventListener("change", handleFilterControlEvent);
 document.addEventListener("click", event => {
   if (!(event.target instanceof Element)) return;
+  const kpiReviewButton = event.target.closest("[data-kpi-review]");
+  if (kpiReviewButton) {
+    event.preventDefault();
+    openKpiCauseFocus(kpiReviewButton.dataset.kpiReview || "", kpiReviewButton.dataset.kpiSourceToken || "");
+    return;
+  }
+  if (event.target.closest("[data-kpi-focus-clear]")) {
+    event.preventDefault();
+    activeKpiCauseFocus = null;
+    renderDataQuality();
+    return;
+  }
+  const emptySampleButton = event.target.closest("[data-empty-load-sample]");
+  if (emptySampleButton) {
+    event.preventDefault();
+    $("sampleButton")?.click();
+    return;
+  }
+  const emptyUploadButton = event.target.closest("[data-empty-upload]");
+  if (emptyUploadButton) {
+    event.preventDefault();
+    $("uploadButton")?.click();
+    return;
+  }
   const scoreDiagnosticToggle = event.target.closest("[data-score-diagnostic-toggle]");
   if (scoreDiagnosticToggle) {
     event.preventDefault();
@@ -22648,6 +23755,7 @@ function createObsoliqTestBridge() {
       renderPackageAvailability();
       return $("dataPackagesPanel")?.textContent || "";
     },
+    renderInventoryDataFoundationSourceRowForTest: packageRecord => renderInventoryDataFoundationSourceRow(packageRecord),
     buildDataFoundationPresentationModelForTest: (input = {}) => clonePlainRecord(buildDataFoundationPresentationModel({
       inventoryPackage: Object.prototype.hasOwnProperty.call(input, "inventoryPackage") ? input.inventoryPackage : currentInventoryPackage(),
       materialMasterPackage: Object.prototype.hasOwnProperty.call(input, "materialMasterPackage") ? input.materialMasterPackage : currentMaterialMasterPackage(),
@@ -22765,6 +23873,15 @@ function createObsoliqTestBridge() {
     exportValueForTest: (row, key) => exportValue(row || {}, key || ""),
     convertMoneyValueForTest: (value, key = "", options = {}) => convertMoneyValue(value, key, options),
     numericAggregateForTest: (rows, key, options = {}) => clonePlainRecord(numericAggregate(rows || [], key || "", options)),
+    buildKpiAvailabilityModelsForTest: (rows = enrichedRows, options = {}) => clonePlainRecord(buildKpiAvailabilityModels(rows || [], options)),
+    renderMetricsForTest: (rows = enrichedRows) => clonePlainRecord(renderMetrics(rows || [])),
+    kpiCauseKindForTest: (parseResult, options = {}) => kpiCauseKind(parseResult, options),
+    kpiSourceIdentityTokenForTest: identity => kpiSourceIdentityToken(identity || currentKpiSourceIdentity()),
+    openKpiCauseFocusForTest: (metricKey, expectedSourceToken = "") => openKpiCauseFocus(metricKey, expectedSourceToken),
+    getKpiCauseFocusForTest: () => clonePlainRecord(activeKpiCauseFocus),
+    currentKpiFocusModelForTest: () => clonePlainRecord(currentKpiFocusModel()),
+    renderKpiCauseFocusPanelForTest: () => renderKpiCauseFocusPanel(),
+    kpiFocusMatchesIssueForTest: (issue, model) => kpiFocusMatchesIssue(issue || {}, model || null),
     sumForTest: (rows, key, options = {}) => sum(rows || [], key || "", options),
     groupSumForTest: (rows, groupKey, valueKey) => clonePlainArray(groupSum(rows || [], groupKey || "", valueKey || "")),
     formatNumericForTest: (kind, value, options = {}) => {
@@ -23003,6 +24120,7 @@ function createObsoliqTestBridge() {
       dataQualityIssues: dataQualityIssues.length,
       dataQualityIssuesEvaluated,
       issueLedgerSize: dataQualityIssueLedger.size,
+      activeKpiCauseFocus: clonePlainRecord(activeKpiCauseFocus),
       dataCorrections: dataCorrections.length,
       issueDecisions: issueDecisions.length,
       remediationActions: remediationActions.length,
@@ -23070,21 +24188,10 @@ function bootstrapObsoliQApp() {
   initDataFoundationDisclosureController();
   applyTheme();
   applyTranslations({ render: false });
-  if (obsoliqTestMode) {
-    syncDatasetUiFromMeta(null);
-    fullDemoBaselineSnapshot = snapshotDatasetRuntimeState();
-    window.__obsoliqTestBridge = createObsoliqTestBridge();
-    return;
-  }
   syncDatasetUiFromMeta(null);
+  renderEmptyDatasetState();
   fullDemoBaselineSnapshot = snapshotDatasetRuntimeState();
-  loadFullDemoData({
-    preserveFailureFeedback: true
-  })
-    .catch(error => {
-      console.error("ObsoliQ sample dataset load failed", error);
-      setFeedback(t("uploadFailed"), "error");
-    });
+  if (obsoliqTestMode) window.__obsoliqTestBridge = createObsoliqTestBridge();
 }
 
 bootstrapObsoliQApp();

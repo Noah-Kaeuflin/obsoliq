@@ -22,7 +22,7 @@
       <input id="fileInput" type="file" accept=".xlsx,.csv,.tsv" />
       <button id="sampleButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="sample-data"><use href="#oq-sample-data"></use></svg><span data-i18n="sampleButton">Beispieldaten</span></button>
       <button id="exportInventoryButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportInventory">Bestand exportieren</span></button>
-      <span id="actionFeedback" class="action-feedback"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="data-loaded" hidden><use href="#oq-data-loaded"></use></svg><span class="action-feedback-text" data-i18n="ready">Bereit</span></span>
+      <span id="actionFeedback" class="action-feedback"><svg class="oq-icon oq-icon--micro" aria-hidden="true" focusable="false" data-oq-icon="data-loaded" hidden><use href="#oq-data-loaded"></use></svg><span class="action-feedback-text" data-i18n="noDataLoaded">Noch keine Daten geladen</span></span>
     </div>
   </header>
 
@@ -55,39 +55,67 @@
     </section>
 
     <section class="overview-top">
+      <section id="overviewEmptyState" class="panel data-quality-empty-state" aria-live="polite">
+        <strong data-empty-state-title data-i18n="noDataLoaded">Noch keine Daten geladen</strong>
+        <p data-empty-state-body data-i18n="noDataLoadedBody">Lade die verknüpften Beispieldaten oder importiere eine eigene Datei, um die Analyse zu starten.</p>
+        <div class="empty-state-actions">
+          <button class="primary" type="button" data-empty-load-sample><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="sample-data"><use href="#oq-sample-data"></use></svg><span data-i18n="loadSampleData">Beispieldaten laden</span></button>
+          <button class="secondary" type="button" data-empty-upload><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="upload-file"><use href="#oq-upload-file"></use></svg><span data-i18n="uploadButton">Datei hochladen</span></button>
+        </div>
+      </section>
       <div class="overview-main">
         <div class="metric-section-head" data-i18n="summarySectionLabel">Kernkennzahlen</div>
 
         <section class="metrics">
           <div class="metric inventory">
             <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="total-inventory"><use href="#oq-total-inventory"></use></svg><span data-i18n="metricInventory">Gesamtbestand</span></div>
-            <div id="mInventory" class="value">0 EUR</div>
+            <div id="mInventory" class="value metric-value-unavailable">—</div>
             <div id="mRows" class="sub">0 Zeilen</div>
+            <div id="mInventoryCoverage" class="sub hidden" aria-live="polite"></div>
+            <div id="mInventoryPartial" class="sub hidden"></div>
+            <button id="mInventoryReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
           </div>
           <div class="metric excess">
             <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="excess-stock"><use href="#oq-excess-stock"></use></svg><span data-i18n="metricExcess">Überbestand</span></div>
-            <div id="mExcess" class="value">0 EUR</div>
+            <div id="mExcess" class="value metric-value-unavailable">—</div>
             <div id="mExcessSub" class="sub" data-i18n="metricExcessSub">adressierbarer Überbestand</div>
+            <div id="mExcessCoverage" class="sub hidden" aria-live="polite"></div>
+            <div id="mExcessPartial" class="sub hidden"></div>
+            <button id="mExcessReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
           </div>
           <div class="metric bad">
             <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="blocked-quality"><use href="#oq-blocked-quality"></use></svg><span data-i18n="metricBad">Gesperrt / QI</span></div>
-            <div id="mBad" class="value">0 EUR</div>
+            <div id="mBad" class="value metric-value-unavailable">—</div>
             <div class="sub" data-i18n="metricBadSub">gesperrter / QI-Bestand</div>
+            <div id="mBadCoverage" class="sub hidden" aria-live="polite"></div>
+            <div id="mBadPartial" class="sub hidden"></div>
+            <button id="mBadReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
           </div>
           <div class="metric noneed">
             <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="no-demand"><use href="#oq-no-demand"></use></svg><span data-i18n="metricNoNeed">Ohne Bedarf</span></div>
-            <div id="mNoNeed" class="value">0 EUR</div>
+            <div id="mNoNeed" class="value metric-value-unavailable">—</div>
             <div class="sub" data-i18n="metricNoNeedSub">Bestand ohne sichtbaren Bedarf</div>
+            <div id="mNoNeedCoverage" class="sub hidden" aria-live="polite"></div>
+            <div id="mNoNeedPartial" class="sub hidden"></div>
+            <button id="mNoNeedReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
           </div>
           <div class="metric noplan">
             <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="unplanned"><use href="#oq-unplanned"></use></svg><span data-i18n="metricNoPlan">Ohne Plan</span></div>
-            <div id="mNoPlan" class="value">0 EUR</div>
+            <div id="mNoPlan" class="value metric-value-unavailable">—</div>
             <div class="sub" data-i18n="metricNoPlanSub">Bestand ohne Planbezug</div>
+            <div id="mNoPlanCoverage" class="sub hidden" aria-live="polite"></div>
+            <div id="mNoPlanPartial" class="sub hidden"></div>
+            <button id="mNoPlanReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
           </div>
           <div class="metric recovery">
             <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="recovery-potential"><use href="#oq-recovery-potential"></use></svg><span data-i18n="metricRecovery">Recovery-Potenzial</span></div>
-            <div id="mRecovery" class="value">0 EUR</div>
-            <div id="mShare" class="sub">0 % vom Bestand</div>
+            <div id="mRecovery" class="value metric-value-unavailable">—</div>
+            <div class="sub"><span data-i18n="metricRecoveryShare">Recovery-Anteil</span>: <span id="mShare" class="metric-value-unavailable">—</span></div>
+            <div id="mRecoveryCoverage" class="sub hidden" aria-live="polite"></div>
+            <div id="mRecoveryPartial" class="sub hidden"></div>
+            <button id="mRecoveryReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
+            <div id="mShareCoverage" class="sub hidden" aria-live="polite"></div>
+            <button id="mShareReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
             <div class="recovery-progress" aria-hidden="true">
               <span id="recoveryProgressFill"></span>
             </div>
@@ -124,14 +152,14 @@
         </div>
         <div class="control-card-actions">
           <div class="dataset-context" aria-label="Dataset context">
-            <span class="dataset-chip state">
-              <span class="status-dot"></span>
-              <span class="dataset-status-text" data-i18n="dataLoaded">Daten geladen</span>
+            <span class="dataset-chip">
+              <span class="status-dot" hidden></span>
+              <span class="dataset-status-text" data-i18n="noDataLoaded">Noch keine Daten geladen</span>
             </span>
             <span class="dataset-chip dataset-rows-chip">0 Zeilen</span>
             <span class="dataset-chip dataset-columns-chip">0 Spalten</span>
             <span class="dataset-chip dataset-visible-chip">0 sichtbar</span>
-            <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
+            <span class="dataset-chip dataset-source-chip source"></span>
           </div>
           <button id="exportVisibleInventoryButton" class="secondary" type="button"><svg class="oq-icon oq-icon--button" aria-hidden="true" focusable="false" data-oq-icon="export"><use href="#oq-export"></use></svg><span data-i18n="exportVisible">Sichtbare Zeilen exportieren</span></button>
         </div>
@@ -144,7 +172,7 @@
     <section id="dataQualityHeader" class="tab-page-header data-quality-page-header">
       <div class="data-quality-header-title-row">
         <h2 class="oq-icon-label"><svg class="oq-icon oq-icon--section" aria-hidden="true" focusable="false" data-oq-icon="data-quality"><use href="#oq-data-quality"></use></svg><span data-i18n="dataQualityTitle">Data Quality</span></h2>
-        <span class="data-quality-source-badge dataset-source-chip source">Beispieldaten</span>
+        <span class="data-quality-source-badge dataset-source-chip source"></span>
       </div>
       <p class="data-quality-header-meta-line">
         <span class="data-quality-header-subtitle" data-i18n="dataQualitySubtitle">Datenprobleme erkennen, priorisieren und kontrolliert bereinigen.</span>
@@ -161,14 +189,14 @@
         <p data-i18n="actionsSubtitle">Priorisierte Recovery-Maßnahmen mit Ursache, Verantwortlichkeit, Priorität und Status.</p>
       </div>
       <div class="dataset-context" aria-label="Dataset context">
-        <span class="dataset-chip state">
-          <span class="status-dot"></span>
-          <span class="dataset-status-text" data-i18n="dataLoaded">Daten geladen</span>
+        <span class="dataset-chip">
+          <span class="status-dot" hidden></span>
+          <span class="dataset-status-text" data-i18n="noDataLoaded">Noch keine Daten geladen</span>
         </span>
         <span class="dataset-chip dataset-rows-chip">0 Zeilen</span>
         <span class="dataset-chip dataset-columns-chip">0 Spalten</span>
         <span class="dataset-chip dataset-visible-chip">0 sichtbar</span>
-        <span class="dataset-chip dataset-source-chip source">Beispieldaten</span>
+        <span class="dataset-chip dataset-source-chip source"></span>
       </div>
     </section>
 
