@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-08 - KPI-EXACT-VALUE-01
+
+- Added a native, keyboard-accessible amount disclosure to each Overview money KPI while retaining the compact card values.
+- Exact lines show two locale-aware decimals from the existing KPI availability model and visibly distinguish complete amounts, incomplete subtotals and incomplete non-negative projections.
+- Exact amounts are exposed only for the established EUR valuation basis; missing, unsafe-currency and Recovery Share values remain unavailable without fallback, recomputation or FX conversion.
+- Preserved all financial formulas, thresholds, demo fixtures, source transactions and exact Data Quality navigation; release remains HOLD.
+
 ## 2026-09-05 - RECOVERY-PILOT-01
 
 - Added a contract-derived, twelve-row synthetic purchasing pilot with initial/update CSV, reordered TSV and genuine typed XLSX generation into an external directory; separate locale/date/error fixtures.

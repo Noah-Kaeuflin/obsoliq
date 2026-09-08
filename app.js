@@ -883,6 +883,11 @@ const translations = {
     kpiCoverageNoRows: "Keine Positionen im aktuellen Filter. Die Datenquelle bleibt unverändert.",
     kpiPartialLabel: "Summe der bewertbaren Positionen — unvollständig",
     kpiSafeProjectionLabel: "Summe der nichtnegativen bewertbaren Positionen — unvollständige Projektion",
+    kpiShowAmount: "Betrag anzeigen",
+    kpiShowMetricAmount: "Betrag anzeigen: {metric}",
+    kpiExactFullAmount: "Vollständiger Betrag",
+    kpiExactIncompleteSubtotal: "Unvollständige Teilsumme",
+    kpiExactIncompleteProjection: "Unvollständige Projektion",
     kpiPartialUnavailable: "Keine sichere Teilsumme: {reason}.",
     kpiReviewAffectedData: "Betroffene Daten prüfen",
     kpiReviewMetricData: "{metric} prüfen",
@@ -2753,6 +2758,11 @@ const translations = {
     kpiCoverageNoRows: "No items match the current filter. The source dataset is unchanged.",
     kpiPartialLabel: "Sum of assessable items — incomplete",
     kpiSafeProjectionLabel: "Sum of non-negative assessable items — incomplete projection",
+    kpiShowAmount: "Show amount",
+    kpiShowMetricAmount: "Show amount: {metric}",
+    kpiExactFullAmount: "Full amount",
+    kpiExactIncompleteSubtotal: "Incomplete subtotal",
+    kpiExactIncompleteProjection: "Incomplete projection",
     kpiPartialUnavailable: "No safe subtotal: {reason}.",
     kpiReviewAffectedData: "Review affected data",
     kpiReviewMetricData: "Review {metric}",
@@ -4959,6 +4969,17 @@ function money(value, key = "", options = {}) {
     : `${Math.round(converted).toLocaleString(locale())} ${activeCurrency().code}`;
 }
 
+function formatExactKpiMoney(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return t("notAvailable");
+  return new Intl.NumberFormat(locale(), {
+    style: "currency",
+    currency: "EUR",
+    currencyDisplay: "symbol",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value === 0 ? 0 : value);
+}
+
 function readNavCollapsedPreference() {
   try {
     return localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY) === "true";
@@ -6796,6 +6817,7 @@ const KPI_AVAILABILITY_SPECS = Object.freeze({
     valueId: "mInventory",
     coverageId: "mInventoryCoverage",
     partialId: "mInventoryPartial",
+    exactId: "mInventoryExact",
     actionId: "mInventoryReview",
     currencyFields: Object.freeze(["stock_value"]),
     dependencyKey: "kpiDependencyDirect"
@@ -6807,6 +6829,7 @@ const KPI_AVAILABILITY_SPECS = Object.freeze({
     valueId: "mExcess",
     coverageId: "mExcessCoverage",
     partialId: "mExcessPartial",
+    exactId: "mExcessExact",
     actionId: "mExcessReview",
     currencyFields: Object.freeze(["excess_value"]),
     dependencyKey: "kpiDependencyDirect"
@@ -6818,6 +6841,7 @@ const KPI_AVAILABILITY_SPECS = Object.freeze({
     valueId: "mBad",
     coverageId: "mBadCoverage",
     partialId: "mBadPartial",
+    exactId: "mBadExact",
     actionId: "mBadReview",
     currencyFields: Object.freeze(["bad_stock_value"]),
     dependencyKey: "kpiDependencyDirect"
@@ -6829,6 +6853,7 @@ const KPI_AVAILABILITY_SPECS = Object.freeze({
     valueId: "mNoNeed",
     coverageId: "mNoNeedCoverage",
     partialId: "mNoNeedPartial",
+    exactId: "mNoNeedExact",
     actionId: "mNoNeedReview",
     currencyFields: Object.freeze(["direct_no_need_value", "no_need_conso_value", "no_need_no_con_value"]),
     dependencyKey: "kpiDependencyDirect",
@@ -6841,6 +6866,7 @@ const KPI_AVAILABILITY_SPECS = Object.freeze({
     valueId: "mNoPlan",
     coverageId: "mNoPlanCoverage",
     partialId: "mNoPlanPartial",
+    exactId: "mNoPlanExact",
     actionId: "mNoPlanReview",
     currencyFields: Object.freeze(["no_plan_value"]),
     dependencyKey: "kpiDependencyDirect"
@@ -6852,6 +6878,7 @@ const KPI_AVAILABILITY_SPECS = Object.freeze({
     valueId: "mRecovery",
     coverageId: "mRecoveryCoverage",
     partialId: "mRecoveryPartial",
+    exactId: "mRecoveryExact",
     actionId: "mRecoveryReview",
     currencyFields: Object.freeze([
       "stock_value",
@@ -7255,7 +7282,7 @@ function kpiPartialCurrencyContext(metricSpec, rows = []) {
   return { safe: true, reason: "", currencies, fieldsWithoutCurrency };
 }
 
-function safeKpiSubtotal(rows, metricSpec, strictAggregate, causes) {
+function safeKpiSubtotal(rows, metricSpec, strictAggregate, causes, currencyContext) {
   if (strictAggregate.value !== null || !rows.length) {
     return { status: "not_needed", value: null, validCount: strictAggregate.validCount, excludedCount: 0, kind: "subtotal", reason: "" };
   }
@@ -7271,7 +7298,6 @@ function safeKpiSubtotal(rows, metricSpec, strictAggregate, causes) {
     validCount += 1;
     value += evidence.value;
   });
-  const currencyContext = kpiPartialCurrencyContext(metricSpec, rows);
   if (!currencyContext.safe) {
     return {
       status: "unavailable",
@@ -7306,6 +7332,42 @@ function safeKpiSubtotal(rows, metricSpec, strictAggregate, causes) {
   };
 }
 
+function buildKpiExactAmount(strictAggregate, partial, currencyContext, relevantCount) {
+  const strictValue = strictAggregate.value;
+  const usesStrictValue = strictValue !== null;
+  const candidate = usesStrictValue
+    ? { value: strictValue, kind: "complete", source: "strict_aggregate" }
+    : partial.status === "available"
+      ? { value: partial.value, kind: partial.kind, source: "safe_partial" }
+      : null;
+  const safeEuroContext = Boolean(
+    currencyContext?.safe
+    && currencyContext.currencies?.length === 1
+    && currencyContext.currencies[0] === "EUR"
+  );
+  if (!relevantCount || !candidate || !safeEuroContext
+    || typeof candidate.value !== "number" || !Number.isFinite(candidate.value)) {
+    return {
+      status: "unavailable",
+      value: null,
+      kind: candidate?.kind || "",
+      source: candidate?.source || "",
+      currency: safeEuroContext ? "EUR" : "",
+      reason: !relevantCount ? "no_rows" : !candidate ? (partial.reason || "no_value") : (currencyContext?.reason || "unsafe_currency"),
+      currencyContext
+    };
+  }
+  return {
+    status: "available",
+    value: candidate.value === 0 ? 0 : candidate.value,
+    kind: candidate.kind,
+    source: candidate.source,
+    currency: "EUR",
+    reason: "",
+    currencyContext
+  };
+}
+
 function buildKpiAvailabilityModel(rows, metricSpec, options = {}) {
   const data = Array.isArray(rows) ? rows : [];
   const strictAggregate = numericAggregate(data, metricSpec.fieldKey, { type: "currency" });
@@ -7314,7 +7376,9 @@ function buildKpiAvailabilityModel(rows, metricSpec, options = {}) {
     : metricSpec.derived === "no_demand"
       ? noDemandKpiCauses(data, metricSpec)
       : directKpiCauses(data, metricSpec);
-  const partial = safeKpiSubtotal(data, metricSpec, strictAggregate, causes);
+  const currencyContext = kpiPartialCurrencyContext(metricSpec, data);
+  const partial = safeKpiSubtotal(data, metricSpec, strictAggregate, causes, currencyContext);
+  const exactAmount = buildKpiExactAmount(strictAggregate, partial, currencyContext, data.length);
   return {
     key: metricSpec.key,
     labelKey: metricSpec.labelKey,
@@ -7325,6 +7389,7 @@ function buildKpiAvailabilityModel(rows, metricSpec, options = {}) {
     causes,
     blockingCauses: causes.filter(cause => cause.blocksMetric),
     partial,
+    exactAmount,
     sourceIdentity: currentKpiSourceIdentity(),
     sourceToken: kpiSourceIdentityToken()
   };
@@ -7451,6 +7516,50 @@ function kpiCoverageText(model) {
     : `${coverage} ${t("kpiShareUnavailableDependency")}`;
 }
 
+function kpiExactStatusKey(kind) {
+  if (kind === "complete") return "kpiExactFullAmount";
+  if (kind === "nonnegative_projection") return "kpiExactIncompleteProjection";
+  return "kpiExactIncompleteSubtotal";
+}
+
+function renderKpiExactAmount(metricSpec, model) {
+  const disclosure = metricSpec.exactId ? $(metricSpec.exactId) : null;
+  if (!disclosure) return;
+  const summary = disclosure.querySelector("summary");
+  const statusTarget = disclosure.querySelector("[data-kpi-exact-status]");
+  const separatorTarget = disclosure.querySelector("[data-kpi-exact-separator]");
+  const valueTarget = disclosure.querySelector("[data-kpi-exact-value]");
+  const showAmount = model.exactAmount?.status === "available"
+    && model.exactAmount.currency === "EUR"
+    && typeof model.exactAmount.value === "number"
+    && Number.isFinite(model.exactAmount.value);
+  const previousSourceToken = disclosure.dataset.kpiSourceToken || "";
+  const sourceChanged = Boolean(previousSourceToken && previousSourceToken !== model.sourceToken);
+
+  if (sourceChanged || !showAmount) disclosure.removeAttribute("open");
+  disclosure.hidden = !showAmount;
+  disclosure.classList.toggle("hidden", !showAmount);
+  if (summary) {
+    summary.textContent = t("kpiShowAmount");
+    summary.setAttribute("aria-label", formatKpiText("kpiShowMetricAmount", { metric: t(model.labelKey) }));
+  }
+
+  if (!showAmount) {
+    delete disclosure.dataset.kpiSourceToken;
+    delete disclosure.dataset.kpiExactKind;
+    if (statusTarget) statusTarget.textContent = "";
+    if (separatorTarget) separatorTarget.textContent = "";
+    if (valueTarget) valueTarget.textContent = "";
+    return;
+  }
+
+  disclosure.dataset.kpiSourceToken = model.sourceToken;
+  disclosure.dataset.kpiExactKind = model.exactAmount.kind;
+  if (statusTarget) statusTarget.textContent = t(kpiExactStatusKey(model.exactAmount.kind));
+  if (separatorTarget) separatorTarget.textContent = ":";
+  if (valueTarget) valueTarget.textContent = formatExactKpiMoney(model.exactAmount.value);
+}
+
 function renderKpiAvailabilityDetails(metricSpec, model) {
   const available = model.strictAggregate.value !== null;
   const coverageTarget = $(metricSpec.coverageId);
@@ -7488,6 +7597,7 @@ function renderKpiAvailabilityDetails(metricSpec, model) {
       partialTarget.title = "";
     }
   }
+  renderKpiExactAmount(metricSpec, model);
   if (actionTarget) {
     const showAction = !available && model.causes.some(cause => cause.sourceRowIndex > 0);
     actionTarget.hidden = !showAction;

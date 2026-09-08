@@ -109,6 +109,12 @@ History Coverage is the inclusive span between the earliest and latest valid obs
 Supported local upload formats include `.xlsx`, `.csv` and `.tsv`. Uploaded data stays in the browser session.
 The built-in full demo is explicitly synthetic and uses the frozen analysis date `2026-08-31` in UTC. A user Inventory upload deactivates demo-owned Material Master and Consumption History before analysis; loading the demo over user data requires confirmation.
 
+## Exact Overview KPI Amounts
+
+Overview money KPIs keep their compact card values. Open **Betrag anzeigen / Show amount** on a card to read the same current source-and-filter value with two locale-aware decimals. The line identifies whether it is a complete amount, an incomplete subtotal or an incomplete non-negative projection; it never promotes a subtotal to a complete KPI.
+
+The disclosure is available only when the existing Mapping and normalization evidence establishes the internal EUR valuation basis. It formats the already checked KPI model value without reparsing compact text, recalculating a sum, inventing a fallback or converting source currency. Genuine zero is shown as `0,00 €`; missing or unsafe values stay unavailable, and Recovery Share never receives a partial quotient. Native `details` / `summary` controls support mouse, touch and keyboard operation.
+
 ## Local Icon System
 
 The licensed ObsoliQ Icon Pack lives under `assets/icons/`. It contains 43 local Lucide-derived SVG symbols, including the `inventory-risks` portfolio icon and the semantic Indicators `prioritized-cases`, `owner-coverage` and `evidence-readiness`, plus the authoritative manifest, Sprite and Lucide ISC license. Runtime rendering uses `js/ui/icon-system.js` and the public `ObsoliQ.ui.iconSystem` API.
