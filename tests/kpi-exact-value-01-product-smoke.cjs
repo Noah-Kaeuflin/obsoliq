@@ -109,7 +109,7 @@ async function waitForDemo(page) {
     const bridge = window.__obsoliqTestBridge;
     return bridge?.getState().rawRows === 102
       && bridge.getRegistryStats().packageCount === 3
-      && document.getElementById("actionFeedback")?.textContent.trim() === "Daten geladen";
+      && document.getElementById("actionFeedback")?.textContent.trim() === "Import abgeschlossen";
   }, null, { timeout: 30000 });
 }
 
@@ -331,7 +331,45 @@ async function main() {
     state = await exactState(page);
     equal(completeUnsafeModels.blocked.strictAggregate.value, 5, "Currency gate does not change the existing complete strict KPI value");
     equal(completeUnsafeModels.blocked.exactAmount.value, null, "Complete strict KPI still requires safe EUR context for exact disclosure");
+    equal(completeUnsafeModels.share.strictAggregate.value, null, "Recovery share must not divide values without confirmed EUR evidence");
+    assert.deepEqual(completeUnsafeModels.share.strictAggregate.reasonCodes, ["unsafe_currency"]);
+    await openDetail(page, "recovery");
+    check((await page.locator(".kpi-detail-share").textContent()).includes("EUR-Kontext"), "Share explains missing currency evidence");
+    await closeDetail(page);
     check(state.Bad.hidden && !state.Bad.amount, "Complete KPI without currency evidence exposes no exact amount");
+
+    const derivedUsdLoad = await loadCsv(page, [
+      "Material Number,Plant,Stock Value EUR,Stock Quantity,STD Price,Excess (EUR),No Need EUR,Bad Stock (EUR),No Plan (EUR)",
+      "SYN-DERIVED-USD,PLANT-U,,5,$19.99,0,0,0,0"
+    ].join("\n"), "synthetic-derived-usd-price.csv");
+    equal(derivedUsdLoad.status, "loaded", "Derived source retains normal numeric import");
+    const derivedUsd = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest());
+    equal(derivedUsd.inventory.exactAmount.value, null, "A USD price cannot become a disclosed EUR stock value");
+    equal(derivedUsd.recovery.exactAmount.value, null, "Derived USD price also blocks EUR Recovery disclosure");
+    equal(derivedUsd.share.strictAggregate.value, null, "Currency mismatch blocks the quotient");
+    assert.deepEqual(derivedUsd.inventory.exactAmount.currencyContext.currencies, ["EUR", "USD"]);
+    const explicitStockLoad = await loadCsv(page, [
+      "Material Number,Plant,Stock Value EUR,Stock Quantity,STD Price,Excess (EUR),No Need EUR,Bad Stock (EUR),No Plan (EUR)",
+      "SYN-UNUSED-USD,PLANT-U,100,5,$19.99,0,0,0,0"
+    ].join("\n"), "synthetic-unused-usd-price.csv");
+    equal(explicitStockLoad.status, "loaded", "Explicit stock does not use the incidental price");
+    const explicitStock = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest());
+    equal(explicitStock.inventory.exactAmount.value, 100, "Unused foreign price cannot invalidate explicit EUR stock");
+    equal(explicitStock.share.strictAggregate.value, 0, "Valid explicit EUR pair keeps its genuine zero percentage");
+
+    const unknownStockCurrencyLoad = await loadCsv(page, [
+      "Material Number,Plant,Stock Value,Stock Quantity,STD Price,Excess (EUR),No Need EUR,Bad Stock (EUR),No Plan (EUR)",
+      "SYN-UNKNOWN-BASIS,PLANT-U,,5,19.99,0,0,0,0"
+    ].join("\n"), "synthetic-unknown-stock-basis.csv");
+    equal(unknownStockCurrencyLoad.status, "loaded", "Unknown currency does not alter source parsing");
+    const unknownStockCurrency = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest());
+    equal(unknownStockCurrency.inventory.exactAmount.value, null, "Currency-less price cannot invent an absent stock valuation basis");
+    equal(unknownStockCurrency.share.strictAggregate.value, null, "Unknown valuation basis blocks share");
+    equal(await page.locator('#overviewKpiIssues').getAttribute('data-kpi-issue-positions'), '', "Scope-wide currency restriction has no fabricated position count");
+    await page.locator('#overviewKpiIssues button').click();
+    equal(await page.evaluate(() => window.__obsoliqTestBridge.getKpiCauseFocusForTest()), null, "Uncounted action opens general DQ without a false position focus");
+    check(await page.evaluate(() => document.activeElement?.matches('#dataQualityHeader h2')), "General DQ navigation focuses its real destination heading");
+    await page.locator('[data-process="overview"]').click();
 
     const nonBaseCurrencyCsv = [
       "Material Number,Material Description,Stock Value EUR,Profit Center,Program,Excess Value,No Demand Value,Blocked Stock Value,Unplanned Value",

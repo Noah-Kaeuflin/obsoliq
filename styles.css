@@ -1751,11 +1751,31 @@ body.data-foundation-modal-open {
   line-height: 18px;
 }
 
+.overview-main .kpi-data-summary { align-items: center; }
+.overview-main .kpi-issues-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; }
+.overview-main .kpi-issues-summary[hidden] { display: none; }
+.overview-main .kpi-issues-action {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.overview-main .kpi-issues-action:hover { border-color: var(--primary); }
+.overview-main .kpi-issues-action:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
 .overview-main .metric {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 206px;
+  gap: 8px;
+  min-height: 194px;
   padding: 16px 18px 10px;
   scroll-margin-top: 180px;
 }
@@ -1780,12 +1800,13 @@ body.data-foundation-modal-open {
 .overview-kpi-dialog .kpi-availability-status {
   display: inline-block;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 18px;
   font-weight: 500;
 }
 
 .overview-main .kpi-card-amount { display: grid; gap: 3px; }
+.overview-main .kpi-card-constraints { display: flex; flex-wrap: wrap; gap: 0 12px; }
 .overview-main .kpi-amount-label { color: var(--text-muted); font-size: 12px; line-height: 18px; }
 .overview-main .metric .value {
   color: var(--text-strong);
@@ -12559,7 +12580,7 @@ button > span {
 }
 
 /* Keep the wide Overview worklist inside its own viewport on compact screens. */
-@media (max-width: 720px) {
+@media (max-width: 1000px) {
   .overview-top-list-panel {
     overflow: hidden !important;
   }

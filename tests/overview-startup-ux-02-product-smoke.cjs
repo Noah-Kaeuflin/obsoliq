@@ -363,7 +363,7 @@ async function main() {
         && workspace?.dataset.overviewState === "loaded"
         && workspace?.getAttribute("aria-busy") === "false"
         && !workspace?.dataset.dataOperation
-        && document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Data loaded"
+        && document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Import complete"
         && [...document.querySelectorAll(".process-tabs button[data-process]")].every(button => !button.disabled);
     }, null, { timeout: 30000 });
 
@@ -376,7 +376,7 @@ async function main() {
     assert.deepEqual(englishLoaded, {
       documentLanguage: "en",
       languageControl: "en",
-      feedback: "Data loaded",
+      feedback: "Import complete",
       noDemandLabel: "No Demand"
     });
     assertionCount += 1;
@@ -386,7 +386,7 @@ async function main() {
     await page.locator("#settingsDoneButton").click();
     await page.locator("[data-process='overview']").click();
     await page.waitForFunction(() => document.documentElement.lang === "de"
-      && document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen");
+      && document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Import abgeschlossen");
 
     evidence.loaded = await page.evaluate(() => {
       const bridge = window.__obsoliqTestBridge;
@@ -483,7 +483,7 @@ async function main() {
         && window.__obsoliqTestBridge.getState().rawRows === 102
         && workspace?.getAttribute("aria-busy") === "false"
         && !workspace?.dataset.dataOperation
-        && document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen";
+        && document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Import abgeschlossen";
     }, null, { timeout: 30000 });
     const routeGuard = await page.evaluate(() => window.__overviewStartupRouteGuard);
     check(routeGuard.operation === "demo" && routeGuard.workspaceInert && routeGuard.routeWasVisible, `A previously visible non-Overview workspace is inert while the demo transaction is active: ${JSON.stringify(routeGuard)}`);
@@ -578,7 +578,7 @@ async function main() {
     await page.locator("#settingsDoneButton").click();
     await page.locator("[data-process='overview']").click();
     await page.waitForFunction(() => document.documentElement.lang === "de" && document.documentElement.dataset.theme === "light");
-    await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Daten geladen", null, { timeout: 4000 });
+    await page.waitForFunction(() => document.querySelector("#actionFeedback .action-feedback-text")?.textContent.trim() === "Import abgeschlossen", null, { timeout: 4000 });
 
     for (const viewport of VIEWPORTS) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });

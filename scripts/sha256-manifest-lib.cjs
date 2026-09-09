@@ -347,7 +347,10 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "tests/kpi-availability-01-product-smoke.cjs",
   "tests/kpi-exact-value-01-product-smoke.cjs",
   "tests/overview-startup-ux-02-product-smoke.cjs",
-  "tests/recovery-operations-integration-01-product-smoke.cjs"
+  "tests/recovery-operations-integration-01-product-smoke.cjs",
+  "tests/overview-polish-calculability-01-product-smoke.cjs",
+  "data/synthetic-kpi-calculability-control.csv",
+  "data/KPI_CONTROL_IMPORT.md"
 ]);
 const AUTHORIZED_PACKAGE_REMOVALS = Object.freeze([
   "assets/icons/obsoliq/icon-manifest.json",
@@ -389,6 +392,7 @@ const REQUIRED_PACKAGE_ANCHORS = Object.freeze([
 ]);
 
 const DATA_PROVENANCE = Object.freeze({
+  "data/synthetic-kpi-calculability-control.csv": Object.freeze({ classification: "synthetic", note: "Four fictitious, independently calculated EUR control positions; no personal/customer source data. Includes documented stock derivation, zero and Waterfall caps/overlaps." }),
   "tests/fixtures/recovery-pilot-01.cjs": Object.freeze({ classification: "synthetic", note: "Contract-derived purchasing pilot source rows and expected outcomes for fictitious existing demo entities. No personal/customer data or human validation claims." }),
   "data/demo/purchase-orders.csv": Object.freeze({ classification: "synthetic", note: "Hand-authored RECOVERY-LOOP-01A fixtures for fictitious linked demo entities; no customer or personal data." }),
   "data/demo/purchase-orders-update.csv": Object.freeze({ classification: "synthetic", note: "Synthetic source update of the same PO fixture; quantity and evidenced value changed for stale-context tests." }),

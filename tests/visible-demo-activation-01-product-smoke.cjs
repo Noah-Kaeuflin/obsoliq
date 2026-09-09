@@ -143,7 +143,7 @@ async function main() {
       return state?.rawRows === 102
         && bridge.getRegistryStats().packageCount === 3
         && ["available", "limited"].includes(slowDead?.status)
-        && document.getElementById("actionFeedback")?.textContent.trim() === "Daten geladen";
+        && document.getElementById("actionFeedback")?.textContent.trim() === "Import abgeschlossen";
     }, null, { timeout: 30000 });
 
     const demo = await page.evaluate(() => {

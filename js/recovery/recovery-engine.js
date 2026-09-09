@@ -22,9 +22,7 @@ function calculateNoDemandValue(item) {
     + recoveryInputValue(item.no_need_no_con_value);
 }
 
-function calculateRecoveryBreakdown(item) {
-  const stockValueEvidence = strictNonNegativeFinancialValue(item.stock_value, { fieldKey: "stock_value" });
-  if (stockValueEvidence.status !== "available") {
+function unavailableRecoveryBreakdown(reason) {
     return {
       gross_recovery_potential: null,
       recovery_potential: null,
@@ -36,15 +34,21 @@ function calculateRecoveryBreakdown(item) {
       net_excess_value: null,
       net_bad_stock_value: null,
       recovery_calculation_status: "unavailable",
-      recovery_unavailable_reason: stockValueEvidence.reason
+      recovery_unavailable_reason: reason
     };
-  }
+}
+
+function calculateRecoveryBreakdown(item) {
+  const stockValueEvidence = strictNonNegativeFinancialValue(item.stock_value, { fieldKey: "stock_value" });
+  if (stockValueEvidence.status !== "available") return unavailableRecoveryBreakdown(stockValueEvidence.reason);
   const stockValue = stockValueEvidence.value;
   const noNeedValue = recoveryInputValue(item.no_need_value);
   const noPlanValue = recoveryInputValue(item.no_plan_value);
   const excessValue = recoveryInputValue(item.excess_value);
   const badStockValue = recoveryInputValue(item.bad_stock_value);
   const grossRecoveryPotential = noNeedValue + noPlanValue + excessValue + badStockValue;
+  // A cap cannot make an overflowed gross/overlap calculation valid evidence.
+  if (!Number.isFinite(grossRecoveryPotential)) return unavailableRecoveryBreakdown("derived_value_overflow");
 
   let remainingStockValue = stockValue;
   const netNoNeedValue = Math.min(noNeedValue, remainingStockValue);
@@ -57,6 +61,7 @@ function calculateRecoveryBreakdown(item) {
   remainingStockValue -= netBadStockValue;
 
   const recoveryPotential = netNoNeedValue + netNoPlanValue + netExcessValue + netBadStockValue;
+  if (!Number.isFinite(recoveryPotential)) return unavailableRecoveryBreakdown("derived_value_overflow");
 
   return {
     gross_recovery_potential: grossRecoveryPotential,

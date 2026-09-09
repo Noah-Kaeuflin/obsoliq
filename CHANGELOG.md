@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-09-09 - OVERVIEW-POLISH-AND-CALCULABILITY-01
+
+- Modestly tightened six KPI cards, shortened repeated status copy and made the deduplicated KPI-source-position summary a real keyboard action. Exact amount semantics and missing-total warnings remain visible; DQ navigation focuses its source-bound destination. Mid-width Overview worklist stays within its local scrolling viewport.
+- Added a separately importable four-row synthetic control and instructions, with independent decimal expectations, real visible mapping and original/enriched download checks.
+- Fixed fail-open no-demand and gross-Recovery overflow guards, and required safe shared EUR context for the strict Recovery percentage. Explicit currency evidence on a used derived-stock price must agree with the established stock valuation context; incidental unused prices do not affect explicit stock values.
+- Preserved Waterfall order/caps, negative/missing category conventions, signed complete direct aggregates and frozen demo inputs/results. A separate mandatory price-currency attestation and decimal-boundary cap tolerance remain policy questions, not silently changed thresholds. Product Release remains HOLD.
+
 ## 2026-09-09 - RECOVERY-OPERATIONS-INTEGRATION-01
 
 - Bound asynchronous PO feedback preparation, JSON backup and restore preview to the shared operation owner. Pending work is visible; cancellable work rejects late completions without releasing a newer operation. Parent decision input is protected while its exact version is prepared.

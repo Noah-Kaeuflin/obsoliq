@@ -68,7 +68,11 @@
       <div class="overview-main hidden" hidden>
         <div class="metric-section-head" data-i18n="summarySectionLabel">Kernkennzahlen</div>
         <div class="kpi-data-summary" aria-live="polite">
-          <span id="mRows"></span><span id="overviewKpiIssues" hidden></span>
+          <span id="mRows"></span>
+          <span class="kpi-issues-summary" id="overviewKpiIssues" hidden>
+            <span data-i18n="kpiIssuesLimited">Datenbasis eingeschränkt</span>
+            <button type="button" class="kpi-issues-action" data-kpi-review="overview"></button>
+          </span>
         </div>
         <section class="metrics" aria-label="Kernkennzahlen" data-i18n-aria-label="summarySectionLabel">
           <article class="metric recovery" data-kpi-card="recovery">
@@ -79,10 +83,12 @@
             <div class="kpi-card-amount">
               <div class="kpi-amount-label" data-kpi-amount-label></div>
               <div id="mRecovery" class="value metric-value-unavailable">—</div>
-              <div class="kpi-total-status" data-kpi-total-status></div>
+              <div class="kpi-card-constraints">
+                <div class="kpi-total-status" data-kpi-total-status></div>
+                <p class="kpi-card-note" id="mShare" data-kpi-note></p>
+              </div>
             </div>
             <div class="kpi-card-footer">
-              <p class="kpi-card-note" id="mShare" data-kpi-note></p>
               <button type="button" class="kpi-detail-trigger" data-kpi-details="recovery" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
             </div>
           </article>

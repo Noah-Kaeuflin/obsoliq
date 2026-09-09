@@ -323,20 +323,23 @@
     });
     const invalidNoDemandInput = ["direct_no_need_value", "no_need_conso_value", "no_need_no_con_value"]
       .some(key => invalidRecoveryInputs.includes(key));
-    item.no_need_value = invalidNoDemandInput ? null : calculateNoDemandValue(item);
+    const noDemandValue = invalidNoDemandInput ? null : calculateNoDemandValue(item);
+    const noDemandOverflow = !invalidNoDemandInput && !Number.isFinite(noDemandValue);
+    item.no_need_value = noDemandOverflow ? null : noDemandValue;
+    if (noDemandOverflow) item.numeric_limitation_codes.push("no_need_value_derivation:derived_value_overflow");
     item.inventory_row_key = buildInventoryRowKey({
       material_id: item.material_id,
       profit_center: sourceProfitCenter,
       row_number: item.row_number
     });
-    const recoveryEvidenceUnavailable = item.stock_value_availability !== "available" || invalidRecoveryInputs.length > 0;
+    const recoveryEvidenceUnavailable = item.stock_value_availability !== "available" || invalidRecoveryInputs.length > 0 || noDemandOverflow;
     if (recoveryEvidenceUnavailable) {
       RECOVERY_DERIVED_FIELDS.forEach(key => {
         item[key] = null;
       });
       item.recovery_is_capped = null;
       item.recovery_calculation_status = "unavailable";
-      item.recovery_unavailable_reason = item.stock_value_derivation_reason || "invalid_recovery_input";
+      item.recovery_unavailable_reason = item.stock_value_derivation_reason || (noDemandOverflow ? "derived_value_overflow" : "invalid_recovery_input");
       item.numeric_limitation_codes = [...new Set([
         ...item.numeric_limitation_codes,
         "recovery_numeric_evidence_unavailable"

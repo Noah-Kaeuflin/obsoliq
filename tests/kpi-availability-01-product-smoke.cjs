@@ -123,7 +123,7 @@ async function main() {
       const bridge = window.__obsoliqTestBridge;
       return bridge?.getState().rawRows === 102
         && bridge.getRegistryStats().packageCount === 3
-        && document.getElementById("actionFeedback")?.textContent.trim() === "Daten geladen";
+        && document.getElementById("actionFeedback")?.textContent.trim() === "Import abgeschlossen";
     }, null, { timeout: 30000 });
 
     const demo = await page.evaluate(() => {
@@ -514,6 +514,12 @@ async function main() {
     assert.equal(noDemandOverflowLoad.status, "loaded");
     const noDemandOverflow = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest());
     assert.equal(noDemandOverflow.noDemand.strictAggregate.value, null);
+    assert.equal(noDemandOverflow.recovery.strictAggregate.value, null, "Derived no-demand overflow must not become Recovery zero");
+    assert.equal(noDemandOverflow.recovery.exactAmount.status, "unavailable");
+    assert.equal(noDemandOverflow.share.strictAggregate.value, null, "Overflow must block the strict Recovery quotient");
+    assert.deepEqual(noDemandOverflow.recovery.causes.map(cause => [cause.canonicalField, cause.kind]), [
+      ["no_need_conso_value", "overflow"], ["no_need_no_con_value", "overflow"]
+    ], "Recovery overflow keeps the original physical input causes");
     assert.deepEqual(noDemandOverflow.noDemand.causes.map(cause => [cause.canonicalField, cause.kind, cause.rawValue]), [
       ["no_need_conso_value", "overflow", "1e308"],
       ["no_need_no_con_value", "overflow", "1e308"]
@@ -531,6 +537,17 @@ async function main() {
     });
     assert.equal(noDemandOverflowFocus.rows, 2);
     check(noDemandOverflowFocus.text.includes("No Need / Conso EUR") && noDemandOverflowFocus.text.includes("No Need / No Con EUR") && noDemandOverflowFocus.text.includes("Überlauf"), "No-demand overflow remains physically explainable and reachable");
+
+    const grossOverflowLoad = await loadCsv(page, [
+      "Material Number,Plant,Stock Value (EUR),No Need EUR,No Plan (EUR),Excess (EUR),Bad Stock (EUR)",
+      "SYN-GROSS-OVERFLOW,PLANT-G,100,1e308,1e308,0,0"
+    ].join("\n"), "synthetic-gross-overflow.csv");
+    assert.equal(grossOverflowLoad.status, "loaded");
+    const grossOverflow = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest());
+    assert.equal(grossOverflow.recovery.strictAggregate.value, null, "Overflowed gross/overlap must block Recovery despite a finite cap");
+    assert.equal(grossOverflow.share.strictAggregate.value, null);
+    assert.deepEqual(grossOverflow.recovery.causes.map(cause => cause.canonicalField).sort(), ["direct_no_need_value", "no_plan_value"]);
+    assert.ok(grossOverflow.recovery.causes.every(cause => cause.kind === "overflow"));
 
     const duplicateSourceIdentity = await page.evaluate(() => {
       const match = window.__obsoliqTestBridge.kpiFocusMatchesIssueForTest;

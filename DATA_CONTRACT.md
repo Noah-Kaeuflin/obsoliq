@@ -1,5 +1,15 @@
 # ObsoliQ Data Contract
 
+## OVERVIEW-POLISH-AND-CALCULABILITY-01 guard clarification
+
+The existing strict derived-financial postcondition applies to the no-demand sum and to Recovery gross, net and overlap calculations. Overflow is unavailable evidence, never a zero Recovery contribution or a valid capped total. The unchanged Waterfall order and category normalization apply only after these guards. Physical positive source operands remain available as overflow causes.
+
+The Recovery percentage requires complete numeric inventory/recovery aggregates, a positive inventory denominator and their shared safe EUR valuation context. It cannot disclose a percentage when the underlying monetary disclosures are blocked by currency evidence.
+
+For permitted stock derivation, explicit currency evidence on a used `standard_price` must agree with the declared stock valuation basis. The existing legacy convention is retained when that price has no currency evidence: it inherits the confirmed `stock_value` valuation context. Unused prices on explicit-stock rows do not participate. Requiring a separate price-currency attestation for all legacy rows is a future policy decision; no new currency inference or FX conversion is introduced here.
+
+Complete direct risk aggregates retain their existing signed numeric semantics. Their incomplete safe projections exclude negative contributions; Recovery's category-specific nonnegative normalization is separate. No cap threshold or decimal-boundary tolerance is changed by this work.
+
 ## RECOVERY-PILOT-01 Format Boundary
 
 SpreadsheetML element identity is namespace plus local name, not the chosen XML prefix. Default and prefixed workbook elements must yield the same parsed rows, including shared strings, inline rich text, numeric cells, cached results and absent results. No formula recalculation, date-system guessing or identifier zero reconstruction is added. The existing first-worksheet selection and explicit 1900/1904 date review remain. CSV/TSV/XLSX compare on semantic quantities/units/relationships, not assumed equal physical mapping or policy signatures. Reordered TSV columns retain a distinct physical proof; restoring an XLSX-bound decision on that source requires review despite identical business values.

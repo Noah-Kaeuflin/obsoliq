@@ -72,7 +72,7 @@ async function main() {
   await page.waitForSelector("#packageTypeModal.active");
   await page.locator("#packageTypeCloseButton").click();
   await clickIcon(page, "#sampleButton");
-  await page.waitForFunction(() => document.getElementById("actionFeedback")?.textContent.trim() === "Daten geladen");
+  await page.waitForFunction(() => document.getElementById("actionFeedback")?.textContent.trim() === "Import abgeschlossen");
   const loadedFeedback = await page.evaluate(() => {
     const target = document.getElementById("actionFeedback");
     const icon = target.querySelector("svg.oq-icon[data-oq-icon='data-loaded']");

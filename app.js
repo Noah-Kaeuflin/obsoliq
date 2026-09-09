@@ -891,15 +891,18 @@ const translations = {
     kpiShowAmount: "Betrag anzeigen",
     kpiViewDetails: "Details ansehen",
     kpiViewMetricDetails: "Details ansehen: {metric}",
-    kpiStatusComplete: "Vollständig berechenbar",
-    kpiStatusIncomplete: "Unvollständig",
+    kpiStatusComplete: "Berechenbar",
+    kpiStatusIncomplete: "Teilweise",
     kpiStatusUnavailable: "Nicht berechenbar",
     kpiAmountSubtotal: "Bewertbare Teilsumme",
     kpiTotalUnavailable: "Gesamtwert nicht verfügbar",
     kpiShareShortUnavailable: "Anteil nicht berechenbar",
     kpiScopeSummary: "{imported} importiert · {relevant} im aktuellen Umfang",
-    kpiIssuesSummary: "Datenbasis eingeschränkt · {count} KPI-relevante Bestandspositionen prüfen",
-    kpiIssuesUncounted: "Datenbasis eingeschränkt · KPI-Grundlagen prüfen",
+    kpiIssuesSummary: "{count} KPI-relevante Positionen prüfen",
+    kpiIssuesUncounted: "KPI-Grundlagen prüfen",
+    kpiIssuesLimited: "Datenbasis eingeschränkt",
+    kpiIssuesMetric: "KPI-Grundlagen",
+    kpiIssuesScopeReason: "Die Einschränkung betrifft den Bewertungsumfang; eine vollständige Anzahl betroffener Quellpositionen ist nicht ableitbar. Prüfe den Währungskontext und die KPI-Details.",
     kpiDetailImported: "Importiert",
     kpiDetailRelevant: "Relevant",
     kpiDetailUsable: "Verwendbar",
@@ -923,6 +926,7 @@ const translations = {
     kpiReviewMetricData: "{metric} prüfen",
     kpiShareUnavailableDependency: "Nicht berechenbar: vollständiger Recovery-Wert und vollständiger Bestandswert erforderlich.",
     kpiShareZeroDenominator: "Nicht berechenbar: Der vollständige Bestandswert ist 0; der Anteil hat keinen positiven Nenner.",
+    kpiShareUnsafeCurrency: "Nicht berechenbar: Für Bestandswert und Recovery fehlt ein bestätigter, einheitlicher EUR-Kontext. Es wird kein Anteil aus unsicheren Werten gebildet.",
     kpiCauseFocusTitle: "Ursachen für {metric}",
     kpiCauseFocusSubtitle: "Exakter Quellenfokus für Paket {package}, Revision {revision}.",
     kpiCauseFocusCleared: "Der Quellenstand hat sich geändert. Die frühere KPI-Ursache wurde verworfen.",
@@ -1482,7 +1486,7 @@ const translations = {
     darkModeOff: "Dunkelmodus deaktiviert",
     languageUpdated: "Sprache aktualisiert",
     sampleData: "Beispieldaten",
-    dataLoaded: "Daten geladen",
+    dataLoaded: "Import abgeschlossen",
     noDataLoaded: "Noch keine Daten geladen",
     noDataLoadedBody: "Lade die verknüpften Beispieldaten oder importiere eine eigene Datei, um die Analyse zu starten.",
     overviewStartTitle: "Bestandsanalyse starten",
@@ -2800,15 +2804,18 @@ const translations = {
     kpiShowAmount: "Show amount",
     kpiViewDetails: "View details",
     kpiViewMetricDetails: "View details: {metric}",
-    kpiStatusComplete: "Fully calculable",
-    kpiStatusIncomplete: "Incomplete",
+    kpiStatusComplete: "Calculable",
+    kpiStatusIncomplete: "Partial",
     kpiStatusUnavailable: "Not calculable",
     kpiAmountSubtotal: "Subtotal of valued items",
     kpiTotalUnavailable: "Total value unavailable",
     kpiShareShortUnavailable: "Share not calculable",
     kpiScopeSummary: "{imported} imported · {relevant} in the current scope",
-    kpiIssuesSummary: "Limited data basis · review {count} KPI-relevant inventory items",
-    kpiIssuesUncounted: "Limited data basis · review KPI inputs",
+    kpiIssuesSummary: "Review {count} KPI-relevant items",
+    kpiIssuesUncounted: "Review KPI inputs",
+    kpiIssuesLimited: "Limited data basis",
+    kpiIssuesMetric: "KPI inputs",
+    kpiIssuesScopeReason: "The limitation affects the valuation scope; a complete count of affected source items cannot be derived. Review the currency context and KPI details.",
     kpiDetailImported: "Imported",
     kpiDetailRelevant: "Relevant",
     kpiDetailUsable: "Usable",
@@ -2832,6 +2839,7 @@ const translations = {
     kpiReviewMetricData: "Review {metric}",
     kpiShareUnavailableDependency: "Unavailable: complete recovery and complete inventory values are required.",
     kpiShareZeroDenominator: "Unavailable: the complete inventory value is 0, so the share has no positive denominator.",
+    kpiShareUnsafeCurrency: "Not calculable: inventory and Recovery require a confirmed, consistent EUR context. No share is calculated from unsafe values.",
     kpiCauseFocusTitle: "Causes for {metric}",
     kpiCauseFocusSubtitle: "Exact source focus for package {package}, revision {revision}.",
     kpiCauseFocusCleared: "The source revision changed. The previous KPI cause was discarded.",
@@ -3392,7 +3400,7 @@ const translations = {
     darkModeOff: "Dark mode disabled",
     languageUpdated: "Language updated",
     sampleData: "Sample data",
-    dataLoaded: "Data loaded",
+    dataLoaded: "Import complete",
     noDataLoaded: "No data loaded yet",
     noDataLoadedBody: "Load the linked sample data or import your own file to start the analysis.",
     overviewStartTitle: "Start inventory analysis",
@@ -7392,6 +7400,19 @@ function recoveryKpiCauses(rows, metricSpec) {
     const output = numericValueEvidence(row?.recovery_potential, "recovery_potential", { type: "currency" });
     if (output.status === "valid") return;
     const rowCauses = [];
+    if (row?.numeric_limitation_codes?.includes("no_need_value_derivation:derived_value_overflow")) {
+      rowCauses.push(...noDemandKpiCauses([row], metricSpec));
+    } else if (row?.stock_value_availability === "available" && row?.recovery_unavailable_reason === "derived_value_overflow") {
+      recoveryInputFieldKeys.forEach(fieldKey => {
+        const evidence = parseKpiSourceCell(Number(row?.row_number || row?.__sourceRowIndex || 0), fieldKey);
+        if (Number.isFinite(evidence.parseResult?.normalizedValue) && evidence.parseResult.normalizedValue > 0) {
+          rowCauses.push(createKpiCause(row, fieldKey, metricSpec, {
+            kind: "overflow", calculationStatus: "unavailable", calculationReason: "derived_value_overflow",
+            dependencyKey: "kpiDependencyRecoveryInput"
+          }));
+        }
+      });
+    }
     if (row?.stock_value_availability === "unavailable" || row?.stock_value === null || row?.stock_value === undefined) {
       rowCauses.push(...stockValueKpiCauses(row, metricSpec, {
         dependencyKey: "kpiDependencyRecoveryStock"
@@ -7447,7 +7468,16 @@ function mappedCurrencyForKpiField(fieldKey, rows = []) {
 
 function kpiPartialCurrencyContext(metricSpec, rows = []) {
   const fields = metricSpec.currencyFields || [];
-  const mapped = fields.map(fieldKey => mappedCurrencyForKpiField(fieldKey, rows)).filter(item => item.mapped);
+  const mapped = fields.flatMap(fieldKey => {
+    if (fieldKey !== "stock_value") return [mappedCurrencyForKpiField(fieldKey, rows)];
+    const derived = rows.filter(row => row.stock_value_source === "derived" && row.stock_value_availability === "available");
+    const priceCurrency = derived.length ? mappedCurrencyForKpiField("standard_price", derived) : null;
+    // Retain the existing declared stock-valuation basis (also used by the frozen demo).
+    // Explicit currency evidence from a used price must additionally agree with that basis.
+    // Requiring a separate price attestation when it has no currency token is a policy change.
+    return [mappedCurrencyForKpiField("stock_value", rows),
+      ...(priceCurrency?.currencies?.length ? [priceCurrency] : [])];
+  }).filter(item => item.mapped);
   const currencies = [...new Set(mapped.flatMap(item => item.currencies || []).filter(Boolean))].sort();
   const fieldsWithoutCurrency = mapped.filter(item => !(item.currencies || []).length).map(item => item.fieldKey);
   if (currencies.length > 1) {
@@ -7579,7 +7609,8 @@ function buildRecoveryShareAvailabilityModel(rows, inventoryModel, recoveryModel
   const data = Array.isArray(rows) ? rows : [];
   const inventory = inventoryModel.strictAggregate.value;
   const recovery = recoveryModel.strictAggregate.value;
-  const value = inventory !== null && recovery !== null && inventory > 0
+  const safeCurrency = [inventoryModel, recoveryModel].every(model => model.exactAmount.currencyContext.safe);
+  const value = safeCurrency && inventory !== null && recovery !== null && inventory > 0
     ? recovery / inventory * 100
     : null;
   const pairedUsableCount = data.filter(row => (
@@ -7621,7 +7652,7 @@ function buildRecoveryShareAvailabilityModel(rows, inventoryModel, recoveryModel
       invalidCount: 0,
       ambiguousCount: 0,
       limited: value === null,
-      reasonCodes: value === null && inventory === 0 ? ["zero_denominator"] : []
+      reasonCodes: !safeCurrency ? ["unsafe_currency"] : value === null && inventory === 0 ? ["zero_denominator"] : []
     },
     causes: sourceCauses,
     blockingCauses: sourceCauses,
@@ -7691,9 +7722,13 @@ function kpiCoverageText(model) {
   const causeText = kpiCoverageCauseSummary(model);
   const coverage = causeText ? `${base} ${causeText}.` : base;
   if (model.key !== "share") return coverage;
-  return model.strictAggregate.reasonCodes?.includes("zero_denominator")
-    ? `${coverage} ${t("kpiShareZeroDenominator")}`
-    : `${coverage} ${t("kpiShareUnavailableDependency")}`;
+  return `${coverage} ${t(kpiShareUnavailableKey(model))}`;
+}
+
+function kpiShareUnavailableKey(model) {
+  const reasons = model.strictAggregate.reasonCodes || [];
+  return reasons.includes("unsafe_currency") ? "kpiShareUnsafeCurrency"
+    : reasons.includes("zero_denominator") ? "kpiShareZeroDenominator" : "kpiShareUnavailableDependency";
 }
 
 function kpiExactStatusKey(kind) {
@@ -7751,24 +7786,46 @@ function renderOverviewKpiCard(model) {
   trigger.setAttribute("aria-label", formatKpiText("kpiViewMetricDetails", { metric: t(model.labelKey) }));
 }
 
-function renderOverviewKpiSummary(models) {
-  $("mRows").textContent = formatKpiText("kpiScopeSummary", {
-    imported: formatCount(models.inventory.importedCount), relevant: formatCount(models.inventory.relevantCount)
-  });
-  const issues = $("overviewKpiIssues");
-  if (!issues) return;
+// Presentation-only union: physical causes and position counts, never a financial aggregate.
+function overviewKpiIssueScope(models) {
   const restricted = Object.values(models).filter(model => model.relevantCount > 0
     && (model.key === "share" ? model.strictAggregate.value === null && model.causes.length > 0 : overviewKpiStatus(model) !== "complete"));
   const causes = restricted.flatMap(model => model.causes.map(cause => ({ cause, token: model.sourceToken })));
   const scopeWideReasons = ["mixed_currency", "insufficient_currency", "non_base_currency", "unsafe_currency", "overflow"];
   const countable = restricted.length > 0 && restricted.every(model => model.causes.length > 0
     && ![model.exactAmount?.reason, model.partial.reason, model.exactAmount?.currencyContext?.reason].some(reason => scopeWideReasons.includes(reason)))
-    && causes.every(({ cause, token }) => token && Number.isInteger(cause.sourceRowIndex) && cause.sourceRowIndex > 0);
+    && causes.every(({ cause, token }) => token && Number.isInteger(cause.sourceRowIndex) && cause.sourceRowIndex > 0
+      && Number.isInteger(cause.sourceIndex) && cause.sourceIndex >= 0 && cause.sourceKey && cause.sourceColumn);
   const positions = new Set(causes.map(({ cause, token }) => JSON.stringify([token, cause.sourceRowIndex])));
-  issues.hidden = !restricted.length;
-  issues.textContent = !restricted.length ? "" : countable
-    ? formatKpiText("kpiIssuesSummary", { count: formatCount(positions.size) }) : t("kpiIssuesUncounted");
-  issues.dataset.kpiIssuePositions = countable ? String(positions.size) : "";
+  const cells = new Map();
+  restricted.forEach(model => model.causes.forEach(cause => {
+    const key = JSON.stringify([model.sourceToken, cause.sourceRowIndex, cause.sourceIndex, cause.sourceKey, cause.canonicalField]);
+    if (!cells.has(key)) cells.set(key, { ...cause, overviewDependencies: [] });
+    const dependencies = cells.get(key).overviewDependencies;
+    const text = kpiCauseDependencyText(cause, model);
+    if (!dependencies.includes(text)) dependencies.push(text);
+  }));
+  return {
+    key: "overview", labelKey: "kpiIssuesMetric", sourceToken: models.inventory.sourceToken,
+    sourceIdentity: models.inventory.sourceIdentity, restricted: restricted.length > 0,
+    countable, positionCount: countable ? positions.size : null, causes: [...cells.values()]
+  };
+}
+
+function renderOverviewKpiSummary(models) {
+  $("mRows").textContent = formatKpiText("kpiScopeSummary", {
+    imported: formatCount(models.inventory.importedCount), relevant: formatCount(models.inventory.relevantCount)
+  });
+  const issues = $("overviewKpiIssues");
+  if (!issues) return;
+  const scope = overviewKpiIssueScope(models);
+  issues.hidden = !scope.restricted;
+  issues.dataset.kpiIssuePositions = scope.countable ? String(scope.positionCount) : "";
+  issues.querySelector("[data-i18n]").textContent = t("kpiIssuesLimited");
+  const action = issues.querySelector("[data-kpi-review]");
+  action.textContent = scope.countable
+    ? formatKpiText("kpiIssuesSummary", { count: formatCount(scope.positionCount) }) : t("kpiIssuesUncounted");
+  action.dataset.kpiSourceToken = scope.sourceToken;
 }
 
 function closeOverviewKpiDetail(options = {}) {
@@ -7883,8 +7940,7 @@ function openOverviewKpiDetail(key, opener) {
   const shareHtml = share ? '<section class="kpi-detail-share" aria-labelledby="kpiDetailShareTitle"><h3 id="kpiDetailShareTitle">'
     + html(t("metricRecoveryShare")) + '</h3><p data-kpi-share-value>'
     + html(share.strictAggregate.value === null ? t("kpiShareShortUnavailable") : pct(share.strictAggregate.value)) + "</p>"
-    + (share.strictAggregate.value === null ? '<p>' + html(t(share.strictAggregate.reasonCodes?.includes("zero_denominator")
-      ? "kpiShareZeroDenominator" : "kpiShareUnavailableDependency")) + "</p>" : "")
+    + (share.strictAggregate.value === null ? '<p>' + html(t(kpiShareUnavailableKey(share))) + "</p>" : "")
     + '<p data-kpi-share-counts>' + html(formatKpiText("kpiDetailShareCounts", {
       usable: formatCount(shareCounts.usable), relevant: formatCount(shareCounts.relevant), blocking: formatCount(shareCounts.blocking)
     })) + "</p>" + overviewKpiReviewAction(share) + "</section>" : "";
@@ -14605,8 +14661,9 @@ function currentKpiFocusModel(options = {}) {
     if (options.feedback === true) setFeedback(t("kpiCauseFocusCleared"), "warning", { autoReset: true });
     return null;
   }
-  const model = buildKpiAvailabilityModels(getOverviewRows())[activeKpiCauseFocus.metricKey] || null;
-  if (!model || !model.causes.length) {
+  const models = buildKpiAvailabilityModels(getOverviewRows());
+  const model = activeKpiCauseFocus.metricKey === "overview" ? overviewKpiIssueScope(models) : models[activeKpiCauseFocus.metricKey] || null;
+  if (!model || !model.causes.length || (model.key === "overview" && !model.countable)) {
     activeKpiCauseFocus = null;
     if (options.feedback === true) setFeedback(t("kpiCauseFocusNoLongerCurrent"), "warning", { autoReset: true });
     return null;
@@ -14620,11 +14677,20 @@ function currentKpiFocusModel(options = {}) {
 }
 
 function openKpiCauseFocus(metricKey, expectedSourceToken = "") {
-  const model = buildKpiAvailabilityModels(getOverviewRows())[metricKey] || null;
+  const models = buildKpiAvailabilityModels(getOverviewRows());
+  const model = metricKey === "overview" ? overviewKpiIssueScope(models) : models[metricKey] || null;
   if (!model || (expectedSourceToken && model.sourceToken !== expectedSourceToken)) {
     activeKpiCauseFocus = null;
     setFeedback(t("kpiCauseFocusCleared"), "warning", { autoReset: true });
     return false;
+  }
+  if (metricKey === "overview" && model.restricted && !model.countable) {
+    activeKpiCauseFocus = null;
+    resetRemediationFiltersForKpiFocus();
+    switchProcessTab("data-quality", t("navDataQuality"));
+    setFeedback(t("kpiIssuesScopeReason"), "warning", { autoReset: false });
+    focusKpiCauseDestination();
+    return true;
   }
   if (!model.causes.length) {
     activeKpiCauseFocus = null;
@@ -14638,7 +14704,16 @@ function openKpiCauseFocus(metricKey, expectedSourceToken = "") {
   };
   resetRemediationFiltersForKpiFocus();
   switchProcessTab("data-quality", t("navDataQuality"));
+  focusKpiCauseDestination();
   return true;
+}
+
+function focusKpiCauseDestination() {
+  const heading = document.querySelector("[data-kpi-cause-focus] h3") || document.querySelector("#dataQualityHeader h1, #dataQualityHeader h2");
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.style.scrollMarginTop = "180px";
+  heading.focus();
 }
 
 function kpiFocusMatchesIssue(issue, model) {
@@ -15192,6 +15267,7 @@ function scheduleRemediationFilterResults(options = {}) {
 }
 
 function kpiCauseDependencyText(cause, model) {
+  if (Array.isArray(cause.overviewDependencies)) return cause.overviewDependencies.join(" · ");
   if (cause.dependencyKey === "kpiDependencyDirect") {
     return formatKpiText("kpiDependencyDirect", { metric: t(model.labelKey) });
   }

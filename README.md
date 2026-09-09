@@ -1,5 +1,11 @@
 # ObsoliQ Inventory Recovery Cockpit
 
+## Fully calculable KPI control
+
+For a reproducible complete EUR Overview, import [`data/synthetic-kpi-calculability-control.csv`](data/synthetic-kpi-calculability-control.csv) using the normal upload and Mapping Assistant. See [`data/KPI_CONTROL_IMPORT.md`](data/KPI_CONTROL_IMPORT.md) for the two explicit mappings, independent seven-KPI expectations, Waterfall reconciliation and export scope. This four-row synthetic source does not replace the built-in error demo or alter personal source files.
+
+Run `node tests/overview-polish-calculability-01-product-smoke.cjs` for the visible upload/mapping, exact cents, source-bound DQ and real-download checks. All screenshots and runtime outputs belong outside the repository. `PRODUCT_RELEASE_GATE: HOLD`.
+
 ## RECOVERY-PILOT-01: Synthetic End-to-End Pilot
 
 German click guide, expectation table and blank human feedback form: [data/RECOVERY_PILOT_01.md](data/RECOVERY_PILOT_01.md). Generate six initial/update CSV, TSV and genuine XLSX downloads plus eight focused format/failure fixtures with `node scripts/generate-recovery-pilot-01.cjs <external-directory>`. The generator uses the available local `@oai/artifact-tool`, JSZip and Playwright runtime, resolved through `OBSOLIQ_NODE_MODULES` or the bundled runtime; no new project dependency or runtime network access. Generated downloads/previews/catalogs belong outside the repository and are not runtime dependencies. The existing three-package demo and PO demo sources remain unchanged.
@@ -247,6 +253,7 @@ Every packaged CSV, JSON, sample-data source and fixture has a fail-closed prove
 | `data/demo/material-master.csv` | synthetic | Deterministically generated linked demo material context with fictitious identifiers. |
 | `data/sample_existing_excel_export.csv` | synthetic | Generated SAP-like demonstration rows with fictitious material identifiers. |
 | `data/sample_inventory.csv` | synthetic | Small hand-authored demonstration inventory with fictitious identifiers. |
+| `data/synthetic-kpi-calculability-control.csv` | synthetic | Four fictitious EUR control positions with independent expectations and Waterfall cap/overlap cases. |
 | `data/templates/consumption-history-template.csv` | structural-template | Header-only Consumption History import template. |
 | `data/templates/material-master-template.csv` | structural-template | Header-only Material Master import template. |
 | `demo-data.js` | synthetic | Browser descriptor generated from the same linked demo source of truth. |

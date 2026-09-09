@@ -1,5 +1,9 @@
 # Data Folder
 
+## Complete KPI Control
+
+`synthetic-kpi-calculability-control.csv` contains four fictitious EUR positions for the seven Overview KPIs, including a permitted blank-stock derivation, a genuine zero and overlapping/capped risk inputs. [`KPI_CONTROL_IMPORT.md`](KPI_CONTROL_IMPORT.md) documents the normal visible import, independent expectations and export reconciliation. It is separate from the unchanged 102-row error demo and contains no personal/customer data. Normal file uploads retain the ordinary upload trust boundary; the synthetic filename is not privileged authorization.
+
 ## Synthetic PO Extension
 
 `demo/purchase-orders.csv` and `demo/purchase-orders-update.csv` are hand-authored synthetic fixtures for RECOVERY-LOOP-01A. Fictitious suppliers, buyers, orders and source system SYNTHETIC-ONLY are used. They contain no real customer or personal data and assert no expert/pilot validation. The update changes one open quantity and its evidenced value.
