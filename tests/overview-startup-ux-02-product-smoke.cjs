@@ -146,6 +146,12 @@ async function layoutState(page) {
       cardCount: cards.length,
       columns: unique(rects.map(rect => rect.left)),
       rows: unique(rects.map(rect => rect.top)),
+      gridHeight: document.querySelector(".metrics").getBoundingClientRect().height,
+      cardHeights: rects.map(rect => rect.height),
+      actionsAligned: cards.every((card, index) => {
+        const action = card.querySelector("[data-kpi-details]").getBoundingClientRect();
+        return Math.abs(action.left - rects[index].left - parseFloat(getComputedStyle(card).paddingLeft) - 1) < 2;
+      }),
       recoveryGridColumn: recovery ? getComputedStyle(recovery).gridColumnEnd : "",
       overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth,
       cardsContained: cards.every((card, index) => {
@@ -167,8 +173,11 @@ async function stableProductSnapshot(page) {
       packages: registry.packages.map(record => [record.packageId, record.packageType, record.revision, record.status]),
       metrics: ["mInventory", "mExcess", "mBad", "mNoNeed", "mNoPlan", "mRecovery", "mShare"]
         .map(id => [id, document.getElementById(id)?.textContent.trim() || "", document.getElementById(id)?.className || ""]),
-      exact: ["Inventory", "Excess", "Bad", "NoNeed", "NoPlan", "Recovery"]
-        .map(name => document.querySelector(`#m${name}Exact .metric-exact-line`)?.textContent.trim() || "")
+      cards: [...document.querySelectorAll("[data-kpi-card]")].map(card => [
+        card.dataset.kpiAvailability, card.querySelector("[data-kpi-amount-label]").textContent, card.querySelector("[data-kpi-total-status]").textContent
+      ]),
+      summary: document.querySelector(".kpi-data-summary").textContent,
+      detail: { open: Boolean(document.getElementById("overviewKpiDetailDialog")?.open), text: document.getElementById("overviewKpiDetailDialog")?.textContent || "" }
     };
   });
 }
@@ -179,7 +188,7 @@ async function main() {
   const screenshots = [];
   const evidence = { startup: {}, layouts: {}, loading: null, loaded: null, filter: null, sticky: null };
   try {
-    const mainContext = await browser.newContext({ viewport: VIEWPORTS[0], reducedMotion: "reduce" });
+    const mainContext = await browser.newContext({ viewport: VIEWPORTS[0], reducedMotion: "reduce", hasTouch: true });
     const page = await openProductPage(mainContext, diagnostics);
 
     evidence.startup[VIEWPORTS[0].key] = await startupState(page);
@@ -404,7 +413,7 @@ async function main() {
         models,
         exactText: Object.fromEntries(["Inventory", "Excess", "NoNeed", "Recovery"].map(name => [
           name,
-          document.querySelector(`#m${name}Exact .metric-exact-line`)?.textContent.replace(/\s+/gu, " ").trim() || ""
+          document.getElementById(`m${name}`)?.textContent.trim() || ""
         ]))
       };
     });
@@ -423,8 +432,8 @@ async function main() {
     near(evidence.loaded.models.noDemand.strictAggregate.value, 223309.7, "No-demand remains fully available");
     equal(evidence.loaded.models.share.strictAggregate.value, null, "Recovery Share remains unavailable");
     equal(evidence.loaded.models.share.partial.status, "not_allowed", "Recovery Share does not invent a partial quotient");
-    check(evidence.loaded.exactText.Inventory.includes("4.703.268,70") && evidence.loaded.exactText.Excess.includes("424.480,00"), "Exact incomplete values retain two decimals");
-    check(evidence.loaded.exactText.NoNeed.includes("223.309,70") && evidence.loaded.exactText.Recovery.includes("779.220,40"), "Exact complete and Recovery values retain two decimals");
+    check(evidence.loaded.exactText.Inventory.includes("4,7 Mio.") && evidence.loaded.exactText.Excess.includes("424 Tsd."), "Safe incomplete amounts are prominent on their cards");
+    check(evidence.loaded.exactText.NoNeed.includes("223 Tsd.") && evidence.loaded.exactText.Recovery.includes("779 Tsd."), "Complete and Recovery amounts are prominent on their cards");
 
     await page.locator("[data-process='inventory-explorer']").click();
     await page.waitForFunction(() => document.getElementById("overviewWorkspace")?.dataset.view === "inventory");
@@ -553,14 +562,14 @@ async function main() {
       language: document.documentElement.lang,
       theme: document.documentElement.dataset.theme,
       overviewLabel: document.querySelector("[data-process='overview']")?.textContent.trim() || "",
-      exactSummary: document.querySelector("#mInventoryExact summary")?.getAttribute("aria-label") || "",
+      exactSummary: document.querySelector('[data-kpi-details="inventory"]')?.getAttribute("aria-label") || "",
       loadedIconVisibleDuringSettingFeedback: Boolean(document.querySelector("#actionFeedback [data-oq-icon='data-loaded']")?.getClientRects().length)
     }));
     assert.deepEqual(englishDark, {
       language: "en",
       theme: "dark",
       overviewLabel: "Overview",
-      exactSummary: "Show amount: Total Inventory",
+      exactSummary: "View details: Total Inventory",
       loadedIconVisibleDuringSettingFeedback: false
     });
     assertionCount += 1;
@@ -575,7 +584,6 @@ async function main() {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.evaluate(() => {
         scrollTo(0, 0);
-        document.querySelectorAll(".metric-exact-disclosure").forEach(details => { details.open = false; });
       });
       const layout = await layoutState(page);
       evidence.layouts[viewport.key] = layout;
@@ -584,55 +592,59 @@ async function main() {
       equal(layout.rows, viewport.rows, `${viewport.key}: KPI grid uses the expected row count`);
       equal(layout.recoveryGridColumn, "auto", `${viewport.key}: Recovery does not create a special grid span`);
       check(layout.overflow <= 2 && layout.cardsContained, `${viewport.key}: cards are contained without horizontal overflow`);
+      check(layout.actionsAligned, `${viewport.key}: detail actions share the same left anchor`);
+      if (viewport.columns === 3) {
+        check(layout.gridHeight < 500 && layout.cardHeights.every(height => height >= 180 && height < 250), `${viewport.key}: loaded cards retain reviewed compactness without enforcing fixed clipped heights`);
+      }
       await maybeScreenshot(page, screenshots, `loaded-${viewport.key}.png`);
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.evaluate(() => {
-      scrollTo(0, 0);
-      document.querySelectorAll(".metric-exact-disclosure:not([hidden])").forEach(details => { details.open = true; });
+    await page.locator('[data-kpi-details="recovery"]').tap();
+    const mobileExact = await page.evaluate(() => {
+      const dialog = document.getElementById("overviewKpiDetailDialog");
+      const amount = dialog.querySelector("[data-kpi-exact-value]");
+      const body = dialog.querySelector(".kpi-detail-body");
+      return dialog.open && amount.textContent.includes("779.220,40")
+        && dialog.scrollWidth <= innerWidth && dialog.getBoundingClientRect().height <= innerHeight
+        && body.scrollHeight > body.clientHeight
+        && dialog.querySelector("[data-kpi-detail-close]").getBoundingClientRect().height >= 44;
     });
-    const mobileExact = await page.evaluate(() => [...document.querySelectorAll(".metric-exact-disclosure:not([hidden])")].every(details => {
-      const card = details.closest(".metric");
-      const line = details.querySelector(".metric-exact-line");
-      const cardRect = card.getBoundingClientRect();
-      const lineRect = line.getBoundingClientRect();
-      return details.open && details.querySelector("summary").getBoundingClientRect().height >= 24
-        && lineRect.left >= cardRect.left - 1 && lineRect.right <= cardRect.right + 1
-        && card.scrollWidth <= card.clientWidth + 2;
-    }));
-    check(mobileExact, "Open exact-amount details remain readable and touch-operable on mobile");
-    await page.locator("#mInventoryExact summary").focus();
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("Enter");
-    check(await page.locator("#mInventoryExact").evaluate(details => details.open), "Exact amount disclosure supports keyboard toggling");
+    check(mobileExact, "Mobile shared detail is exact, scrollable and touch-operable");
     await maybeScreenshot(page, screenshots, "loaded-390x844-exact-open.png");
-    await page.evaluate(() => {
-      document.querySelectorAll(".metric-exact-disclosure").forEach(details => { details.open = false; });
-      scrollTo(0, 700);
-      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await page.locator("#mShareReview").focus();
+    const detailFocus = await page.evaluate(() => {
+      const control = document.activeElement;
+      const heading = document.querySelector(".kpi-detail-heading").getBoundingClientRect();
+      const rect = control.getBoundingClientRect();
+      const close = document.querySelector("[data-kpi-detail-close]").getBoundingClientRect();
+      return rect.top >= heading.bottom && rect.bottom <= innerHeight && close.top >= 0 && close.bottom <= innerHeight
+        && document.elementFromPoint(rect.left + 5, rect.top + 5) === control;
     });
-    const mobileSticky = await page.evaluate(() => {
-      const header = document.querySelector("header").getBoundingClientRect();
-      return { scrollY, headerTop: header.top, headerBottom: header.bottom };
-    });
-    check(mobileSticky.scrollY > 0 && Math.abs(mobileSticky.headerTop) <= 1 && mobileSticky.headerBottom > 0, "Mobile header remains intentionally sticky after scrolling");
-    await maybeScreenshot(page, screenshots, "loaded-390x844-sticky.png");
+    check(detailFocus, "Focused lower detail action and persistent Close are unobscured, not merely visible in a scrolled screenshot");
+    await page.keyboard.press("Escape");
+    check(await page.locator('[data-kpi-details="recovery"]').evaluate(el => document.activeElement === el), "Escape restores mobile opener focus");
 
-    await page.setViewportSize({ width: 1568, height: 1000 });
-    await page.evaluate(() => {
-      document.querySelectorAll(".metric-exact-disclosure").forEach(details => { details.open = false; });
-      scrollTo(0, 700);
-      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    });
-    evidence.sticky = await page.evaluate(() => {
-      const header = document.querySelector("header").getBoundingClientRect();
-      const nav = document.querySelector(".main-nav").getBoundingClientRect();
-      return { scrollY, headerTop: header.top, headerBottom: header.bottom, navTop: nav.top, navBottom: nav.bottom };
-    });
-    check(evidence.sticky.scrollY > 0 && Math.abs(evidence.sticky.headerTop) <= 1, "Desktop header remains sticky after scrolling");
-    check(evidence.sticky.navTop >= evidence.sticky.headerBottom - 1 && evidence.sticky.navBottom > evidence.sticky.navTop, "Sticky navigation remains visible without overlapping the header");
-    await maybeScreenshot(page, screenshots, "loaded-1568x1000-sticky.png");
+    for (const width of [390, 1099, 1100, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.locator('[data-kpi-details="noPlan"]').evaluate(el => el.scrollIntoView({ block: "start" }));
+      await page.locator('[data-kpi-details="noPlan"]').focus();
+      await page.keyboard.press("Enter");
+      const focusProof = await page.evaluate(() => {
+        const title = document.getElementById("overviewKpiDetailTitle");
+        const rect = title.getBoundingClientRect();
+        return document.activeElement === title && rect.top >= 0 && rect.bottom <= innerHeight;
+      });
+      check(focusProof, width + "px: anchored card opens a focused, unobscured top-layer detail despite fixed header");
+      await page.keyboard.press("Escape");
+      const anchorProof = await page.locator('[data-kpi-details="noPlan"]').evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        const header = document.querySelector("header").getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + 4, rect.top + 4);
+        return document.activeElement === el && rect.top >= header.bottom && rect.bottom <= innerHeight && (hit === el || el.contains(hit));
+      });
+      check(anchorProof, width + "px: return focus and anchored trigger are not covered by the header/navigation");
+    }
     await page.evaluate(() => scrollTo(0, 0));
 
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -640,7 +652,7 @@ async function main() {
     await page.waitForFunction(() => document.getElementById("overviewWorkspace")?.dataset.overviewState === "filtered_empty");
     evidence.filter = await page.evaluate(() => {
       const visible = element => Boolean(element && element.getClientRects().length);
-      const warnings = [document.querySelector("#overviewFilterEmptyState p"), ...document.querySelectorAll("[id$='Coverage']")]
+      const warnings = [document.querySelector("#overviewFilterEmptyState p"), ...document.querySelectorAll(".kpi-data-summary")]
         .filter(element => visible(element) && element.textContent.includes("Keine Positionen im aktuellen Filter"));
       return {
         rawRows: window.__obsoliqTestBridge.getState().rawRows,
@@ -706,16 +718,18 @@ async function main() {
       preserveFailureFeedback: true
     }), zeroCsv);
     equal(zeroResult.status, "loaded", "True-zero fixture loads through the product boundary");
+    await page.locator('[data-kpi-details="recovery"]').click();
     const zeroState = await page.evaluate(() => ({
       recovery: document.getElementById("mRecovery")?.textContent.trim() || "",
       share: document.getElementById("mShare")?.textContent.trim() || "",
       recoveryUnavailable: document.getElementById("mRecovery")?.classList.contains("metric-value-unavailable"),
       shareUnavailable: document.getElementById("mShare")?.classList.contains("metric-value-unavailable"),
-      exact: document.querySelector("#mRecoveryExact .metric-exact-line")?.textContent.replace(/\s+/gu, " ").trim() || ""
+      exact: document.querySelector("#overviewKpiDetailDialog [data-kpi-exact-value]")?.textContent.replace(/\s+/gu, " ").trim() || ""
     }));
     check(!zeroState.recoveryUnavailable && /^0(?:\s|$)/.test(zeroState.recovery), "A complete Recovery zero remains a real zero");
     check(!zeroState.shareUnavailable && zeroState.share.includes("0 %"), "A complete Recovery Share zero remains a real zero percent");
     check(zeroState.exact.includes("0,00"), "Exact Recovery displays a genuine zero with two decimals");
+    await page.keyboard.press("Escape");
 
     const missingCsv = [
       "Material Number,Material Description,Stock Value (EUR),Profit Center,Program short,Excess (EUR),No Need / Conso EUR,No Need / No Con EUR,Bad Stock (EUR),No Plan (EUR),Plant",
@@ -727,16 +741,18 @@ async function main() {
       preserveFailureFeedback: true
     }), missingCsv);
     equal(missingResult.status, "loaded", "Missing-value fixture loads without inventing data");
+    await page.locator('[data-kpi-details="inventory"]').click();
     const missingState = await page.evaluate(() => ({
       inventoryUnavailable: document.getElementById("mInventory")?.classList.contains("metric-value-unavailable"),
       recoveryUnavailable: document.getElementById("mRecovery")?.classList.contains("metric-value-unavailable"),
       inventoryText: document.getElementById("mInventory")?.textContent.trim() || "",
-      exactHidden: document.getElementById("mInventoryExact")?.hidden,
-      exactText: document.querySelector("#mInventoryExact .metric-exact-line")?.textContent.trim() || ""
+      exactHidden: !document.querySelector("#overviewKpiDetailDialog [data-kpi-exact-value]"),
+      exactText: document.querySelector("#overviewKpiDetailDialog [data-kpi-exact-value]")?.textContent.trim() || ""
     }));
     check(missingState.inventoryUnavailable && missingState.recoveryUnavailable, "Missing Stock remains unavailable rather than zero");
     check(!/^0(?:\s|$)/.test(missingState.inventoryText) && missingState.exactHidden && missingState.exactText === "", "Missing value has no stale exact-zero presentation");
 
+    await page.keyboard.press("Escape");
     await page.evaluate(() => {
       const bridge = window.__obsoliqTestBridge;
       const snapshot = bridge.snapshotDatasetRuntimeState();

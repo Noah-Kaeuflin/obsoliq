@@ -49,37 +49,59 @@ async function loadCsv(page, csv, sourceLabel, options = {}) {
   ), { csv, sourceLabel, options });
 }
 
+const KPI_KEYS = { Inventory: "inventory", Excess: "excess", Bad: "blocked", NoNeed: "noDemand", NoPlan: "noPlan", Recovery: "recovery" };
+
+async function closeDetail(page) {
+  if (await page.locator("#overviewKpiDetailDialog[open]").count()) await page.locator("[data-kpi-detail-close]").click();
+}
+
+async function openDetail(page, key, input = "click") {
+  await closeDetail(page);
+  await page.locator('[data-kpi-details="' + key + '"]')[input]();
+  await page.locator("#overviewKpiDetailDialog[open]").waitFor();
+}
+
+async function assertClosed(page, message) {
+  check(await page.evaluate(() => {
+    const dialog = document.getElementById("overviewKpiDetailDialog");
+    return !dialog || (!dialog.open && !dialog.textContent && !dialog.dataset.kpiSourceToken);
+  }), message);
+}
+
+// Read actual card and dialog DOM. Open each reachable detail and close it; never derive expected money from the DOM.
 async function exactState(page) {
-  return page.evaluate(names => {
-    const record = {};
-    names.forEach(name => {
-      const details = document.getElementById(`m${name}Exact`);
-      const summary = details?.querySelector("summary") || null;
-      const line = details?.querySelector(".metric-exact-line") || null;
-      const amount = details?.querySelector("[data-kpi-exact-value]") || null;
-      const status = details?.querySelector("[data-kpi-exact-status]") || null;
-      const value = document.getElementById(`m${name}`);
-      const partial = document.getElementById(`m${name}Partial`);
-      record[name] = {
-        hidden: Boolean(details?.hidden || details?.classList.contains("hidden")),
-        open: Boolean(details?.open),
-        summary: summary?.textContent?.trim() || "",
-        ariaLabel: summary?.getAttribute("aria-label") || "",
-        summaryTag: summary?.tagName || "",
-        line: line?.textContent?.trim() || "",
-        status: status?.textContent || "",
-        amount: amount?.textContent || "",
-        sourceToken: details?.dataset.kpiSourceToken || "",
-        kind: details?.dataset.kpiExactKind || "",
-        compact: value?.textContent?.trim() || "",
-        partial: partial?.textContent || "",
-        lineVisible: Boolean(line?.getClientRects().length),
+  await closeDetail(page);
+  const record = {};
+  for (const name of KPI_NAMES) {
+    const key = KPI_KEYS[name];
+    const visible = await page.locator('[data-kpi-details="' + key + '"]').isVisible();
+    if (visible) await openDetail(page, key);
+    record[name] = await page.evaluate(({ name, key }) => {
+      const card = document.querySelector('[data-kpi-card="' + key + '"]');
+      const dialog = document.getElementById("overviewKpiDetailDialog");
+      const detail = dialog?.open && dialog.dataset.kpiKey === key ? dialog : null;
+      const trigger = card.querySelector("[data-kpi-details]");
+      const amount = detail?.querySelector("[data-kpi-exact-value]");
+      const status = detail?.querySelector("[data-kpi-exact-status]")?.textContent || "";
+      return {
+        hidden: !amount,
+        summary: trigger.textContent.trim(), ariaLabel: trigger.getAttribute("aria-label"),
+        summaryTag: trigger.tagName, status, amount: amount?.textContent || "",
+        line: amount ? status + ": " + amount.textContent : "",
+        sourceToken: detail?.dataset.kpiSourceToken || "",
+        compact: document.getElementById("m" + name).textContent.trim(),
+        amountLabel: card.querySelector("[data-kpi-amount-label]").textContent,
+        partial: detail?.textContent || "",
+        total: card.querySelector("[data-kpi-total-status]").textContent,
+        cardStatus: card.dataset.kpiAvailability,
+        lineVisible: Boolean(amount?.getClientRects().length),
         selectable: amount ? getComputedStyle(amount).userSelect !== "none" : false
       };
-    });
-    record.shareExactCount = document.querySelectorAll("#mShareExact, [data-kpi-exact-share]").length;
-    return record;
-  }, KPI_NAMES);
+    }, { name, key });
+    await closeDetail(page);
+  }
+  record.shareExactCount = await page.locator("#mShareExact, [data-kpi-exact-share]").count();
+  return record;
 }
 
 async function waitForDemo(page) {
@@ -139,53 +161,53 @@ async function main() {
     equal(demo.models.share.partial.status, "not_allowed", "Recovery Share still forbids a partial quotient");
 
     let state = await exactState(page);
-    check(state.Inventory.compact === "n. v." && state.Inventory.partial.includes("4,7 Mio."), "Inventory keeps its unavailable main value and compact subtotal");
-    check(state.NoNeed.compact.includes("223 Tsd."), "No-demand compact card value remains unchanged");
-    check(state.Excess.partial.includes("424 Tsd."), "Excess compact projection remains unchanged");
-    check(KPI_NAMES.every(name => !state[name].hidden && state[name].summary === "Betrag anzeigen"), "All six safe monetary KPIs expose the German disclosure label");
-    check(KPI_NAMES.every(name => state[name].ariaLabel.startsWith("Betrag anzeigen: ") && state[name].ariaLabel.includes(name === "Bad" ? "Gesperrt / QI" : name === "NoNeed" ? "Ohne Bedarf" : name === "NoPlan" ? "Ohne Plan" : name === "Inventory" ? "Gesamtbestand" : name === "Excess" ? "Überbestand" : "Recovery-Potenzial")), "Every German disclosure has a metric-specific accessible name with the visible label in its name");
-    check(KPI_NAMES.every(name => state[name].summaryTag === "SUMMARY"), "Every control uses native details/summary disclosure semantics");
+    check(state.Inventory.compact === "4,7 Mio. €" && state.Inventory.total === "Gesamtwert nicht verfügbar", "Safe Inventory subtotal is prominent with permanent unavailable-total status");
+    check(state.NoNeed.compact.includes("223 Tsd."), "No-demand compact complete amount remains unchanged");
+    check(state.Excess.compact.includes("424 Tsd."), "Excess compact projection is prominent");
+    check(KPI_NAMES.every(name => !state[name].hidden && state[name].summary === "Details ansehen"), "All six safe monetary KPIs expose the visible German detail action");
+    check(KPI_NAMES.every(name => state[name].ariaLabel.startsWith("Details ansehen: ") && state[name].ariaLabel.includes(name === "Bad" ? "Gesperrt / QI" : name === "NoNeed" ? "Ohne Bedarf" : name === "NoPlan" ? "Ohne Plan" : name === "Inventory" ? "Gesamtbestand" : name === "Excess" ? "Überbestand" : "Recovery-Potenzial")), "Every German detail button has a metric-specific accessible name including its visible label");
+    check(KPI_NAMES.every(name => state[name].summaryTag === "BUTTON"), "Every detail control uses native button semantics");
 
-    await page.locator("#mInventoryExact > summary").click();
-    equal((await exactState(page)).Inventory.open, true, "Mouse click opens the Inventory amount disclosure");
+    await openDetail(page, "inventory");
+    equal(await page.getByRole("dialog", { name: "Gesamtbestand", exact: true }).count(), 1, "The native dialog has the visible KPI title as its accessible name");
+    equal(await page.locator("#overviewKpiDetailTitle").textContent(), "Gesamtbestand", "Mouse opens the correctly named shared dialog");
+    await page.keyboard.press("Escape");
+    check(await page.locator('[data-kpi-details="inventory"]').evaluate(el => document.activeElement === el), "Escape restores opener focus");
+    await assertClosed(page, "Escape clears the previous amount, causes and source token");
 
-    const excessSummary = page.locator("#mExcessExact > summary");
-    await excessSummary.focus();
+    const excessTrigger = page.locator('[data-kpi-details="excess"]');
+    await excessTrigger.focus();
+    check(await excessTrigger.evaluate(el => {
+      const style = getComputedStyle(el);
+      return document.activeElement === el && style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0 && el.getBoundingClientRect().height >= 44;
+    }), "Keyboard trigger has visible focus and at least a 44px touch target");
     await page.keyboard.press("Enter");
-    const keyboardState = await page.evaluate(() => {
-      const details = document.getElementById("mExcessExact");
-      const summary = details.querySelector("summary");
-      const style = getComputedStyle(summary);
-      return {
-        open: details.open,
-        focused: document.activeElement === summary,
-        outlineStyle: style.outlineStyle,
-        outlineWidth: style.outlineWidth,
-        targetHeight: summary.getBoundingClientRect().height
-      };
-    });
-    check(keyboardState.open && keyboardState.focused, "Enter opens the native disclosure without moving keyboard focus");
-    check(keyboardState.outlineStyle !== "none" && keyboardState.outlineWidth !== "0px", "Keyboard focus has a visible outline");
-    check(keyboardState.targetHeight >= 32, "The disclosure summary provides a usable touch target height");
-
-    await page.locator("#mBadExact > summary").tap();
-    equal((await exactState(page)).Bad.open, true, "Touch opens the same native amount disclosure");
-    for (const name of ["NoNeed", "NoPlan", "Recovery"]) {
-      await page.locator(`#m${name}Exact > summary`).click();
-    }
+    check(await page.locator("#overviewKpiDetailTitle").evaluate(el => document.activeElement === el), "Enter opens detail with title focus");
+    await page.keyboard.press("Shift+Tab");
+    check(await page.evaluate(() => document.activeElement?.closest("#overviewKpiDetailDialog") !== null), "Native modal contains keyboard focus");
+    await closeDetail(page);
+    check(await excessTrigger.evaluate(el => document.activeElement === el), "Close returns focus to the triggering card");
+    await openDetail(page, "blocked", "tap");
+    equal(await page.locator("#overviewKpiDetailTitle").textContent(), "Gesperrt / QI", "Touch opens the shared detail panel");
+    await closeDetail(page);
 
     state = await exactState(page);
     const germanExpected = {
-      Inventory: ["Unvollständige Teilsumme", "4.703.268,70 €"],
+      Inventory: ["Bewertbare Teilsumme", "4.703.268,70 €"],
       Excess: ["Unvollständige Projektion", "424.480,00 €"],
-      Bad: ["Unvollständige Teilsumme", "117.003,30 €"],
+      Bad: ["Bewertbare Teilsumme", "117.003,30 €"],
       NoNeed: ["Vollständiger Betrag", "223.309,70 €"],
-      NoPlan: ["Unvollständige Teilsumme", "26.781,40 €"],
-      Recovery: ["Unvollständige Teilsumme", "779.220,40 €"]
+      NoPlan: ["Bewertbare Teilsumme", "26.781,40 €"],
+      Recovery: ["Bewertbare Teilsumme", "779.220,40 €"]
     };
+    const compactExpected = { Inventory: "4,7 Mio. €", Excess: "424 Tsd. €", Bad: "117 Tsd. €", NoNeed: "223 Tsd. €", NoPlan: "26,8 Tsd. €", Recovery: "779 Tsd. €" };
     KPI_NAMES.forEach(name => {
       const [status, amount] = germanExpected[name];
+      equal(state[name].compact, compactExpected[name], `${name} shows the expected model-backed compact EUR amount`);
+      equal(state[name].cardStatus, name === "NoNeed" ? "complete" : "incomplete", `${name} keeps its availability status on the closed card`);
+      equal(state[name].total, name === "NoNeed" ? "" : "Gesamtwert nicht verfügbar", `${name} keeps strict-total availability separate from its prominent amount`);
       equal(normalizeText(state[name].status), status, `${name} exposes the correct German completeness status`);
+      equal(normalizeText(state[name].amountLabel), status, `${name} labels the prominent amount immediately on the closed card`);
       equal(normalizeText(state[name].amount), amount, `${name} exposes the unabridged German amount with cents`);
       equal(normalizeText(state[name].line), `${status}: ${amount}`, `${name} keeps status immediately beside the exact amount`);
       check(state[name].lineVisible && state[name].selectable, `${name} exposes the exact amount as visible selectable text`);
@@ -198,10 +220,10 @@ async function main() {
       select.value = "USD";
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    await page.waitForFunction(() => document.getElementById("mInventoryPartial")?.textContent.includes("$"));
+    await assertClosed(page, "Display currency change leaves no stale open detail");
     state = await exactState(page);
     equal(normalizeText(state.Inventory.amount), euroBeforeDisplayCurrencyChange, "Exact source-basis amount is not automatically FX-converted by the display-currency setting");
-    check(state.Inventory.partial.includes("$"), "Existing compact presentation currency remains independently functional");
+    equal(state.Inventory.compact, "4,7 Mio. €", "Prominent source-basis amount also stays EUR without automatic FX conversion");
     await page.evaluate(() => {
       const select = document.getElementById("currencySelect");
       select.value = "EUR";
@@ -210,14 +232,21 @@ async function main() {
 
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("en"));
     state = await exactState(page);
-    check(KPI_NAMES.every(name => state[name].open && state[name].summary === "Show amount"), "Language change preserves open disclosures and renders their English control label");
-    check(KPI_NAMES.every(name => state[name].ariaLabel.startsWith("Show amount: ")), "English disclosures retain metric-specific accessible names with the visible label in their name");
-    equal(normalizeText(state.Inventory.line), "Incomplete subtotal: €4,703,268.70", "English subtotal uses locale-correct grouping and cents");
+    check(KPI_NAMES.every(name => state[name].summary === "View details"), "Language change renders English detail actions");
+    check(KPI_NAMES.every(name => state[name].ariaLabel.startsWith("View details: ")), "English disclosures retain metric-specific accessible names with the visible label in their name");
+    equal(normalizeText(state.Inventory.line), "Subtotal of valued items: €4,703,268.70", "English subtotal uses locale-correct grouping and cents");
     equal(normalizeText(state.Excess.line), "Incomplete projection: €424,480.00", "English projection keeps its distinct status");
     equal(normalizeText(state.NoNeed.line), "Full amount: €223,309.70", "English complete amount keeps its distinct status");
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("de"));
 
-    await page.locator("#overviewGlobalSearch").fill("MAT-1001");
+    await openDetail(page, "inventory");
+    await page.evaluate(() => {
+      const search = document.getElementById("overviewGlobalSearch");
+      search.value = "MAT-1001";
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await assertClosed(page, "Changing filter scope closes and clears the prior detail");
+
     await page.waitForFunction(() => window.__obsoliqTestBridge.getOverviewRows().length === 1);
     const filtered = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest(
       window.__obsoliqTestBridge.getOverviewRows()
@@ -225,14 +254,14 @@ async function main() {
     state = await exactState(page);
     equal(filtered.inventory.exactAmount.value, 168, "Filtered exact amount reuses the one-row strict KPI value");
     equal(filtered.inventory.exactAmount.kind, "complete", "Filtered complete scope changes the presentation status without changing the formula");
-    equal(normalizeText(state.Inventory.line), "Vollständiger Betrag: 168,00 €", "Open disclosure updates to the same filtered card scope");
+    equal(normalizeText(state.Inventory.line), "Vollständiger Betrag: 168,00 €", "Reopened detail uses the new filtered card scope");
     await page.locator("#overviewGlobalSearch").fill("__KPI_EXACT_NO_MATCH__");
     await page.waitForFunction(() => window.__obsoliqTestBridge.getOverviewRows().length === 0);
     const noMatchState = await exactState(page);
     check(KPI_NAMES.every(name => noMatchState[name].hidden && !noMatchState[name].line && !noMatchState[name].amount), "Empty filter scope hides and clears every exact amount without fabricating zero");
     await page.locator("#overviewGlobalSearch").fill("");
     await page.waitForFunction(() => window.__obsoliqTestBridge.getOverviewRows().length === 102);
-    equal(normalizeText((await exactState(page)).Inventory.line), "Unvollständige Teilsumme: 4.703.268,70 €", "Resetting the filter restores the demo subtotal in the same disclosure");
+    equal(normalizeText((await exactState(page)).Inventory.line), "Bewertbare Teilsumme: 4.703.268,70 €", "Resetting the filter restores the demo subtotal in a freshly opened detail");
 
     const zeroCsv = [
       "Material Number,Material Description,Stock Value (EUR),Profit Center,Program short,Excess (EUR),No Need / Conso EUR,No Need / No Con EUR,Bad Stock (EUR),No Plan (EUR),Plant",
@@ -242,7 +271,9 @@ async function main() {
       state: await exactState(page),
       packageRecord: await page.evaluate(() => window.__obsoliqTestBridge.getActiveInventoryPackage())
     };
+    await openDetail(page, "inventory");
     const failedLoad = await loadCsv(page, zeroCsv, "kpi-exact-forced-failure.csv", { forceBuildErrorForTest: true });
+    await assertClosed(page, "A failed source operation closes stale detail presentation while rolling back the data");
     equal(failedLoad.status, "error", "Synthetic forced import failure reaches the transactional rollback path");
     const afterFailedImport = {
       state: await exactState(page),
@@ -251,7 +282,9 @@ async function main() {
     deepEqual(afterFailedImport, beforeFailedImport, "Failed import preserves package identity, disclosure state and exact values byte-for-byte");
 
     const demoSourceToken = beforeFailedImport.state.Inventory.sourceToken;
+    await openDetail(page, "inventory");
     const zeroLoad = await loadCsv(page, zeroCsv, "kpi-exact-true-zero.csv");
+    await assertClosed(page, "Successful source replacement closes and clears the previous open detail and DQ tokens");
     equal(zeroLoad.status, "loaded", "Safe true-zero EUR source loads successfully");
     const zeroModels = await page.evaluate(() => window.__obsoliqTestBridge.buildKpiAvailabilityModelsForTest());
     state = await exactState(page);
@@ -261,7 +294,7 @@ async function main() {
     }));
     check(KPI_NAMES.every(name => zeroExactSummary[name].value === 0), `All six safe exact models preserve genuine numeric zero: ${JSON.stringify(zeroExactSummary)}`);
     check(KPI_NAMES.every(name => !state[name].hidden && normalizeText(state[name].amount) === "0,00 €"), "All safe calculated zero amounts expose a disclosure with two decimals");
-    check(KPI_NAMES.every(name => !state[name].open && state[name].sourceToken !== demoSourceToken), "Successful source switch closes disclosures and removes stale source binding");
+    check(KPI_NAMES.every(name => state[name].sourceToken !== demoSourceToken), "Successful source switch removes stale source binding from every freshly opened detail");
     check(!normalizeText(JSON.stringify(state)).includes("4.703.268,70 €"), "Successful source switch removes stale demo amounts from the exact UI");
     equal(state.shareExactCount, 0, "True-zero Recovery Share still has no monetary disclosure");
 
@@ -315,49 +348,31 @@ async function main() {
     await loadDemoFromButton(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => window.scrollTo(0, 0));
-    for (const name of KPI_NAMES) {
-      await page.locator(`#m${name}Exact > summary`).click();
-    }
-    const narrowGerman = await page.evaluate(names => {
-      const records = names.map(name => {
-        const details = document.getElementById(`m${name}Exact`);
-        const card = details.closest(".metric");
-        const line = details.querySelector(".metric-exact-line");
-        const amount = details.querySelector("[data-kpi-exact-value]");
-        const cardRect = card.getBoundingClientRect();
-        const detailsRect = details.getBoundingClientRect();
-        return {
-          name,
-          cardOverflow: card.scrollWidth - card.clientWidth,
-          detailsOverflow: details.scrollWidth - details.clientWidth,
-          lineOverflow: line.scrollWidth - line.clientWidth,
-          insideCard: detailsRect.left >= cardRect.left - 1 && detailsRect.right <= cardRect.right + 1,
-          selectable: getComputedStyle(amount).userSelect !== "none"
-        };
-      });
+    await openDetail(page, "recovery", "tap");
+    const narrowGerman = await page.evaluate(() => {
+      const dialog = document.getElementById("overviewKpiDetailDialog");
       return {
         viewportOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        records
+        overflow: dialog.scrollWidth - dialog.clientWidth,
+        width: dialog.getBoundingClientRect().width,
+        height: dialog.getBoundingClientRect().height,
+        scrollable: dialog.querySelector(".kpi-detail-body").scrollHeight > dialog.querySelector(".kpi-detail-body").clientHeight,
+        selectable: getComputedStyle(dialog.querySelector("[data-kpi-exact-value]")).userSelect !== "none"
       };
-    }, KPI_NAMES);
-    check(narrowGerman.viewportOverflow <= 0, "390px German view has no global horizontal overflow");
-    check(narrowGerman.records.every(item => item.cardOverflow <= 0 && item.detailsOverflow <= 0 && item.lineOverflow <= 0 && item.insideCard && item.selectable), "Every German exact amount stays within its narrow KPI card");
+    });
+    check(narrowGerman.viewportOverflow <= 0 && narrowGerman.overflow <= 0, "390px German card and detail have no horizontal overflow");
+    check(narrowGerman.width <= 390 && narrowGerman.height <= 844 && narrowGerman.scrollable && narrowGerman.selectable, "Mobile native panel fits the viewport with scrollable, selectable details");
+    await page.locator("#mShareReview").scrollIntoViewIfNeeded();
+    check(await page.locator("#mShareReview").isVisible(), "The lower share action is reachable by scrolling");
+    await page.locator("[data-kpi-detail-close]").tap();
+    await assertClosed(page, "Touch close clears the detail");
+    check(await page.locator('[data-kpi-details="recovery"]').evaluate(el => document.activeElement === el), "Touch close returns opener focus");
 
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("en"));
-    const narrowEnglish = await page.evaluate(names => ({
-      viewportOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      controls: names.map(name => {
-        const details = document.getElementById(`m${name}Exact`);
-        const line = details.querySelector(".metric-exact-line");
-        return {
-          open: details.open,
-          summary: details.querySelector("summary").textContent.trim(),
-          overflow: Math.max(details.scrollWidth - details.clientWidth, line.scrollWidth - line.clientWidth)
-        };
-      })
-    }), KPI_NAMES);
-    check(narrowEnglish.viewportOverflow <= 0, "390px English view has no global horizontal overflow");
-    check(narrowEnglish.controls.every(item => item.open && item.summary === "Show amount" && item.overflow <= 0), "English labels and exact lines remain open and overflow-free at 390px");
+    await openDetail(page, "inventory", "tap");
+    equal(normalizeText(await page.locator("[data-kpi-exact-value]").textContent()), "€4,703,268.70", "English mobile detail exposes locale-correct exact EUR");
+    check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.getElementById("overviewKpiDetailDialog").scrollWidth <= innerWidth), "390px English card and detail remain overflow-free");
+    await closeDetail(page);
 
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("de"));
     const longAmountCsv = [
@@ -366,12 +381,12 @@ async function main() {
     ].join("\n");
     const longAmountLoad = await loadCsv(page, longAmountCsv, "kpi-exact-long-amount.csv");
     equal(longAmountLoad.status, "loaded", "Long finite EUR amount fixture loads");
-    await page.locator("#mInventoryExact > summary").click();
+    await openDetail(page, "inventory");
     const longAmountLayout = await page.evaluate(() => {
-      const details = document.getElementById("mInventoryExact");
-      const line = details.querySelector(".metric-exact-line");
+      const details = document.getElementById("overviewKpiDetailDialog");
+      const line = details.querySelector(".kpi-detail-value");
       const amount = details.querySelector("[data-kpi-exact-value]");
-      const card = details.closest(".metric");
+      const card = document.querySelector('[data-kpi-card="inventory"]');
       return {
         text: amount.textContent,
         viewportOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,

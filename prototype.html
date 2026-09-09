@@ -67,85 +67,100 @@
       </section>
       <div class="overview-main hidden" hidden>
         <div class="metric-section-head" data-i18n="summarySectionLabel">Kernkennzahlen</div>
-
-        <section class="metrics">
-          <div class="metric inventory">
-            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="total-inventory"><use href="#oq-total-inventory"></use></svg><span data-i18n="metricInventory">Gesamtbestand</span></div>
-            <div id="mInventory" class="value metric-value-unavailable">—</div>
-            <div id="mRows" class="sub">0 Zeilen</div>
-            <div id="mInventoryCoverage" class="sub hidden" aria-live="polite"></div>
-            <div id="mInventoryPartial" class="sub hidden"></div>
-            <details id="mInventoryExact" class="metric-exact-disclosure hidden" hidden>
-              <summary data-i18n="kpiShowAmount">Betrag anzeigen</summary>
-              <p class="metric-exact-line" aria-live="polite" aria-atomic="true"><span data-kpi-exact-status></span><span data-kpi-exact-separator></span> <span data-kpi-exact-value></span></p>
-            </details>
-            <button id="mInventoryReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-          </div>
-          <div class="metric excess">
-            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="excess-stock"><use href="#oq-excess-stock"></use></svg><span data-i18n="metricExcess">Überbestand</span></div>
-            <div id="mExcess" class="value metric-value-unavailable">—</div>
-            <div id="mExcessSub" class="sub" data-i18n="metricExcessSub">adressierbarer Überbestand</div>
-            <div id="mExcessCoverage" class="sub hidden" aria-live="polite"></div>
-            <div id="mExcessPartial" class="sub hidden"></div>
-            <details id="mExcessExact" class="metric-exact-disclosure hidden" hidden>
-              <summary data-i18n="kpiShowAmount">Betrag anzeigen</summary>
-              <p class="metric-exact-line" aria-live="polite" aria-atomic="true"><span data-kpi-exact-status></span><span data-kpi-exact-separator></span> <span data-kpi-exact-value></span></p>
-            </details>
-            <button id="mExcessReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-          </div>
-          <div class="metric bad">
-            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="blocked-quality"><use href="#oq-blocked-quality"></use></svg><span data-i18n="metricBad">Gesperrt / QI</span></div>
-            <div id="mBad" class="value metric-value-unavailable">—</div>
-            <div class="sub" data-i18n="metricBadSub">gesperrter / QI-Bestand</div>
-            <div id="mBadCoverage" class="sub hidden" aria-live="polite"></div>
-            <div id="mBadPartial" class="sub hidden"></div>
-            <details id="mBadExact" class="metric-exact-disclosure hidden" hidden>
-              <summary data-i18n="kpiShowAmount">Betrag anzeigen</summary>
-              <p class="metric-exact-line" aria-live="polite" aria-atomic="true"><span data-kpi-exact-status></span><span data-kpi-exact-separator></span> <span data-kpi-exact-value></span></p>
-            </details>
-            <button id="mBadReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-          </div>
-          <div class="metric noneed">
-            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="no-demand"><use href="#oq-no-demand"></use></svg><span data-i18n="metricNoNeed">Ohne Bedarf</span></div>
-            <div id="mNoNeed" class="value metric-value-unavailable">—</div>
-            <div class="sub" data-i18n="metricNoNeedSub">Bestand ohne sichtbaren Bedarf</div>
-            <div id="mNoNeedCoverage" class="sub hidden" aria-live="polite"></div>
-            <div id="mNoNeedPartial" class="sub hidden"></div>
-            <details id="mNoNeedExact" class="metric-exact-disclosure hidden" hidden>
-              <summary data-i18n="kpiShowAmount">Betrag anzeigen</summary>
-              <p class="metric-exact-line" aria-live="polite" aria-atomic="true"><span data-kpi-exact-status></span><span data-kpi-exact-separator></span> <span data-kpi-exact-value></span></p>
-            </details>
-            <button id="mNoNeedReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-          </div>
-          <div class="metric noplan">
-            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="unplanned"><use href="#oq-unplanned"></use></svg><span data-i18n="metricNoPlan">Ohne Plan</span></div>
-            <div id="mNoPlan" class="value metric-value-unavailable">—</div>
-            <div class="sub" data-i18n="metricNoPlanSub">Bestand ohne Planbezug</div>
-            <div id="mNoPlanCoverage" class="sub hidden" aria-live="polite"></div>
-            <div id="mNoPlanPartial" class="sub hidden"></div>
-            <details id="mNoPlanExact" class="metric-exact-disclosure hidden" hidden>
-              <summary data-i18n="kpiShowAmount">Betrag anzeigen</summary>
-              <p class="metric-exact-line" aria-live="polite" aria-atomic="true"><span data-kpi-exact-status></span><span data-kpi-exact-separator></span> <span data-kpi-exact-value></span></p>
-            </details>
-            <button id="mNoPlanReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-          </div>
-          <div class="metric recovery">
-            <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="recovery-potential"><use href="#oq-recovery-potential"></use></svg><span data-i18n="metricRecovery">Recovery-Potenzial</span></div>
-            <div id="mRecovery" class="value metric-value-unavailable">—</div>
-            <div class="sub"><span data-i18n="metricRecoveryShare">Recovery-Anteil</span>: <span id="mShare" class="metric-value-unavailable">—</span></div>
-            <div id="mRecoveryCoverage" class="sub hidden" aria-live="polite"></div>
-            <div id="mRecoveryPartial" class="sub hidden"></div>
-            <details id="mRecoveryExact" class="metric-exact-disclosure hidden" hidden>
-              <summary data-i18n="kpiShowAmount">Betrag anzeigen</summary>
-              <p class="metric-exact-line" aria-live="polite" aria-atomic="true"><span data-kpi-exact-status></span><span data-kpi-exact-separator></span> <span data-kpi-exact-value></span></p>
-            </details>
-            <button id="mRecoveryReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-            <div id="mShareCoverage" class="sub hidden" aria-live="polite"></div>
-            <button id="mShareReview" class="secondary small hidden" type="button" hidden><span data-kpi-review-label data-i18n="kpiReviewAffectedData">Betroffene Daten prüfen</span></button>
-            <div class="recovery-progress" aria-hidden="true">
-              <span id="recoveryProgressFill"></span>
+        <div class="kpi-data-summary" aria-live="polite">
+          <span id="mRows"></span><span id="overviewKpiIssues" hidden></span>
+        </div>
+        <section class="metrics" aria-label="Kernkennzahlen" data-i18n-aria-label="summarySectionLabel">
+          <article class="metric recovery" data-kpi-card="recovery">
+            <div class="kpi-card-heading">
+              <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="recovery-potential"><use href="#oq-recovery-potential"></use></svg><span data-i18n="metricRecovery"></span></div>
+              <span class="kpi-availability-status" data-kpi-status></span>
             </div>
-          </div>
+            <div class="kpi-card-amount">
+              <div class="kpi-amount-label" data-kpi-amount-label></div>
+              <div id="mRecovery" class="value metric-value-unavailable">—</div>
+              <div class="kpi-total-status" data-kpi-total-status></div>
+            </div>
+            <div class="kpi-card-footer">
+              <p class="kpi-card-note" id="mShare" data-kpi-note></p>
+              <button type="button" class="kpi-detail-trigger" data-kpi-details="recovery" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
+            </div>
+          </article>
+          <article class="metric inventory" data-kpi-card="inventory">
+            <div class="kpi-card-heading">
+              <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="total-inventory"><use href="#oq-total-inventory"></use></svg><span data-i18n="metricInventory"></span></div>
+              <span class="kpi-availability-status" data-kpi-status></span>
+            </div>
+            <div class="kpi-card-amount">
+              <div class="kpi-amount-label" data-kpi-amount-label></div>
+              <div id="mInventory" class="value metric-value-unavailable">—</div>
+              <div class="kpi-total-status" data-kpi-total-status></div>
+            </div>
+            <div class="kpi-card-footer">
+              <p class="kpi-card-note" data-kpi-note></p>
+              <button type="button" class="kpi-detail-trigger" data-kpi-details="inventory" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
+            </div>
+          </article>
+          <article class="metric excess" data-kpi-card="excess">
+            <div class="kpi-card-heading">
+              <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="excess-stock"><use href="#oq-excess-stock"></use></svg><span data-i18n="metricExcess"></span></div>
+              <span class="kpi-availability-status" data-kpi-status></span>
+            </div>
+            <div class="kpi-card-amount">
+              <div class="kpi-amount-label" data-kpi-amount-label></div>
+              <div id="mExcess" class="value metric-value-unavailable">—</div>
+              <div class="kpi-total-status" data-kpi-total-status></div>
+            </div>
+            <div class="kpi-card-footer">
+              <p class="kpi-card-note" data-kpi-note></p>
+              <button type="button" class="kpi-detail-trigger" data-kpi-details="excess" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
+            </div>
+          </article>
+          <article class="metric bad" data-kpi-card="blocked">
+            <div class="kpi-card-heading">
+              <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="blocked-quality"><use href="#oq-blocked-quality"></use></svg><span data-i18n="metricBad"></span></div>
+              <span class="kpi-availability-status" data-kpi-status></span>
+            </div>
+            <div class="kpi-card-amount">
+              <div class="kpi-amount-label" data-kpi-amount-label></div>
+              <div id="mBad" class="value metric-value-unavailable">—</div>
+              <div class="kpi-total-status" data-kpi-total-status></div>
+            </div>
+            <div class="kpi-card-footer">
+              <p class="kpi-card-note" data-kpi-note></p>
+              <button type="button" class="kpi-detail-trigger" data-kpi-details="blocked" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
+            </div>
+          </article>
+          <article class="metric noneed" data-kpi-card="noDemand">
+            <div class="kpi-card-heading">
+              <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="no-demand"><use href="#oq-no-demand"></use></svg><span data-i18n="metricNoNeed"></span></div>
+              <span class="kpi-availability-status" data-kpi-status></span>
+            </div>
+            <div class="kpi-card-amount">
+              <div class="kpi-amount-label" data-kpi-amount-label></div>
+              <div id="mNoNeed" class="value metric-value-unavailable">—</div>
+              <div class="kpi-total-status" data-kpi-total-status></div>
+            </div>
+            <div class="kpi-card-footer">
+              <p class="kpi-card-note" data-kpi-note></p>
+              <button type="button" class="kpi-detail-trigger" data-kpi-details="noDemand" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
+            </div>
+          </article>
+          <article class="metric noplan" data-kpi-card="noPlan">
+            <div class="kpi-card-heading">
+              <div class="label oq-icon-label"><svg class="oq-icon oq-icon--kpi" aria-hidden="true" focusable="false" data-oq-icon="unplanned"><use href="#oq-unplanned"></use></svg><span data-i18n="metricNoPlan"></span></div>
+              <span class="kpi-availability-status" data-kpi-status></span>
+            </div>
+            <div class="kpi-card-amount">
+              <div class="kpi-amount-label" data-kpi-amount-label></div>
+              <div id="mNoPlan" class="value metric-value-unavailable">—</div>
+              <div class="kpi-total-status" data-kpi-total-status></div>
+            </div>
+            <div class="kpi-card-footer">
+              <p class="kpi-card-note" data-kpi-note></p>
+              <button type="button" class="kpi-detail-trigger" data-kpi-details="noPlan" aria-haspopup="dialog" aria-controls="overviewKpiDetailDialog" data-i18n="kpiViewDetails">Details ansehen</button>
+            </div>
+          </article>
         </section>
       </div>
     </section>

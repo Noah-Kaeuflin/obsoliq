@@ -44,41 +44,57 @@ async function loadCsv(page, csv, sourceLabel) {
   ), { csv, sourceLabel });
 }
 
+async function openDetail(page, key) {
+  if (await page.locator("#overviewKpiDetailDialog[open]").count()) await page.locator("[data-kpi-detail-close]").click();
+  await page.locator('[data-kpi-details="' + key + '"]').click();
+  await page.locator("#overviewKpiDetailDialog[open]").waitFor();
+}
+
+async function reviewKpi(page, key) {
+  await openDetail(page, key === "share" ? "recovery" : key);
+  await page.locator('[data-kpi-review="' + key + '"]').click();
+}
+
 async function visibleKpiState(page) {
-  return page.evaluate(() => {
-    const ids = ["Inventory", "Excess", "Bad", "NoNeed", "NoPlan", "Recovery"];
-    const record = {};
-    ids.forEach(name => {
-      const coverage = document.getElementById("m" + name + "Coverage");
-      const partial = document.getElementById("m" + name + "Partial");
-      const action = document.getElementById("m" + name + "Review");
+  const record = {};
+  const keys = { Inventory: "inventory", Excess: "excess", Bad: "blocked", NoNeed: "noDemand", NoPlan: "noPlan", Recovery: "recovery" };
+  for (const [name, key] of Object.entries(keys)) {
+    const visible = await page.locator('[data-kpi-details="' + key + '"]').isVisible();
+    if (visible) await openDetail(page, key);
+    record[name] = await page.evaluate(({ name, key }) => {
       const value = document.getElementById("m" + name);
-      record[name] = {
-        value: value?.textContent.trim() || "",
-        unavailable: value?.classList.contains("metric-value-unavailable"),
-        coverage: coverage?.textContent.trim() || "",
-        coverageHidden: Boolean(coverage?.hidden || coverage?.classList.contains("hidden")),
-        partial: partial?.textContent.trim() || "",
-        partialTitle: partial?.title || "",
-        partialHidden: Boolean(partial?.hidden || partial?.classList.contains("hidden")),
-        action: action?.textContent.trim() || "",
-        actionHidden: Boolean(action?.hidden || action?.classList.contains("hidden"))
+      const card = value.closest("[data-kpi-card]");
+      const dialog = document.getElementById("overviewKpiDetailDialog");
+      const detail = dialog?.open ? dialog : null;
+      const action = detail?.querySelector('[data-kpi-review="' + key + '"]');
+      return {
+        value: value.textContent.trim(), unavailable: value.classList.contains("metric-value-unavailable"),
+        label: card.querySelector("[data-kpi-amount-label]").textContent,
+        total: card.querySelector("[data-kpi-total-status]").textContent,
+        cardStatus: card.dataset.kpiAvailability,
+        coverage: detail?.querySelector(".kpi-detail-causes")?.textContent || "",
+        counts: Object.fromEntries([...(detail?.querySelectorAll("[data-kpi-count]") || [])].map(el => [el.dataset.kpiCount, el.textContent])),
+        partial: detail?.textContent || "",
+        action: action?.textContent || "", actionHidden: !action,
+        coverageHidden: !detail?.querySelector(".kpi-detail-causes"),
+        partialHidden: !detail?.querySelector(".kpi-total-status")
+      };
+    }, { name, key });
+    if (name === "Recovery") record.Share = await page.evaluate(() => {
+      const value = document.getElementById("mShare");
+      const dialog = document.getElementById("overviewKpiDetailDialog");
+      const share = dialog?.open ? dialog.querySelector(".kpi-detail-share") : null;
+      return {
+        value: value.textContent.trim(), unavailable: value.classList.contains("metric-value-unavailable"),
+        coverage: share?.textContent || "", action: share?.querySelector("[data-kpi-review]")?.textContent || "",
+        actionHidden: !share?.querySelector("[data-kpi-review]"), coverageHidden: !share?.querySelector("[data-kpi-review]")
       };
     });
-    const shareCoverage = document.getElementById("mShareCoverage");
-    const shareAction = document.getElementById("mShareReview");
-    const shareValue = document.getElementById("mShare");
-    record.Share = {
-      value: shareValue?.textContent.trim() || "",
-      labelledValue: shareValue?.parentElement?.textContent.trim() || "",
-      unavailable: shareValue?.classList.contains("metric-value-unavailable"),
-      coverage: shareCoverage?.textContent.trim() || "",
-      coverageHidden: Boolean(shareCoverage?.hidden || shareCoverage?.classList.contains("hidden")),
-      action: shareAction?.textContent.trim() || "",
-      actionHidden: Boolean(shareAction?.hidden || shareAction?.classList.contains("hidden"))
-    };
-    return record;
-  });
+    if (visible) await page.locator("[data-kpi-detail-close]").click();
+  }
+  record.summary = await page.locator(".kpi-data-summary").textContent();
+  record.issueCount = await page.locator("#overviewKpiIssues").getAttribute("data-kpi-issue-positions");
+  return record;
 }
 
 async function main() {
@@ -186,15 +202,23 @@ async function main() {
     assert.equal(demo.models.share.partial.status, "not_allowed");
     assert.equal(demo.models.share.partial.value, null);
 
-    check(demoUi.Inventory.coverage.includes("101 von 102") && demoUi.Inventory.coverage.includes("102 importiert") && demoUi.Inventory.coverage.includes("ungültig"), "Inventory card explains exact usable/imported coverage and invalid cause");
-    check(demoUi.Inventory.partial.includes("Summe der bewertbaren Positionen") && demoUi.Inventory.partial.includes("unvollständig"), "Inventory card labels the subtotal as incomplete");
-    check(demoUi.Excess.coverage.includes("100 von 102") && demoUi.Excess.coverage.includes("1 fehlend") && demoUi.Excess.coverage.includes("1 negativ"), "Excess card separates missing and negative causes");
-    check(demoUi.Excess.partial.includes("nichtnegativen") && demoUi.Excess.partial.includes("Projektion"), "Excess card labels the non-negative subset as a projection");
-    check(demoUi.NoNeed.coverageHidden && demoUi.NoNeed.partialHidden && demoUi.NoNeed.actionHidden, "Complete no-demand KPI has no availability warning");
-    check(demoUi.Share.coverage.includes("101 von 102") && demoUi.Share.coverage.includes("102 importiert") && demoUi.Share.coverage.includes("vollständiger Recovery-Wert"), "Recovery share explains both coverage and complete-input dependency");
-    check(demoUi.Share.labelledValue.startsWith("Recovery-Anteil:"), "The secondary unavailable value is visibly labelled as Recovery Share");
-    check(demoUi.Recovery.action === "Recovery-Potenzial prüfen" && demoUi.Share.action === "Recovery-Anteil prüfen", "The two recovery-card actions have unambiguous metric labels");
-    check(demoUi.Share.actionHidden === false, "Unavailable recovery share offers exact affected-data navigation");
+    assert.deepEqual(demoUi.Inventory.counts, { imported: "102", relevant: "102", usable: "101", blocking: "1" });
+    check(demoUi.Inventory.coverage.includes("ungültig") && demoUi.Inventory.coverage.includes("56"), "Inventory detail exposes the concrete invalid source row");
+    check(demoUi.Inventory.label === "Bewertbare Teilsumme" && demoUi.Inventory.total === "Gesamtwert nicht verfügbar", "Inventory prominently labels subtotal and permanently unavailable total");
+    assert.deepEqual(demoUi.Excess.counts, { imported: "102", relevant: "102", usable: "100", blocking: "2" });
+    check(demoUi.Excess.coverage.includes("fehlend") && demoUi.Excess.coverage.includes("negativ"), "Excess detail separates missing and negative causes");
+    check(demoUi.Excess.label === "Unvollständige Projektion" && demoUi.Excess.value.includes("424 Tsd."), "Excess prominently labels the non-negative projection");
+    check(demoUi.NoNeed.cardStatus === "complete" && !demoUi.NoNeed.total && demoUi.NoNeed.actionHidden, "Complete no-demand KPI has neutral data-availability status without cause action");
+    check(demoUi.Share.coverage.includes("101 von 102") && demoUi.Share.coverage.includes("vollständiger Recovery-Wert"), "Recovery share detail explains paired inputs and strict dependency");
+    check(demoUi.Share.value === "Anteil nicht berechenbar", "Recovery card has only the short unavailable-share hint");
+    check(demoUi.Recovery.action === "Recovery-Potenzial prüfen" && demoUi.Share.action === "Recovery-Anteil prüfen", "Recovery detail retains separate, clearly labelled amount/share actions");
+    check(demoUi.Share.actionHidden === false, "Unavailable recovery share retains exact affected-data navigation");
+    assert.equal(demoUi.issueCount, "3", "Central summary deduplicates source rows 45, 56 and 66");
+    check(demoUi.summary.includes("102 importiert") && demoUi.summary.includes("KPI-relevante"), "The one shared scope summary labels its KPI-only position count");
+    await openDetail(page, "recovery");
+    assert.equal(await page.locator(".kpi-detail-causes li").count(), 1, "Recovery amount/share display their common physical cause only once");
+    check((await page.locator(".kpi-detail-causes").textContent()).includes("Betrag und Anteil"), "The common cause retains both dependencies");
+    await page.locator("[data-kpi-detail-close]").click();
 
     if (optionalScreenshotEnabled()) {
       screenshot = await captureScreenshot(page, screenshotName("kpi-availability-01", "demo-kpi-availability.png"), { fullPage: true });
@@ -209,8 +233,8 @@ async function main() {
       messageVisible: getComputedStyle(document.getElementById("overviewFilterEmptyState")).display !== "none",
       analysisVisible: getComputedStyle(document.querySelector(".overview-main")).display !== "none",
       dashboardVisible: getComputedStyle(document.getElementById("view-dashboard")).display !== "none",
-      visibleCoverageMessages: [...document.querySelectorAll("[id$='Coverage']")]
-        .filter(element => getComputedStyle(element).display !== "none")
+      visibleCoverageMessages: [...document.querySelectorAll(".kpi-data-summary")]
+        .filter(element => element.getClientRects().length)
         .map(element => element.textContent.trim())
     }));
     assert.equal(filteredState.overviewState, "filtered_empty");
@@ -223,12 +247,19 @@ async function main() {
 
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("en"));
     const englishUi = await visibleKpiState(page);
-    check(englishUi.Inventory.coverage.includes("101 of 102") && englishUi.Inventory.coverage.includes("1 invalid"), "English coverage text is rendered");
-    check(englishUi.Inventory.partial.includes("Sum of assessable items") && englishUi.Inventory.action === "Review Total Inventory", "English subtotal and metric-specific action labels are rendered");
+    check(englishUi.Inventory.counts.usable === "101" && englishUi.Inventory.coverage.includes("invalid"), "English counts and cause text are rendered");
+    check(englishUi.Inventory.label === "Subtotal of valued items" && englishUi.Inventory.action === "Review Total Inventory", "English subtotal and metric-specific detail action are rendered");
     check(englishUi.Share.coverage.includes("complete recovery") && englishUi.Share.coverage.includes("complete inventory"), "English recovery-share dependency is rendered");
     await page.evaluate(() => window.__obsoliqTestBridge.updateLanguageForTest("de"));
 
-    await page.locator("#mInventoryReview").click();
+    await reviewKpi(page, "share");
+    await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='share']"));
+    const shareFocus = await page.evaluate(() => window.__obsoliqTestBridge.getKpiCauseFocusForTest());
+    assert.equal(shareFocus.metricKey, "share");
+    assert.equal(shareFocus.sourceToken, demo.models.share.sourceToken);
+    check((await page.locator("[data-kpi-cause-focus='share']").textContent()).includes("MAT-1056"), "Separate share action navigates to its exact current dependency row");
+    await page.locator("[data-process='overview']").click();
+    await reviewKpi(page, "inventory");
     await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='inventory']"));
     const inventoryFocus = await page.evaluate(() => {
       const panel = document.querySelector("[data-kpi-cause-focus='inventory']");
@@ -261,7 +292,7 @@ async function main() {
 
     await page.locator("[data-process='overview']").click();
     await page.waitForFunction(() => document.getElementById("overviewWorkspace")?.dataset.view === "dashboard");
-    await page.locator("#mExcessReview").click();
+    await reviewKpi(page, "excess");
     await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='excess']"));
     const excessFocus = await page.evaluate(() => {
       const panel = document.querySelector("[data-kpi-cause-focus='excess']");
@@ -280,7 +311,7 @@ async function main() {
     check(excessFocus.text.includes("66") && excessFocus.text.includes("MAT-1066") && excessFocus.text.includes("-2500"), "Excess focus separately includes the exact negative source cell");
 
     const zeroCsv = [
-      "Material Number,Material Description,Stock Value EUR,Profit Center,Program,Excess Value,No Demand Value,Blocked Stock Value,Unplanned Value",
+      "Material Number,Material Description,Stock Value (EUR),Profit Center,Program,Excess (EUR),No Need / Conso EUR,Bad Stock (EUR),No Plan (EUR)",
       "MAT-TRUE-ZERO,Valid zero recovery material,100,PC-Z,Program Z,0,0,0,0"
     ].join("\n");
     const focusBeforeFailedImport = await page.evaluate(() => window.__obsoliqTestBridge.getKpiCauseFocusForTest());
@@ -321,7 +352,7 @@ async function main() {
     check(["Inventory", "Excess", "Bad", "NoNeed", "NoPlan", "Recovery", "Share"].every(name => zeroUi[name].coverageHidden && zeroUi[name].actionHidden), "Fully valid data has no availability warning or cause action");
 
     const zeroDenominatorCsv = [
-      "Material Number,Material Description,Stock Value EUR,Profit Center,Program,Excess Value,No Demand Value,Blocked Stock Value,Unplanned Value",
+      "Material Number,Material Description,Stock Value (EUR),Profit Center,Program,Excess (EUR),No Need / Conso EUR,Bad Stock (EUR),No Plan (EUR)",
       "MAT-ZERO-BASIS,Valid zero inventory basis,0,PC-Z,Program Z,0,0,0,0"
     ].join("\n");
     const zeroDenominatorLoad = await loadCsv(page, zeroDenominatorCsv, "kpi-zero-denominator.csv");
@@ -355,7 +386,7 @@ async function main() {
     assert.equal(invalid.inventory.partial.status, "available");
     near(invalid.inventory.partial.value, 100, "Valid contribution remains a separate safe subtotal");
     await page.locator("[data-process='overview']").click();
-    await page.locator("#mInventoryReview").click();
+    await reviewKpi(page, "inventory");
     await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='inventory']"));
     const escapedFocus = await page.evaluate(raw => {
       const panel = document.querySelector("[data-kpi-cause-focus='inventory']");
@@ -387,7 +418,7 @@ async function main() {
     await page.locator("[data-process='overview']").click();
     await page.waitForFunction(() => document.getElementById("overviewWorkspace")?.dataset.view === "dashboard");
     const insufficientUi = await visibleKpiState(page);
-    check(insufficientUi.Bad.partial.includes("Keine sichere Teilsumme") && insufficientUi.Bad.partial.includes("Währungskontext"), "Subtotal fails closed when the mapped source lacks a currency context");
+    check(insufficientUi.Bad.unavailable && insufficientUi.Bad.partial.includes("Währungskontext"), "Subtotal fails closed when the mapped source lacks a currency context");
     check(!/^5(?:\s|$)/.test(insufficientUi.Bad.partial), "Unsafe blocked-stock subtotal is not displayed as a value");
 
     const nonBaseCurrencyCsv = [
@@ -403,7 +434,9 @@ async function main() {
     assert.equal(nonBase.blocked.partial.reason, "non_base_currency");
     assert.deepEqual(nonBase.blocked.partial.currencyContext.currencies, ["USD"]);
     const nonBaseUi = await visibleKpiState(page);
-    check(nonBaseUi.Bad.partial.includes("Keine sichere Teilsumme") && nonBaseUi.Bad.partial.includes("USD") && nonBaseUi.Bad.partial.includes("EUR"), "Subtotal rejects a single non-base currency instead of relabelling it as EUR");
+    check(nonBaseUi.Bad.unavailable && nonBaseUi.Bad.partial.includes("USD") && nonBaseUi.Bad.partial.includes("EUR"), "Subtotal rejects a single non-base currency instead of relabelling it as EUR");
+
+    assert.equal(nonBaseUi.issueCount, "", "Scope-wide currency gate never claims a complete count from just one row cause");
 
     const derivedStockCsv = [
       "Material Number,Material Description,Stock Value (EUR),Stock Quantity,STD Price,Profit Center,Program,Excess (EUR),No Demand Value,Bad Stock (EUR),No Plan (EUR)",
@@ -421,7 +454,7 @@ async function main() {
     check(derivedStock.inventory.causes.every(cause => cause.sourceRowIndex === 2 && cause.materialId === "MAT-DERIVED-BAD"), "Failed stock fallback keeps every cause on the exact source row");
     check(derivedStock.inventory.causes.find(cause => cause.canonicalField === "stock_quantity")?.dependencyKey === "kpiDependencyDerivedStock", "Invalid quantity is linked to the stock-value derivation");
     await page.locator("[data-process='overview']").click();
-    await page.locator("#mInventoryReview").click();
+    await reviewKpi(page, "inventory");
     await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='inventory']"));
     const derivedFocus = await page.evaluate(() => {
       const panel = document.querySelector("[data-kpi-cause-focus='inventory']");
@@ -456,7 +489,7 @@ async function main() {
     ]);
     check(multipleRecovery.recovery.causes.every(cause => cause.sourceRowIndex === 2), "Recovery keeps independent blockers from the same physical row");
     await page.locator("[data-process='overview']").click();
-    await page.locator("#mRecoveryReview").click();
+    await reviewKpi(page, "recovery");
     await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='recovery']"));
     const multipleRecoveryFocus = await page.evaluate(() => {
       const panel = document.querySelector("[data-kpi-cause-focus='recovery']");
@@ -487,7 +520,7 @@ async function main() {
     ]);
     check(noDemandOverflow.noDemand.causes.every(cause => cause.dependencyKey === "kpiDependencyNoDemandSum"), "No-demand overflow is linked to the existing sum dependency");
     await page.locator("[data-process='overview']").click();
-    await page.locator("#mNoNeedReview").click();
+    await reviewKpi(page, "noDemand");
     await page.waitForFunction(() => document.querySelector("[data-kpi-cause-focus='noDemand']"));
     const noDemandOverflowFocus = await page.evaluate(() => {
       const panel = document.querySelector("[data-kpi-cause-focus='noDemand']");

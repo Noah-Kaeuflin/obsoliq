@@ -117,9 +117,15 @@ After data is available, the six money KPIs use a balanced three-column desktop,
 
 ## Exact Overview KPI Amounts
 
-Overview money KPIs keep their compact card values. Open **Betrag anzeigen / Show amount** on a card to read the same current source-and-filter value with two locale-aware decimals. The line identifies whether it is a complete amount, an incomplete subtotal or an incomplete non-negative projection; it never promotes a subtotal to a complete KPI.
+Overview money cards show a short availability status, an immediate amount label, the prominent compact EUR amount, at most one short note and **Details ansehen / View details**. The existing safe subtotal or non-negative projection may be prominent, but its label and **Gesamtwert nicht verfügbar / Total value unavailable** remain visible on the closed card. No subtotal is promoted to a complete model or exported KPI. A complete status describes data availability only, not low inventory risk or realized savings.
 
-The disclosure is available only when the existing Mapping and normalization evidence establishes the internal EUR valuation basis. It formats the already checked KPI model value without reparsing compact text, recalculating a sum, inventing a fallback or converting source currency. Genuine zero is shown as `0,00 €`; missing or unsafe values stay unavailable, and Recovery Share never receives a partial quotient. Native `details` / `summary` controls support mouse, touch and keyboard operation.
+The shared native detail dialog shows the source-and-filter-bound EUR amount with two locale-aware decimals, imported/relevant/usable/blocking position counts, concrete causes and the existing source/revision-bound data-quality actions. Recovery amount and share retain separate checks while a common physical cause appears once. The header and Close remain available while the body scrolls on mobile; keyboard entry, focus containment, Escape and return focus are supported. Filter, source and presentation changes close and clear the old detail scope, as does the start of a source operation; failed imports still restore the underlying data and card state.
+
+Both card and detail amounts use only the existing exact-amount model when Mapping and normalization evidence establishes a safe EUR basis. They do not reparse compact text, recalculate sums or apply display-currency FX. Genuine zero is shown as `0,00 €` in detail; missing or unsafe values stay unavailable with reachable explanations. Recovery Share never receives a partial quotient. Position counts are not financial coverage; currency-context restrictions apply separately.
+
+The shared scope is shown once. Its restricted-data summary deduplicates KPI-relevant source positions, not all data-quality issues (three positions in the unchanged full demo). Scope-wide currency/overflow gates or ambiguous position identities use wording without an invented count.
+
+`OVERVIEW-INFORMATION-HIERARCHY-01` is covered by the existing focused product smokes: `kpi-availability-01`, `kpi-exact-value-01`, `overview-startup-ux-02` and `visible-demo-activation-01` in `tests/*-product-smoke.cjs`. Their presentation assertions follow the new hierarchy; strict financial, source and rollback assertions remain in place. No deployment or release approval is implied: `PRODUCT_RELEASE_GATE: HOLD`.
 
 ## Recovery operations integration
 

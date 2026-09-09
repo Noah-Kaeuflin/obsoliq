@@ -84,7 +84,7 @@ function main() {
   check(sha256(read("sample-data.js")) === "51884fb9e5e6f35d6bdfdd7491a129b2d088145d72898616ff0151e818510796", "sample-data.js must remain unchanged");
   check(sha256(read("js/recovery/recovery-engine.js")) === "9d50e4603f92b33fa0f92e28d3b7d8ea2a11a05dca79d42c2a151768b581b3da", "Recovery formulas must remain unchanged from candidate E");
   check(sha256(read("js/slow-dead/slow-dead-condition-engine.js")) === "7c7a4e3e51b39d89e12daf93dadb20908a87234061677a3fcf4aa8784469e03f", "Slow/Dead condition policy must remain unchanged from candidate E");
-  check(sha256(read("styles.css")) === "5b54f978d12655405ae1f1f8ed6f69da7c019da491e7aecde6a40a8e0ddff713", "styles.css must match the approved RECOVERY-OPERATIONS-INTEGRATION-01 presentation baseline");
+  check(sha256(read("styles.css")) === "3bfb836ed18929083f2c2350778fb2233ea3ce0adfeca03f22c1a2792758afa4", "styles.css must match the reviewed OVERVIEW-INFORMATION-HIERARCHY-01 presentation baseline");
 
   const prototype = text("prototype.html");
   check(prototype.indexOf('<script src="sample-data.js"></script>') < prototype.indexOf('<script src="demo-data.js"></script>'), "Compatibility sample must load before the generated full-demo descriptor");

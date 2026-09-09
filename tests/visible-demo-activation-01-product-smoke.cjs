@@ -42,6 +42,8 @@ async function coreState(page) {
       issueDecisions: state.issueDecisions,
       remediationActions: state.remediationActions,
       filterState: state.filterState,
+      summary: document.querySelector(".kpi-data-summary").textContent,
+      dialogActive: Boolean(document.getElementById("overviewKpiDetailDialog")?.open),
       metrics: ["mInventory", "mExcess", "mBad", "mNoNeed", "mNoPlan", "mRecovery", "mShare"]
         .map(id => ({ id, text: document.getElementById(id)?.textContent || "", className: document.getElementById(id)?.className || "" }))
     };
@@ -153,6 +155,7 @@ async function main() {
       const slowDead = bridge.getSlowDeadRecoveryCaseRuntimeForTest();
       const rows = bridge.getEnrichedRowsForTest();
       const foundationModel = bridge.buildDataFoundationPresentationModelForTest();
+      const models = bridge.buildKpiAvailabilityModelsForTest();
       const metricFields = {
         mInventory: "stock_value",
         mExcess: "excess_value",
@@ -170,6 +173,10 @@ async function main() {
         return {
           id,
           fieldKey,
+          strictModelValue: models[element.closest("[data-kpi-card]").dataset.kpiCard].strictAggregate.value,
+          exact: models[element.closest("[data-kpi-card]").dataset.kpiCard].exactAmount,
+          cardStatus: element.closest("[data-kpi-card]").dataset.kpiAvailability,
+          totalUnavailable: element.closest("[data-kpi-card]").querySelector("[data-kpi-total-status]").textContent,
           text: element?.textContent.trim() || "",
           unavailable: element?.classList.contains("metric-value-unavailable"),
           aggregate: {
@@ -222,7 +229,10 @@ async function main() {
     assert.deepEqual(demo.foundationValidity, { inventory: "valid", materialMaster: "valid", consumptionHistory: "valid" });
     check(demo.metrics.some(metric => !metric.unavailable), "At least one demo financial metric is calculable");
     check(demo.metrics.every(metric => metric.unavailable ? !/^0(?:\s|$)/.test(metric.text) : metric.text.length > 0), "Unavailable and calculable demo metrics remain visibly distinct");
-    check(demo.metrics.every(metric => metric.unavailable === !metric.aggregate.valueAvailable), "Visible demo metric availability matches strict source aggregation evidence");
+    check(demo.metrics.every(metric => (metric.strictModelValue !== null) === metric.aggregate.valueAvailable), "Strict models still match strict source aggregation evidence");
+    check(demo.metrics.every(metric => metric.unavailable === (metric.exact.status !== "available")), "Card availability matches only the safe exact-amount model");
+    check(demo.metrics.every(metric => metric.aggregate.valueAvailable ? metric.cardStatus === "complete" : metric.totalUnavailable === "Gesamtwert nicht verfügbar"), "Incomplete total status remains permanently visible independently of the prominent subtotal");
+    assert.deepEqual(demo.metrics.filter(metric => !metric.aggregate.valueAvailable).map(metric => metric.id), ["mInventory", "mExcess", "mBad", "mNoPlan", "mRecovery"]);
     check(demo.share.unavailable ? !demo.share.text.includes("0 %") : demo.share.text.includes("%"), "Recovery share never fabricates availability");
 
     if (optionalScreenshotEnabled()) {
@@ -269,7 +279,7 @@ async function main() {
     await page.waitForFunction(() => document.querySelectorAll("#topTable .overview-top-list-row[role='row']").length > 1);
 
     const zeroCsv = [
-      "Material Number,Material Description,Stock Value EUR,Profit Center,Program,Excess Value,No Demand Value,Blocked Stock Value,Unplanned Value",
+      "Material Number,Material Description,Stock Value (EUR),Profit Center,Program,Excess (EUR),No Need / Conso EUR,Bad Stock (EUR),No Plan (EUR)",
       "MAT-TRUE-ZERO,Valid zero recovery material,100,PC-Z,Program Z,0,0,0,0"
     ].join("\n");
     const zeroLoad = await page.evaluate(csv => window.__obsoliqTestBridge.loadUserInventoryTextForTest(csv, "true-zero.csv", {

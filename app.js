@@ -889,6 +889,31 @@ const translations = {
     kpiPartialLabel: "Summe der bewertbaren Positionen — unvollständig",
     kpiSafeProjectionLabel: "Summe der nichtnegativen bewertbaren Positionen — unvollständige Projektion",
     kpiShowAmount: "Betrag anzeigen",
+    kpiViewDetails: "Details ansehen",
+    kpiViewMetricDetails: "Details ansehen: {metric}",
+    kpiStatusComplete: "Vollständig berechenbar",
+    kpiStatusIncomplete: "Unvollständig",
+    kpiStatusUnavailable: "Nicht berechenbar",
+    kpiAmountSubtotal: "Bewertbare Teilsumme",
+    kpiTotalUnavailable: "Gesamtwert nicht verfügbar",
+    kpiShareShortUnavailable: "Anteil nicht berechenbar",
+    kpiScopeSummary: "{imported} importiert · {relevant} im aktuellen Umfang",
+    kpiIssuesSummary: "Datenbasis eingeschränkt · {count} KPI-relevante Bestandspositionen prüfen",
+    kpiIssuesUncounted: "Datenbasis eingeschränkt · KPI-Grundlagen prüfen",
+    kpiDetailImported: "Importiert",
+    kpiDetailRelevant: "Relevant",
+    kpiDetailUsable: "Verwendbar",
+    kpiDetailBlocking: "Blockierend",
+    kpiDetailShareCounts: "Anteil: {usable} von {relevant} Positionen mit verwendbarem Wertepaar · {blocking} blockierend.",
+    kpiDetailCountsNote: "Positionszahlen, keine finanzielle Abdeckung. Einschränkungen des Währungskontexts gelten zusätzlich.",
+    kpiDetailCauses: "Ursachen und Hinweise",
+    kpiDetailNoCauses: "Keine KPI-relevanten Ursachen im aktuellen Umfang.",
+    kpiDetailDataOnly: "Der Status beschreibt die Datenverfügbarkeit, nicht das Bestandsrisiko oder eine realisierte Einsparung.",
+    kpiDetailAmountAndShare: "Betrag und Anteil",
+    kpiDetailAmount: "Betrag",
+    kpiDetailShare: "Anteil",
+    kpiDetailSourceRow: "Quellzeile {row}",
+    kpiDetailProjection: "„Blockierend“ zählt hier alle nicht verwendbaren Positionen, einschließlich ausgeschlossener negativer Beiträge. Der Gesamt-KPI bleibt unverändert nicht verfügbar.",
     kpiShowMetricAmount: "Betrag anzeigen: {metric}",
     kpiExactFullAmount: "Vollständiger Betrag",
     kpiExactIncompleteSubtotal: "Unvollständige Teilsumme",
@@ -2773,6 +2798,31 @@ const translations = {
     kpiPartialLabel: "Sum of assessable items — incomplete",
     kpiSafeProjectionLabel: "Sum of non-negative assessable items — incomplete projection",
     kpiShowAmount: "Show amount",
+    kpiViewDetails: "View details",
+    kpiViewMetricDetails: "View details: {metric}",
+    kpiStatusComplete: "Fully calculable",
+    kpiStatusIncomplete: "Incomplete",
+    kpiStatusUnavailable: "Not calculable",
+    kpiAmountSubtotal: "Subtotal of valued items",
+    kpiTotalUnavailable: "Total value unavailable",
+    kpiShareShortUnavailable: "Share not calculable",
+    kpiScopeSummary: "{imported} imported · {relevant} in the current scope",
+    kpiIssuesSummary: "Limited data basis · review {count} KPI-relevant inventory items",
+    kpiIssuesUncounted: "Limited data basis · review KPI inputs",
+    kpiDetailImported: "Imported",
+    kpiDetailRelevant: "Relevant",
+    kpiDetailUsable: "Usable",
+    kpiDetailBlocking: "Blocking",
+    kpiDetailShareCounts: "Share: {usable} of {relevant} items have a usable value pair · {blocking} blocking.",
+    kpiDetailCountsNote: "Item counts, not financial coverage. Currency-context restrictions apply in addition.",
+    kpiDetailCauses: "Causes and notes",
+    kpiDetailNoCauses: "No KPI-relevant causes in the current scope.",
+    kpiDetailDataOnly: "This status describes data availability, not inventory risk or realized savings.",
+    kpiDetailAmountAndShare: "Amount and share",
+    kpiDetailAmount: "Amount",
+    kpiDetailShare: "Share",
+    kpiDetailSourceRow: "Source row {row}",
+    kpiDetailProjection: "“Blocking” counts all unusable items here, including excluded negative contributions. The total KPI remains unavailable and unchanged.",
     kpiShowMetricAmount: "Show amount: {metric}",
     kpiExactFullAmount: "Full amount",
     kpiExactIncompleteSubtotal: "Incomplete subtotal",
@@ -4619,6 +4669,7 @@ let remediationHistory = [];
 let remediationPreview = null;
 let activeRemediationIssueId = null;
 let activeKpiCauseFocus = null;
+let activeOverviewKpiDetail = null;
 const REMEDIATION_PREVIEW_DEBOUNCE_MS = 250;
 const REMEDIATION_FILTER_DEBOUNCE_MS = 140;
 const remediationPreviewSchedulerState = {
@@ -5206,11 +5257,12 @@ function setAdvancedFiltersOpen(scope, isOpen) {
   }
 }
 
-function formatCompactMoney(value) {
-  const converted = convertMoneyValue(value);
+function formatCompactMoney(value, options = {}) {
+  // Exact KPI presentations stay on their validated EUR source basis; other views retain display FX.
+  const converted = options.sourceEuro ? finiteNumericValue(value) : convertMoneyValue(value);
   if (converted === null) return t("notAvailable");
   const absolute = Math.abs(converted);
-  const symbol = activeCurrencySymbol();
+  const symbol = options.sourceEuro ? "€" : activeCurrencySymbol();
   const german = currentLanguage === "de";
   const number = (amount, maximumFractionDigits) => amount.toLocaleString(locale(), {
     minimumFractionDigits: 0,
@@ -6374,6 +6426,7 @@ function setBusy(isBusy, text = t("pleaseWait"), options = {}) {
   if (isBusy && activeDataOperationOwner) return null;
   if (!isBusy && activeDataOperationOwner && options.owner !== activeDataOperationOwner) return false;
   if (isBusy && options.dataOperation) activeDataOperationOwner = {};
+  if (isBusy && options.dataOperation) closeOverviewKpiDetail({ returnFocus: false });
   const owner = activeDataOperationOwner;
   if (!isBusy) activeDataOperationOwner = null;
   ["uploadButton", "sampleButton", "exportInventoryButton", "packageTypeInventoryButton", "packageTypeMaterialMasterButton", "packageTypeConsumptionHistoryButton", "packageTypePurchaseOrdersButton"].forEach(id => {
@@ -7649,121 +7702,223 @@ function kpiExactStatusKey(kind) {
   return "kpiExactIncompleteSubtotal";
 }
 
-function renderKpiExactAmount(metricSpec, model) {
-  const disclosure = metricSpec.exactId ? $(metricSpec.exactId) : null;
-  if (!disclosure) return;
-  const summary = disclosure.querySelector("summary");
-  const statusTarget = disclosure.querySelector("[data-kpi-exact-status]");
-  const separatorTarget = disclosure.querySelector("[data-kpi-exact-separator]");
-  const valueTarget = disclosure.querySelector("[data-kpi-exact-value]");
-  const showAmount = model.exactAmount?.status === "available"
-    && model.exactAmount.currency === "EUR"
-    && typeof model.exactAmount.value === "number"
-    && Number.isFinite(model.exactAmount.value);
-  const previousSourceToken = disclosure.dataset.kpiSourceToken || "";
-  const sourceChanged = Boolean(previousSourceToken && previousSourceToken !== model.sourceToken);
-
-  if (sourceChanged || !showAmount) disclosure.removeAttribute("open");
-  disclosure.hidden = !showAmount;
-  disclosure.classList.toggle("hidden", !showAmount);
-  if (summary) {
-    summary.textContent = t("kpiShowAmount");
-    summary.setAttribute("aria-label", formatKpiText("kpiShowMetricAmount", { metric: t(model.labelKey) }));
-  }
-
-  if (!showAmount) {
-    delete disclosure.dataset.kpiSourceToken;
-    delete disclosure.dataset.kpiExactKind;
-    if (statusTarget) statusTarget.textContent = "";
-    if (separatorTarget) separatorTarget.textContent = "";
-    if (valueTarget) valueTarget.textContent = "";
-    return;
-  }
-
-  disclosure.dataset.kpiSourceToken = model.sourceToken;
-  disclosure.dataset.kpiExactKind = model.exactAmount.kind;
-  if (statusTarget) statusTarget.textContent = t(kpiExactStatusKey(model.exactAmount.kind));
-  if (separatorTarget) separatorTarget.textContent = ":";
-  if (valueTarget) valueTarget.textContent = formatExactKpiMoney(model.exactAmount.value);
+function overviewKpiAmount(model) {
+  const exact = model.exactAmount;
+  return exact?.status === "available" && exact.currency === "EUR"
+    && ["complete", "subtotal", "nonnegative_projection"].includes(exact.kind)
+    && typeof exact.value === "number" && Number.isFinite(exact.value) ? exact : null;
 }
 
-function renderKpiAvailabilityDetails(metricSpec, model) {
-  const available = model.strictAggregate.value !== null;
-  const coverageTarget = $(metricSpec.coverageId);
-  const partialTarget = metricSpec.partialId ? $(metricSpec.partialId) : null;
-  const actionTarget = $(metricSpec.actionId);
-  if (coverageTarget) {
-    const showCoverage = !available && model.relevantCount > 0;
-    coverageTarget.hidden = !showCoverage;
-    coverageTarget.classList.toggle("hidden", !showCoverage);
-    coverageTarget.textContent = showCoverage ? kpiCoverageText(model) : "";
+function overviewKpiStatus(model) {
+  const exact = overviewKpiAmount(model);
+  return exact ? (exact.kind === "complete" ? "complete" : "incomplete") : "unavailable";
+}
+
+function overviewKpiAmountLabel(model) {
+  const exact = overviewKpiAmount(model);
+  return exact?.kind === "subtotal" ? t("kpiAmountSubtotal")
+    : exact ? t(kpiExactStatusKey(exact.kind)) : t("kpiDetailAmount");
+}
+
+function overviewKpiStatusLabel(model) {
+  return t({ complete: "kpiStatusComplete", incomplete: "kpiStatusIncomplete", unavailable: "kpiStatusUnavailable" }[overviewKpiStatus(model)]);
+}
+
+// Counts describe source positions, never financial coverage or a new financial aggregate.
+function overviewKpiCounts(model) {
+  const usable = model.partial.status === "available"
+    ? model.partial.validCount : model.strictAggregate.validCount;
+  return { imported: model.importedCount, relevant: model.relevantCount, usable, blocking: Math.max(0, model.relevantCount - usable) };
+}
+
+function renderOverviewKpiCard(model) {
+  const spec = KPI_AVAILABILITY_SPECS[model.key];
+  const card = document.querySelector('[data-kpi-card="' + model.key + '"]');
+  if (!card) return;
+  const exact = overviewKpiAmount(model);
+  card.dataset.kpiAvailability = overviewKpiStatus(model);
+  card.querySelector("[data-kpi-status]").textContent = overviewKpiStatusLabel(model);
+  card.querySelector("[data-kpi-amount-label]").textContent = overviewKpiAmountLabel(model);
+  const value = $(spec.valueId);
+  value.textContent = exact ? formatCompactMoney(exact.value, { sourceEuro: true }) : t("kpiStatusUnavailable");
+  value.title = exact ? formatExactKpiMoney(exact.value) : "";
+  value.classList.toggle("metric-value-unavailable", !exact);
+  const total = card.querySelector("[data-kpi-total-status]");
+  total.textContent = exact?.kind === "complete" ? "" : t("kpiTotalUnavailable");
+  total.hidden = exact?.kind === "complete";
+  const trigger = card.querySelector("[data-kpi-details]");
+  trigger.textContent = t("kpiViewDetails");
+  trigger.setAttribute("aria-label", formatKpiText("kpiViewMetricDetails", { metric: t(model.labelKey) }));
+}
+
+function renderOverviewKpiSummary(models) {
+  $("mRows").textContent = formatKpiText("kpiScopeSummary", {
+    imported: formatCount(models.inventory.importedCount), relevant: formatCount(models.inventory.relevantCount)
+  });
+  const issues = $("overviewKpiIssues");
+  if (!issues) return;
+  const restricted = Object.values(models).filter(model => model.relevantCount > 0
+    && (model.key === "share" ? model.strictAggregate.value === null && model.causes.length > 0 : overviewKpiStatus(model) !== "complete"));
+  const causes = restricted.flatMap(model => model.causes.map(cause => ({ cause, token: model.sourceToken })));
+  const scopeWideReasons = ["mixed_currency", "insufficient_currency", "non_base_currency", "unsafe_currency", "overflow"];
+  const countable = restricted.length > 0 && restricted.every(model => model.causes.length > 0
+    && ![model.exactAmount?.reason, model.partial.reason, model.exactAmount?.currencyContext?.reason].some(reason => scopeWideReasons.includes(reason)))
+    && causes.every(({ cause, token }) => token && Number.isInteger(cause.sourceRowIndex) && cause.sourceRowIndex > 0);
+  const positions = new Set(causes.map(({ cause, token }) => JSON.stringify([token, cause.sourceRowIndex])));
+  issues.hidden = !restricted.length;
+  issues.textContent = !restricted.length ? "" : countable
+    ? formatKpiText("kpiIssuesSummary", { count: formatCount(positions.size) }) : t("kpiIssuesUncounted");
+  issues.dataset.kpiIssuePositions = countable ? String(positions.size) : "";
+}
+
+function closeOverviewKpiDetail(options = {}) {
+  const dialog = $("overviewKpiDetailDialog");
+  const active = activeOverviewKpiDetail;
+  activeOverviewKpiDetail = null;
+  if (!dialog) return;
+  if (dialog.open) dialog.close();
+  dialog.replaceChildren();
+  delete dialog.dataset.kpiKey;
+  delete dialog.dataset.kpiSourceToken;
+  if (options.returnFocus !== false && active?.opener?.isConnected
+    && active.opener.getClientRects().length && !active.opener.closest("[inert]")) {
+    active.opener.focus({ preventScroll: true });
   }
-  if (partialTarget) {
-    const showPartial = !available && model.partial.status === "available";
-    const showUnavailableReason = !available
-      && model.relevantCount > 0
-      && model.partial.status === "unavailable"
-      && ["mixed_currency", "insufficient_currency", "non_base_currency", "overflow"].includes(model.partial.reason);
-    partialTarget.hidden = !(showPartial || showUnavailableReason);
-    partialTarget.classList.toggle("hidden", !(showPartial || showUnavailableReason));
-    if (showPartial) {
-      const labelKey = model.partial.kind === "nonnegative_projection" ? "kpiSafeProjectionLabel" : "kpiPartialLabel";
-      partialTarget.textContent = `${t(labelKey)}: ${formatCompactMoney(model.partial.value)}`;
-      partialTarget.title = `${t(labelKey)}: ${money(model.partial.value)}`;
-    } else if (showUnavailableReason) {
-      const reason = model.partial.reason === "insufficient_currency"
-        ? t("kpiCoverageInsufficientCurrency")
-        : model.partial.reason === "non_base_currency"
-          ? formatKpiText("kpiCoverageNonBaseCurrency", { source: model.partial.currencyContext?.currencies?.[0] || t("notAvailable") })
-        : model.partial.reason === "mixed_currency"
-          ? t("importBlockedMixedCurrency")
-          : t("kpiCauseOverflow");
-      partialTarget.textContent = formatKpiText("kpiPartialUnavailable", { reason });
-      partialTarget.title = partialTarget.textContent;
-    } else {
-      partialTarget.textContent = "";
-      partialTarget.title = "";
+}
+
+function ensureOverviewKpiDialog() {
+  let dialog = $("overviewKpiDetailDialog");
+  if (dialog) return dialog;
+  dialog = document.createElement("dialog");
+  dialog.id = "overviewKpiDetailDialog";
+  dialog.className = "overview-kpi-dialog";
+  dialog.setAttribute("aria-labelledby", "overviewKpiDetailTitle");
+  dialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    closeOverviewKpiDetail();
+  });
+  dialog.addEventListener("keydown", event => {
+    if (event.key !== "Tab") return;
+    const controls = [...dialog.querySelectorAll("button:not([disabled]), a[href], [tabindex='0']")]
+      .filter(control => control.getClientRects().length);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (!first) return;
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === $("overviewKpiDetailTitle"))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
-  }
-  renderKpiExactAmount(metricSpec, model);
-  if (actionTarget) {
-    const showAction = !available && model.causes.some(cause => cause.sourceRowIndex > 0);
-    actionTarget.hidden = !showAction;
-    actionTarget.classList.toggle("hidden", !showAction);
-    actionTarget.dataset.kpiReview = metricSpec.key;
-    actionTarget.dataset.kpiSourceToken = model.sourceToken;
-    const labelTarget = actionTarget.querySelector("[data-kpi-review-label]") || actionTarget;
-    labelTarget.textContent = formatKpiText("kpiReviewMetricData", { metric: t(model.labelKey) });
-  }
+  });
+  document.body.append(dialog);
+  return dialog;
+}
+
+function overviewKpiReason(model) {
+  const reason = model.exactAmount?.reason || model.partial.reason;
+  const currencyReason = model.partial.currencyContext?.reason || reason;
+  if (currencyReason === "mixed_currency") return t("importBlockedMixedCurrency");
+  if (currencyReason === "non_base_currency") return formatKpiText("kpiCoverageNonBaseCurrency", {
+    source: model.partial.currencyContext?.currencies?.[0] || t("notAvailable")
+  });
+  if (currencyReason === "insufficient_currency" || reason === "unsafe_currency") return t("kpiCoverageInsufficientCurrency");
+  if (reason === "overflow") return t("kpiCauseOverflow");
+  return model.relevantCount ? "" : t("kpiCoverageNoRows");
+}
+
+function overviewKpiDetailCauses(model, shareModel) {
+  const cells = new Map();
+  [model, shareModel].filter(Boolean).forEach(dependency => {
+    dependency.causes.forEach(cause => {
+      const key = JSON.stringify([dependency.sourceToken, cause.sourceRowIndex, cause.sourceIndex,
+        cause.sourceKey, cause.canonicalField]);
+      if (!cells.has(key)) cells.set(key, { cause, kinds: new Set(), memberships: new Set(), dependencies: new Set() });
+      const entry = cells.get(key);
+      entry.kinds.add(cause.kind);
+      entry.memberships.add(dependency.key === "share" ? "share" : "amount");
+      if (cause.dependencyKey) entry.dependencies.add(kpiCauseDependencyText(cause, dependency));
+    });
+  });
+  return [...cells.values()];
+}
+
+function overviewKpiReviewAction(model) {
+  if (!model.causes.some(cause => cause.sourceRowIndex > 0)) return "";
+  const spec = KPI_AVAILABILITY_SPECS[model.key];
+  return '<button type="button" class="btn subtle" id="' + spec.actionId + '" data-kpi-review="' + model.key
+    + '" data-kpi-source-token="' + html(model.sourceToken) + '">' + html(formatKpiText("kpiReviewMetricData", { metric: t(model.labelKey) })) + "</button>";
+}
+
+function openOverviewKpiDetail(key, opener) {
+  if (dataOperationInProgress() || !KPI_AVAILABILITY_SPECS[key] || key === "share") return false;
+  const models = buildKpiAvailabilityModels(getOverviewRows());
+  const model = models[key];
+  if (!model?.relevantCount) return false;
+  closeOverviewKpiDetail({ returnFocus: false });
+  const dialog = ensureOverviewKpiDialog();
+  const exact = overviewKpiAmount(model);
+  const counts = overviewKpiCounts(model);
+  const share = key === "recovery" ? models.share : null;
+  const shareCounts = share ? overviewKpiCounts(share) : null;
+  const causes = overviewKpiDetailCauses(model, share);
+  const reason = overviewKpiReason(model);
+  const amountHtml = exact
+    ? '<p class="kpi-detail-amount" data-kpi-exact-value>' + html(formatExactKpiMoney(exact.value)) + "</p>"
+    : '<p class="kpi-detail-unavailable">' + html(t("kpiStatusUnavailable")) + "</p>";
+  const countsHtml = Object.entries(counts).map(([name, count]) => '<div><dt>'
+    + html(t({ imported: "kpiDetailImported", relevant: "kpiDetailRelevant", usable: "kpiDetailUsable", blocking: "kpiDetailBlocking" }[name]))
+    + '</dt><dd data-kpi-count="' + name + '">' + html(formatCount(count)) + "</dd></div>").join("");
+  const causesHtml = causes.length ? '<ul class="kpi-detail-causes">' + causes.map(({ cause, kinds, memberships, dependencies }) => {
+    const field = inventoryFieldDefinitions[cause.canonicalField] ? fieldLabel(cause.canonicalField) : t(model.labelKey);
+    const position = cause.sourceRowIndex > 0 ? formatKpiText("kpiDetailSourceRow", { row: formatCount(cause.sourceRowIndex) }) : t("kpiCauseUnknownMapping");
+    const membership = share ? '<span class="kpi-cause-membership">' + html(t(memberships.size > 1 ? "kpiDetailAmountAndShare"
+      : memberships.has("share") ? "kpiDetailShare" : "kpiDetailAmount")) + "</span>" : "";
+    return '<li>' + membership + '<strong>' + html(field + ": " + [...kinds].map(kpiCauseLabel).join(", ")) + '</strong><span>'
+      + html([position, cause.materialId, cause.sourceColumn].filter(Boolean).join(" · ")) + "</span>"
+      + (cause.rawValue !== "" ? '<code>' + html(String(cause.rawValue)) + "</code>" : "")
+      + (dependencies.size ? '<p>' + html([...dependencies].join(" ")) + "</p>" : "") + "</li>";
+  }).join("") + "</ul>" : '<p>' + html(t("kpiDetailNoCauses")) + "</p>";
+  const shareHtml = share ? '<section class="kpi-detail-share" aria-labelledby="kpiDetailShareTitle"><h3 id="kpiDetailShareTitle">'
+    + html(t("metricRecoveryShare")) + '</h3><p data-kpi-share-value>'
+    + html(share.strictAggregate.value === null ? t("kpiShareShortUnavailable") : pct(share.strictAggregate.value)) + "</p>"
+    + (share.strictAggregate.value === null ? '<p>' + html(t(share.strictAggregate.reasonCodes?.includes("zero_denominator")
+      ? "kpiShareZeroDenominator" : "kpiShareUnavailableDependency")) + "</p>" : "")
+    + '<p data-kpi-share-counts>' + html(formatKpiText("kpiDetailShareCounts", {
+      usable: formatCount(shareCounts.usable), relevant: formatCount(shareCounts.relevant), blocking: formatCount(shareCounts.blocking)
+    })) + "</p>" + overviewKpiReviewAction(share) + "</section>" : "";
+  dialog.innerHTML = '<div class="kpi-detail-heading"><div><h2 id="overviewKpiDetailTitle" tabindex="-1">'
+    + html(t(model.labelKey)) + '</h2><span class="kpi-availability-status">' + html(overviewKpiStatusLabel(model))
+    + '</span></div><button type="button" class="btn subtle" data-kpi-detail-close>' + html(t("close")) + "</button></div>"
+    + '<div class="kpi-detail-body"><section class="kpi-detail-value"><p data-kpi-exact-status>'
+    + html(overviewKpiAmountLabel(model)) + "</p>" + amountHtml
+    + (exact?.kind === "complete" ? "" : '<p class="kpi-total-status">' + html(t("kpiTotalUnavailable")) + "</p>")
+    + (exact?.kind === "nonnegative_projection" ? '<p>' + html(t("kpiDetailProjection")) + "</p>" : "")
+    + (reason ? '<p class="kpi-detail-reason">' + html(reason) + "</p>" : "") + "</section>"
+    + '<div><dl class="kpi-detail-counts">' + countsHtml + '</dl><p class="kpi-detail-disclaimer">' + html(t("kpiDetailCountsNote")) + "</p></div>"
+    + '<section aria-labelledby="kpiDetailCausesTitle"><h3 id="kpiDetailCausesTitle">' + html(t("kpiDetailCauses")) + "</h3>"
+    + causesHtml + overviewKpiReviewAction(model) + "</section>" + shareHtml
+    + '<p class="kpi-detail-disclaimer">' + html(t("kpiDetailDataOnly")) + "</p></div>";
+  dialog.dataset.kpiKey = key;
+  dialog.dataset.kpiSourceToken = model.sourceToken;
+  activeOverviewKpiDetail = { key, opener };
+  dialog.showModal();
+  $("overviewKpiDetailTitle").focus();
+  return true;
 }
 
 function renderMetrics(data) {
+  // A filter/source/locale change invalidates the visible detail scope, including its DQ actions.
+  closeOverviewKpiDetail();
   const models = buildKpiAvailabilityModels(data);
-  setMoneyMetric("mInventory", models.inventory.strictAggregate.value);
-  $("mRows").textContent = currentLanguage === "de"
-    ? `${formatCount(data.length)} Bestandspositionen`
-    : `${formatCount(data.length)} inventory items`;
-  setMoneyMetric("mExcess", models.excess.strictAggregate.value);
-  setMoneyMetric("mBad", models.blocked.strictAggregate.value);
-  setMoneyMetric("mNoNeed", models.noDemand.strictAggregate.value);
-  setMoneyMetric("mNoPlan", models.noPlan.strictAggregate.value);
-  setMoneyMetric("mRecovery", models.recovery.strictAggregate.value);
-  ["inventory", "excess", "blocked", "noDemand", "noPlan", "recovery"].forEach(key => {
-    renderKpiAvailabilityDetails(KPI_AVAILABILITY_SPECS[key], models[key]);
-  });
+  ["inventory", "excess", "blocked", "noDemand", "noPlan", "recovery"].forEach(key => renderOverviewKpiCard(models[key]));
+  renderOverviewKpiSummary(models);
   const shareTarget = $("mShare");
   if (shareTarget) {
-    const recoveryShare = models.share.strictAggregate.value;
-    shareTarget.textContent = recoveryShare === null
-      ? pct(null)
-      : `${pct(recoveryShare)} ${t("recoveryAddressable")}`;
-    shareTarget.classList.toggle("metric-value-unavailable", recoveryShare === null);
-  }
-  renderKpiAvailabilityDetails(KPI_AVAILABILITY_SPECS.share, models.share);
-  const progressFill = $("recoveryProgressFill");
-  if (progressFill) {
-    const recoveryShare = models.share.strictAggregate.value;
-    progressFill.style.width = `${recoveryShare === null ? 0 : Math.max(0, Math.min(recoveryShare, 100))}%`;
+    const share = models.share.strictAggregate.value;
+    shareTarget.textContent = share === null ? t("kpiShareShortUnavailable") : pct(share) + " " + t("recoveryAddressable");
+    shareTarget.classList.toggle("metric-value-unavailable", share === null);
   }
   return models;
 }
@@ -20370,6 +20525,7 @@ function setPlaceholderContent(processKey, label) {
 }
 
 function switchProcessTab(processKey, label, options = {}) {
+  closeOverviewKpiDetail({ returnFocus: false });
   if (dataOperationInProgress() && options.allowDuringDataOperation !== true) return false;
   const aliasSegment = inventoryRiskRouteAliases[processKey] || "";
   const canonicalProcessKey = aliasSegment ? "inventory-risks" : processKey;
@@ -23627,9 +23783,21 @@ document.addEventListener("input", handleFilterControlEvent);
 document.addEventListener("change", handleFilterControlEvent);
 document.addEventListener("click", event => {
   if (!(event.target instanceof Element)) return;
+  const kpiDetailButton = event.target.closest("[data-kpi-details]");
+  if (kpiDetailButton) {
+    event.preventDefault();
+    openOverviewKpiDetail(kpiDetailButton.dataset.kpiDetails || "", kpiDetailButton);
+    return;
+  }
+  if (event.target.closest("[data-kpi-detail-close]")) {
+    event.preventDefault();
+    closeOverviewKpiDetail();
+    return;
+  }
   const kpiReviewButton = event.target.closest("[data-kpi-review]");
   if (kpiReviewButton) {
     event.preventDefault();
+    closeOverviewKpiDetail({ returnFocus: false });
     openKpiCauseFocus(kpiReviewButton.dataset.kpiReview || "", kpiReviewButton.dataset.kpiSourceToken || "");
     return;
   }
