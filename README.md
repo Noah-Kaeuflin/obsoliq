@@ -121,6 +121,18 @@ Overview money KPIs keep their compact card values. Open **Betrag anzeigen / Sho
 
 The disclosure is available only when the existing Mapping and normalization evidence establishes the internal EUR valuation basis. It formats the already checked KPI model value without reparsing compact text, recalculating a sum, inventing a fallback or converting source currency. Genuine zero is shown as `0,00 €`; missing or unsafe values stay unavailable, and Recovery Share never receives a partial quotient. Native `details` / `summary` controls support mouse, touch and keyboard operation.
 
+## Recovery operations integration
+
+PO feedback preparation, JSON backup and restore preview share the source-operation lock. Pending feedback protects the parent decision inputs; pending restore shows a cancellable preview. Cancelled work cannot later reopen a dialog or unlock another operation. Source and restore finalization failures restore the previous saved state, and mapping failures remain visible in the review dialog.
+
+The focused synthetic regression runs against the actual prototype with visible file import, explicit PO interpretation, decision/report editors and downloaded JSON:
+
+```powershell
+node tests/recovery-operations-integration-01-product-smoke.cjs
+```
+
+It checks saved drafts, original and corrected reports, exact source/version bindings, a 12-to-6 quantity update, processing and finalization rollback, duplicate/conflict handling, asynchronous cancellation, navigation/focus recovery and the 390px workflow. Screenshots are opt-in through the existing external artifact writer. Source files and personal PO backups remain a separate transfer step; unsaved inputs are not part of JSON backups. Product release remains HOLD.
+
 ## Local Icon System
 
 The licensed ObsoliQ Icon Pack lives under `assets/icons/`. It contains 43 local Lucide-derived SVG symbols, including the `inventory-risks` portfolio icon and the semantic Indicators `prioritized-cases`, `owner-coverage` and `evidence-readiness`, plus the authoritative manifest, Sprite and Lucide ISC license. Runtime rendering uses `js/ui/icon-system.js` and the public `ObsoliQ.ui.iconSystem` API.

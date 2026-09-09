@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-09 - RECOVERY-OPERATIONS-INTEGRATION-01
+
+- Bound asynchronous PO feedback preparation, JSON backup and restore preview to the shared operation owner. Pending work is visible; cancellable work rejects late completions without releasing a newer operation. Parent decision input is protected while its exact version is prepared.
+- Included package UI finalization and restore apply finalization in their existing snapshot rollback boundaries. Failed imports retain the mapping review with a persistent focused error; failed dialog startup releases its operation.
+- Restored useful focus after mapping apply and decision close/save. Contained the narrow mapping grid and removed the unusable nested 47px scroll area from mobile Excess/PO detail, preserving the desktop layout.
+- Added one focused synthetic product smoke using real file choosers, explicit confirmations and downloaded JSON. It covers processing/finalization failures, concurrent/late operations, saved drafts, 12-to-6 source changes, historical reports/corrections, actual restore roundtrip, repeat no-op and conflicts.
+- Preserved formulas, thresholds, quantity rules, fixtures, source identity/interpretation and backup contracts. No automatic persistence, ERP execution or confirmed savings; Product Release remains HOLD.
+
 ## 2026-09-09 - OVERVIEW-STARTUP-UX-02
 
 - Replaced the contradictory no-source dashboard shell with one neutral, accessible start panel that offers the existing linked demo loader and productive file import without automatic activation.

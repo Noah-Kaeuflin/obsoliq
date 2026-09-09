@@ -346,7 +346,8 @@ const AUTHORIZED_PACKAGE_ADDITIONS = Object.freeze([
   "tests/visible-demo-activation-01-product-smoke.cjs",
   "tests/kpi-availability-01-product-smoke.cjs",
   "tests/kpi-exact-value-01-product-smoke.cjs",
-  "tests/overview-startup-ux-02-product-smoke.cjs"
+  "tests/overview-startup-ux-02-product-smoke.cjs",
+  "tests/recovery-operations-integration-01-product-smoke.cjs"
 ]);
 const AUTHORIZED_PACKAGE_REMOVALS = Object.freeze([
   "assets/icons/obsoliq/icon-manifest.json",

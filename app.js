@@ -258,8 +258,13 @@ let purchaseOrderReviewFilter = "";
 let purchaseOrderDecisionEditor = null;
 let purchaseOrderFeedbackEditor = null;
 let purchaseOrderFeedbackGeneration = 0;
+let purchaseOrderDecisionOpener = null;
+let purchaseOrderFeedbackOperation = null;
 let purchaseOrderRestorePreview = null;
 let purchaseOrderRestoreGeneration = 0;
+let purchaseOrderRestoreOperation = null;
+let purchaseOrderRestoreOpener = null;
+let activeDataOperationOwner = null;
 const SYNTHETIC_DEMO_SOURCE_TYPE = "synthetic_demo";
 const PURCHASE_ORDERS_IMPORT_SUPPORTED = DATA_PACKAGE_TYPE_DEFINITIONS[DATA_PACKAGE_TYPES.PURCHASE_ORDERS]?.importSupported === true;
 const MATERIAL_MASTER_MAPPING_POLICY = ObsoliQModules.data.materialMasterBuilder.MATERIAL_MASTER_MAPPING_POLICY;
@@ -6366,6 +6371,11 @@ function applyTranslations(options = {}) {
 }
 
 function setBusy(isBusy, text = t("pleaseWait"), options = {}) {
+  if (isBusy && activeDataOperationOwner) return null;
+  if (!isBusy && activeDataOperationOwner && options.owner !== activeDataOperationOwner) return false;
+  if (isBusy && options.dataOperation) activeDataOperationOwner = {};
+  const owner = activeDataOperationOwner;
+  if (!isBusy) activeDataOperationOwner = null;
   ["uploadButton", "sampleButton", "exportInventoryButton", "packageTypeInventoryButton", "packageTypeMaterialMasterButton", "packageTypeConsumptionHistoryButton", "packageTypePurchaseOrdersButton"].forEach(id => {
     const control = $(id);
     if (control) control.disabled = isBusy;
@@ -6397,6 +6407,7 @@ function setBusy(isBusy, text = t("pleaseWait"), options = {}) {
   }
   if (isBusy) setFeedback(text, "loading");
   syncOverviewEmptyState();
+  return isBusy ? owner : true;
 }
 
 function dataOperationInProgress() {
@@ -21166,7 +21177,10 @@ function closeColumnMappingAssistant(options = {}) {
   mappingAssistantDirty = false;
   $("mappingModal")?.classList.remove("active");
   document.body.classList.remove("modal-open");
-  lastMappingOpener?.focus?.({ preventScroll: true });
+  const mappingFocusTarget = lastMappingOpener?.isConnected && lastMappingOpener !== document.body
+    ? lastMappingOpener
+    : [...document.querySelectorAll("#purchaseOrdersPage [data-po-import], #uploadButton")].find(control => control.getClientRects().length && !control.disabled);
+  mappingFocusTarget?.focus?.({ preventScroll: true });
   lastMappingOpener = null;
   if (options.cancelled) setFeedback(t("mappingCancelled"), "", { autoReset: true });
   syncOverviewEmptyState();
@@ -21537,17 +21551,59 @@ function renderPurchaseOrderFeedbackEditor(errors = []) {
 }
 
 async function openPurchaseOrderFeedbackEditor(version, correctsId = "") {
-  if (!purchaseOrderDecisionEditor) return;
+  if (!purchaseOrderDecisionEditor || dataOperationInProgress()) return;
   if (purchaseOrderDecisionEditor.dirty) {
     if (!window.confirm(purchaseOrdersView().t("discard"))) return;
     openPurchaseOrderDecisionEditor(purchaseOrderDecisionEditor.review_id, purchaseOrderDecisionEditor.position_id);
   }
   const parent = purchaseOrderDecisionEditor, generation = ++purchaseOrderFeedbackGeneration;
-  const result = await purchaseOrderReviews.beginFeedback({ model: currentPurchaseOrdersModel(), reviewId: parent.review_id, positionId: parent.position_id, version, correctsId });
-  if (generation !== purchaseOrderFeedbackGeneration || parent !== purchaseOrderDecisionEditor) return;
-  if (result.status !== "ready") { renderPurchaseOrderDecisionEditor(result.errors); return; }
-  purchaseOrderFeedbackEditor = result.editor;
-  renderPurchaseOrderFeedbackEditor();
+  const values = JSON.stringify(parent.values);
+  const dialog = $("purchaseOrderDecisionDialog");
+  const opener = document.activeElement;
+  const owner = setBusy(true, purchaseOrdersView().t("feedbackPreparing"), { dataOperation: "po-feedback" });
+  let preserveFailureFeedback = false;
+  purchaseOrderFeedbackOperation = { owner, dialog, controls: [], status: null, opener };
+  try {
+    const controls = [...dialog.querySelectorAll("input, select, textarea, button:not([data-po-decision-cancel])")]
+      .map(control => ({ control, disabled: control.disabled }));
+    purchaseOrderFeedbackOperation.controls = controls;
+    controls.forEach(({ control }) => { control.disabled = true; });
+    const status = document.createElement("p");
+    status.className = "notice";
+    status.setAttribute("role", "status");
+    status.dataset.poOperationStatus = "";
+    status.textContent = purchaseOrdersView().t("feedbackPreparing");
+    purchaseOrderFeedbackOperation.status = status;
+    dialog.prepend(status);
+    dialog.setAttribute("aria-busy", "true");
+    const result = await purchaseOrderReviews.beginFeedback({ model: currentPurchaseOrdersModel(), reviewId: parent.review_id, positionId: parent.position_id, version, correctsId });
+    if (generation !== purchaseOrderFeedbackGeneration || parent !== purchaseOrderDecisionEditor) return;
+    if (parent.dirty || JSON.stringify(parent.values) !== values) {
+      renderPurchaseOrderDecisionEditor(["edit_conflict"]);
+      return;
+    }
+    if (result.status !== "ready") { renderPurchaseOrderDecisionEditor(result.errors); return; }
+    purchaseOrderFeedbackEditor = result.editor;
+    renderPurchaseOrderFeedbackEditor();
+  } catch {
+    if (generation === purchaseOrderFeedbackGeneration && parent === purchaseOrderDecisionEditor) {
+      try { renderPurchaseOrderDecisionEditor(["feedback_identity_invalid"]); }
+      catch { preserveFailureFeedback = true; setFeedback(purchaseOrdersView().t("feedback_identity_invalid"), "error"); }
+    }
+  } finally {
+    if (purchaseOrderFeedbackOperation?.owner === owner) finishPurchaseOrderFeedbackOperation(preserveFailureFeedback);
+  }
+}
+
+function finishPurchaseOrderFeedbackOperation(preserveFeedback = false) {
+  const operation = purchaseOrderFeedbackOperation;
+  if (!operation) return;
+  purchaseOrderFeedbackOperation = null;
+  operation.controls.forEach(({ control, disabled }) => { control.disabled = disabled; });
+  operation.status?.remove();
+  operation.dialog.removeAttribute("aria-busy");
+  if (setBusy(false, "", { owner: operation.owner }) && !preserveFeedback) restoreHeaderDataStatus();
+  if (operation.dialog.open && !$("purchaseOrderFeedbackDialog")?.open && operation.opener?.isConnected) operation.opener.focus();
 }
 
 function closePurchaseOrderFeedbackEditor(force = false) {
@@ -21577,38 +21633,78 @@ function showPurchaseOrderRestore(result, errors = []) {
     dialog.id = "purchaseOrderRestoreDialog";
     dialog.className = "po-decision-dialog po-restore-dialog";
     dialog.setAttribute("aria-labelledby", "poRestoreTitle");
-    dialog.addEventListener("close", () => { purchaseOrderRestoreGeneration++; purchaseOrderRestorePreview = null; });
+    dialog.addEventListener("cancel", event => { event.preventDefault(); closePurchaseOrderRestore(); });
+    dialog.addEventListener("close", () => { if (!dialog.open) closePurchaseOrderRestore(); });
     document.body.appendChild(dialog);
   }
   dialog.innerHTML = purchaseOrdersView().restoreDialog(result, errors);
+  dialog.setAttribute("aria-busy", String(result.status === "loading"));
   if (!dialog.open) dialog.showModal();
+  else dialog.querySelector(".po-decision-errors, [data-po-restore-confirm], [data-po-restore-cancel]")?.focus();
 }
 
 async function backUpPurchaseOrderDecisions() {
+  if (dataOperationInProgress()) return;
+  const owner = setBusy(true, purchaseOrdersView().t("backupPreparing"), { dataOperation: "po-backup" });
   try {
     const result = await purchaseOrderReviews.createBackup();
     downloadBlob(new Blob([result.json], { type: "application/json;charset=utf-8" }), "obsoliq_po_review_backup.json");
     const view = purchaseOrdersView(), c = result.counts;
     setFeedback(`${view.t("backupSaved")}: ${c.total} ${view.t("positions")}, ${c.drafts} ${view.t("draftCount")}, ${c.history} ${view.t("historicalCount")}`, "success", { autoReset: true });
   } catch (error) { setFeedback(purchaseOrdersView().t(error.message.startsWith("backup_") ? error.message : "backup_apply_failed"), "error", { autoReset: true }); }
+  finally { setBusy(false, "", { owner }); }
+}
+
+function finishPurchaseOrderRestoreOperation(preserveFeedback = false) {
+  if (!purchaseOrderRestoreOperation) return;
+  const { owner, opener } = purchaseOrderRestoreOperation;
+  purchaseOrderRestoreOperation = null;
+  if (setBusy(false, "", { owner }) && !preserveFeedback) restoreHeaderDataStatus();
+  if (!$("purchaseOrderRestoreDialog")?.open && opener?.isConnected) opener.focus();
+}
+
+function closePurchaseOrderRestore() {
+  purchaseOrderRestoreGeneration++;
+  purchaseOrderRestorePreview = null;
+  $("purchaseOrderRestoreDialog")?.close();
+  finishPurchaseOrderRestoreOperation();
+  const opener = purchaseOrderRestoreOpener?.isConnected ? purchaseOrderRestoreOpener
+    : [...document.querySelectorAll("[data-po-restore]")].find(control => control.getClientRects().length);
+  opener?.focus({ preventScroll: true });
+  purchaseOrderRestoreOpener = null;
 }
 
 async function previewPurchaseOrderBackup(file, reassociate = false) {
+  if (dataOperationInProgress()) return;
   const generation = ++purchaseOrderRestoreGeneration;
   purchaseOrderRestorePreview = null;
+  const opener = document.activeElement;
+  purchaseOrderRestoreOpener = opener;
+  const owner = setBusy(true, purchaseOrdersView().t("restorePreparing"), { dataOperation: "po-restore" });
+  purchaseOrderRestoreOperation = { owner, opener };
+  let preserveFailureFeedback = false;
   try {
+    showPurchaseOrderRestore({ status: "loading" });
     if (!reassociate && (!file || file.size > ObsoliQModules.purchaseOrders.backup.LIMITS.bytes)) throw new Error("backup_limit");
+    const json = reassociate ? null : await file.text();
+    if (generation !== purchaseOrderRestoreGeneration) return;
     const result = reassociate ? await purchaseOrderReviews.previewReassociation(currentPurchaseOrdersModel())
-      : await purchaseOrderReviews.previewRestore({ json: await file.text(), model: currentPurchaseOrdersModel() });
+      : await purchaseOrderReviews.previewRestore({ json, model: currentPurchaseOrdersModel() });
     if (generation !== purchaseOrderRestoreGeneration) return;
     purchaseOrderRestorePreview = result;
     showPurchaseOrderRestore(result);
   } catch (error) {
-    if (generation === purchaseOrderRestoreGeneration) showPurchaseOrderRestore({ status: "blocked", errors: [error.message.startsWith("backup_") ? error.message : "backup_structure_invalid"] });
+    if (generation === purchaseOrderRestoreGeneration) {
+      try { showPurchaseOrderRestore({ status: "blocked", errors: [error.message.startsWith("backup_") ? error.message : "backup_structure_invalid"] }); }
+      catch { preserveFailureFeedback = true; setFeedback(purchaseOrdersView().t("backup_apply_failed"), "error"); }
+    }
+  } finally {
+    if (purchaseOrderRestoreOperation?.owner === owner) finishPurchaseOrderRestoreOperation(preserveFailureFeedback);
   }
 }
 
 function choosePurchaseOrderBackup() {
+  if (dataOperationInProgress()) return;
   const input = document.createElement("input");
   input.type = "file"; input.accept = ".json,application/json";
   input.addEventListener("change", () => { if (input.files[0]) previewPurchaseOrderBackup(input.files[0]); }, { once: true });
@@ -21616,17 +21712,21 @@ function choosePurchaseOrderBackup() {
 }
 
 function applyPurchaseOrderBackup() {
+  if (dataOperationInProgress()) return;
   const previous = purchaseOrderReviews.snapshot();
-  const result = purchaseOrderReviews.applyRestore({ preview: purchaseOrderRestorePreview, model: currentPurchaseOrdersModel(),
-    confirmed: $("purchaseOrderRestoreDialog")?.querySelector("[data-po-restore-confirm]")?.checked === true });
-  if (result.status !== "ready") { showPurchaseOrderRestore({ status: "blocked", errors: result.errors }); return; }
-  try { renderPurchaseOrderReviews(); }
-  catch {
+  try {
+    const result = purchaseOrderReviews.applyRestore({ preview: purchaseOrderRestorePreview, model: currentPurchaseOrdersModel(),
+      confirmed: $("purchaseOrderRestoreDialog")?.querySelector("[data-po-restore-confirm]")?.checked === true });
+    if (result.status !== "ready") { showPurchaseOrderRestore({ status: "blocked", errors: result.errors }); return; }
+    renderPurchaseOrderReviews();
+    closePurchaseOrderRestore();
+    setFeedback(purchaseOrdersView().t("restored"), "success", { autoReset: true });
+  } catch {
     purchaseOrderReviews.restore(previous);
-    showPurchaseOrderRestore({ status: "blocked", errors: ["backup_apply_failed"] }); return;
+    try { renderPurchaseOrderReviews(); } catch { /* Saved state is already restored independently of rendering. */ }
+    try { showPurchaseOrderRestore({ status: "blocked", errors: ["backup_apply_failed"] }); }
+    catch { setFeedback(purchaseOrdersView().t("backup_apply_failed"), "error"); }
   }
-  $("purchaseOrderRestoreDialog")?.close();
-  setFeedback(purchaseOrdersView().t("restored"), "success", { autoReset: true });
 }
 
 function renderPurchaseOrderDecisionEditor(errors = []) {
@@ -21651,6 +21751,7 @@ function openPurchaseOrderDecisionEditor(reviewId, positionId, recheck = false) 
     return;
   }
   const previous = purchaseOrderDecisionEditor;
+  if (!previous) purchaseOrderDecisionOpener = document.activeElement;
   purchaseOrderDecisionEditor = result.editor;
   if (recheck && previous?.review_id === reviewId && previous.position_id === positionId) {
     purchaseOrderDecisionEditor.values = previous.values;
@@ -21661,8 +21762,18 @@ function openPurchaseOrderDecisionEditor(reviewId, positionId, recheck = false) 
 
 function closePurchaseOrderDecisionEditor(force = false) {
   if (!force && purchaseOrderDecisionEditor?.dirty && !window.confirm(purchaseOrdersView().t("discard"))) return;
+  purchaseOrderFeedbackGeneration++;
+  finishPurchaseOrderFeedbackOperation();
+  const editor = purchaseOrderDecisionEditor;
   $("purchaseOrderDecisionDialog")?.close();
   purchaseOrderDecisionEditor = null;
+  restorePurchaseOrderDecisionFocus(editor);
+}
+
+function restorePurchaseOrderDecisionFocus(editor) {
+  const replacement = [...document.querySelectorAll("[data-po-decision]")].find(control => control.dataset.poDecision === editor?.review_id && control.dataset.poPosition === editor?.position_id);
+  const target = replacement || (purchaseOrderDecisionOpener?.isConnected ? purchaseOrderDecisionOpener : null);
+  target?.focus({ preventScroll: true });
 }
 
 document.addEventListener("submit", event => {
@@ -21672,11 +21783,13 @@ document.addEventListener("submit", event => {
   if ([...event.target.querySelectorAll("input")].some(input => input.validity.badInput)) {
     renderPurchaseOrderDecisionEditor(["reduction_invalid"]); return;
   }
-  const result = purchaseOrderReviews.saveDecision({ model: currentPurchaseOrdersModel(), editor: purchaseOrderDecisionEditor,
+  const editor = purchaseOrderDecisionEditor;
+  const result = purchaseOrderReviews.saveDecision({ model: currentPurchaseOrdersModel(), editor,
     input: purchaseOrderDecisionEditor.values, confirmed: purchaseOrderDecisionEditor.confirmed === true });
   if (result.status !== "ready") { renderPurchaseOrderDecisionEditor(result.errors); return; }
   closePurchaseOrderDecisionEditor(true);
   renderPurchaseOrderReviews();
+  restorePurchaseOrderDecisionFocus(editor);
   setFeedback(purchaseOrdersView().t("saved"), "success", { autoReset: true });
 });
 
@@ -21706,7 +21819,7 @@ document.addEventListener("click", event => {
   if (event.target.closest("[data-po-backup]")) { backUpPurchaseOrderDecisions(); return; }
   if (event.target.closest("[data-po-restore]")) { choosePurchaseOrderBackup(); return; }
   if (event.target.closest("[data-po-reassociate]")) { previewPurchaseOrderBackup(null, true); return; }
-  if (event.target.closest("[data-po-restore-cancel]")) { $("purchaseOrderRestoreDialog")?.close(); return; }
+  if (event.target.closest("[data-po-restore-cancel]")) { closePurchaseOrderRestore(); return; }
   if (event.target.closest("[data-po-restore-apply]")) { applyPurchaseOrderBackup(); return; }
   const decision = event.target.closest("[data-po-decision]");
   if (decision) { openPurchaseOrderDecisionEditor(decision.dataset.poDecision, decision.dataset.poPosition); return; }
@@ -21933,17 +22046,26 @@ function rollbackPackageImportTransaction({
           || []
         )
       };
+      $("mappingModal")?.classList.add("active");
+      document.body.classList.add("modal-open");
+      mappingAssistantDirty = true;
       renderColumnMappingAssistant();
       const issueTarget = $("mappingIssues");
-      if (issueTarget && packageValidation) {
-        issueTarget.innerHTML = renderPackageValidationIssues(packageValidation);
+      if (issueTarget) {
+        const failure = document.createElement("p");
+        failure.className = "notice error";
+        failure.setAttribute("role", "alert");
+        failure.tabIndex = -1;
+        failure.textContent = t(packageImportFeedbackKey(context?.packageType, "failure"));
+        issueTarget.prepend(failure);
+        failure.focus();
       }
     }
   } catch (mappingUiError) {
     console.error("Package import Mapping UI restore failed.", mappingUiError);
   }
   if (!context?.suppressFeedback) {
-    setFeedback(t(packageImportFeedbackKey(context?.packageType, "failure")), "error", { autoReset: true });
+    setFeedback(t(packageImportFeedbackKey(context?.packageType, "failure")), "error");
   }
   return false;
 }
@@ -22030,6 +22152,16 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       });
     }
     if (context.packageType === PURCHASE_ORDERS_PACKAGE_TYPE && context.render !== false) renderCurrentView({ globalChrome: false, syncStateFromControls: false });
+    if (context.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
+      onHistoricalMetricInputsChanged({ reason: "consumption_history_package_imported" });
+    }
+    if (context.render !== false) renderPackageAvailability();
+    if (context.render !== false && [MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(context.packageType) && currentDatasetMeta) {
+      renderAfterDatasetChange({ syncStateFromControls: false });
+    }
+    if (!explicitContext) closeColumnMappingAssistant({ force: true });
+    if (!context.suppressSuccessFeedback) setFeedback(t(packageImportFeedbackKey(context.packageType, "success")), "ok", { autoReset: true });
+    return true;
   } catch (error) {
     return rollbackPackageImportTransaction({
       previousRuntimeState,
@@ -22041,16 +22173,6 @@ function continuePackageImportWithMapping(mapping = pendingUploadContext?.approv
       error
     });
   }
-  if (context.packageType === CONSUMPTION_HISTORY_PACKAGE_TYPE) {
-    onHistoricalMetricInputsChanged({ reason: "consumption_history_package_imported" });
-  }
-  if (context.render !== false) renderPackageAvailability();
-  if (context.render !== false && [MATERIAL_MASTER_PACKAGE_TYPE, CONSUMPTION_HISTORY_PACKAGE_TYPE].includes(context.packageType) && currentDatasetMeta) {
-    renderAfterDatasetChange({ syncStateFromControls: false });
-  }
-  if (!explicitContext) closeColumnMappingAssistant({ force: true });
-  if (!context.suppressSuccessFeedback) setFeedback(t(packageImportFeedbackKey(context.packageType, "success")), "ok", { autoReset: true });
-  return true;
 }
 
 function rollbackMappingApplyTransaction({
@@ -22280,7 +22402,7 @@ function selectPackageTypeForUpload(packageType) {
 async function handleFile(file, options = {}) {
   if (!file) return;
   if (dataOperationInProgress()) return { status: "busy" };
-  setBusy(true, t("loadingFile"), { dataOperation: "import" });
+  const owner = setBusy(true, t("loadingFile"), { dataOperation: "import" });
   const packageType = options.packageType || pendingUploadPackageType || INVENTORY_PACKAGE_TYPE;
   const lower = file.name.toLowerCase();
   try {
@@ -22293,7 +22415,7 @@ async function handleFile(file, options = {}) {
     throw new Error(localizedIngestionErrorMessage(error));
   } finally {
     pendingUploadPackageType = INVENTORY_PACKAGE_TYPE;
-    setBusy(false);
+    setBusy(false, "", { owner });
   }
 }
 
@@ -23127,6 +23249,7 @@ function initInventoryTableResize() {
 }
 
 function runDownload() {
+  if (dataOperationInProgress()) return;
   try {
     pendingDownloadScope = selectedDownloadScope();
     pendingDownloadVariant = selectedDownloadVariant();
@@ -23333,7 +23456,6 @@ $("uploadButton").addEventListener("click", openPackageTypeDialog);
 $("fileInput").addEventListener("change", event => {
   handleFile(event.target.files[0], { packageType: pendingUploadPackageType })
     .catch(error => {
-      setBusy(false);
       setFeedback(t("uploadFailed"), "error");
       alert(error.message);
     })
@@ -23344,7 +23466,7 @@ $("fileInput").addEventListener("change", event => {
 $("sampleButton").addEventListener("click", () => {
   if (dataOperationInProgress()) return;
   if (fullDemoReplacementRequiresConfirmation() && !window.confirm(t("fullDemoReplaceConfirm"))) return;
-  setBusy(true, t("fullDemoLoading"), { dataOperation: "demo" });
+  const owner = setBusy(true, t("fullDemoLoading"), { dataOperation: "demo" });
   loadFullDemoData()
     .then(result => {
       if (result?.status === "error") return;
@@ -23355,7 +23477,7 @@ $("sampleButton").addEventListener("click", () => {
       setFeedback(t("fullDemoLoadFailed"), "error", { autoReset: false });
     })
     .finally(() => {
-      setBusy(false);
+      setBusy(false, "", { owner });
     });
 });
 $("exportInventoryButton").addEventListener("click", () => showDownloadDialog("inventory", { defaultVariant: "original" }));
@@ -23448,7 +23570,6 @@ window.addEventListener("drop", event => {
   if (dataOperationInProgress()) return;
   const file = event.dataTransfer.files[0];
   handleFile(file).catch(error => {
-    setBusy(false);
     setFeedback(t("uploadFailed"), "error");
     alert(error.message);
   });

@@ -97,7 +97,7 @@
     restoreExplanation: "Aktuelle Einträge werden neu zugeordnet. Veraltete Einträge behalten ihren alten Bezug und benötigen erneute Prüfung. Nicht zuordenbare Einträge bleiben ohne operative Fallverbindung. Identische Einträge bleiben unverändert.",
     restoreConfirm: "Ich übernehme diese lokalen Arbeitsstände. Dies ist keine Lieferantenbestätigung, ERP-Ausführung oder formelle Freigabe.",
     restoreConflict: "Nichts wird übernommen: Die Datei widerspricht bestehender Arbeit. Vorhandene Entscheidungen separat sichern; kein automatisches Zusammenführen.",
-    restored: "Sicherung übernommen", backupSaved: "Lokale Sicherung erstellt", backup_confirmation_required: "Wiederherstellung ausdrücklich bestätigen.",
+    restored: "Sicherung übernommen", backupSaved: "Lokale Sicherung erstellt", backupPreparing: "Lokale Sicherung wird erstellt …", restorePreparing: "Sicherung und Quellenbezüge werden geprüft …", backup_confirmation_required: "Wiederherstellung ausdrücklich bestätigen.",
     backup_structure_invalid: "Ungültige Sicherungsstruktur. Es wurde nichts übernommen.", backup_version_unknown: "Diese Sicherungsversion wird nicht unterstützt.",
     backup_checksum_invalid: "Integritätsprüfung fehlgeschlagen. Datei unverändert aus der Sicherung verwenden.", backup_identity_invalid: "Widersprüchliche oder doppelte Entscheidungsidentität.",
     backup_history_invalid: "Entscheidungsstände oder Historie sind inkonsistent.", backup_limit: "Sicherungsgrenze überschritten (5 MiB, 2.000 Positionen, höchstens 100 frühere Versionen je Position).",
@@ -112,7 +112,7 @@
     restoreExplanation: "Current items are rebound. Stale items retain their previous basis and need review. Unassignable items remain without an operational case link. Identical items remain unchanged.",
     restoreConfirm: "I am restoring local work records. This is not supplier confirmation, ERP execution or formal approval.",
     restoreConflict: "Nothing will be imported: this file conflicts with existing work. Back up existing decisions separately; no automatic merging.",
-    restored: "Backup restored", backupSaved: "Local backup created", backup_confirmation_required: "Explicitly confirm restoration.",
+    restored: "Backup restored", backupSaved: "Local backup created", backupPreparing: "Creating local backup …", restorePreparing: "Checking backup and source bindings …", backup_confirmation_required: "Explicitly confirm restoration.",
     backup_structure_invalid: "Invalid backup structure. Nothing was imported.", backup_version_unknown: "This backup version is not supported.",
     backup_checksum_invalid: "Integrity check failed. Use the unchanged backup file.", backup_identity_invalid: "Conflicting or duplicate decision identity.",
     backup_history_invalid: "Inconsistent decision versions or history.", backup_limit: "Backup limit exceeded (5 MiB, 2,000 items, at most 100 earlier versions per item).",
@@ -120,7 +120,7 @@
     backup_preview_changed: "Decisions or sources changed after the preview. Reopen and review the backup.", backup_apply_failed: "Restoration failed. Previous decisions remain intact."
   });
   Object.assign(labels.de, {
-    feedback: "Rückmeldungen", addFeedback: "Rückmeldung erfassen", correctFeedback: "Rückmeldung korrigieren", exportFeedback: "Rückmeldungen exportieren",
+    feedback: "Rückmeldungen", addFeedback: "Rückmeldung erfassen", correctFeedback: "Rückmeldung korrigieren", exportFeedback: "Rückmeldungen exportieren", feedbackPreparing: "Entscheidungsfassung für Rückmeldung wird geprüft …",
     feedbackEmpty: "Zu diesem Entscheidungsstand wurde noch keine Umsetzung gemeldet.", feedbackNeedsDecision: "Rückmeldungen benötigen eine gespeicherte dokumentierte Entscheidung.",
     decisionVersion: "Entscheidungsversion", historicalDecision: "Damals dokumentierte Entscheidung", observedSource: "Aktuell beobachtete PO-Daten", historicalSourceStatus: "Quellenstatus dieser Entscheidungsversion",
     feedbackBoundary: "Menschliche Meldung, kein verifizierter Umsetzungsnachweis. Quellenänderungen belegen keine Ursache; Beibehaltung ist kein Bestandsabbau.",
@@ -136,7 +136,7 @@
     backupScope: "Alle gespeicherten PO-Entscheidungen, Entwürfe, dokumentierten Vorstände und Rückmeldungen samt Korrekturen, unabhängig vom Listenfilter. Ungespeicherte Eingaben sind nicht enthalten."
   });
   Object.assign(labels.en, {
-    feedback: "Implementation reports", addFeedback: "Record report", correctFeedback: "Correct report", exportFeedback: "Export reports",
+    feedback: "Implementation reports", addFeedback: "Record report", correctFeedback: "Correct report", exportFeedback: "Export reports", feedbackPreparing: "Checking the decision version for the report …",
     feedbackEmpty: "No implementation has been reported for this decision version.", feedbackNeedsDecision: "Reports require a saved documented decision.",
     decisionVersion: "Decision version", historicalDecision: "Decision documented at the time", observedSource: "Currently observed PO data", historicalSourceStatus: "Source status of this decision version",
     feedbackBoundary: "Human report, not verified implementation. Source changes do not establish causation; keeping an order is not inventory reduction.",
@@ -256,7 +256,8 @@
     function restoreDialog(result, errors = []) {
       const counts = result?.counts;
       return '<div class="po-header"><h3 id="poRestoreTitle">'+html(t("restorePreview"))+'</h3>'+button("cancel","data-po-restore-cancel","")+'</div><p>'+html(t("sourcesRequired"))+'</p>'+
-        '<div role="alert" class="po-decision-errors">'+[...(result?.errors||[]),...errors].map(key=>'<p>'+html(t(key))+'</p>').join("")+'</div>'+
+        (result?.status==='loading'?'<p role="status">'+html(t("restorePreparing"))+'</p>':'')+
+        ([...(result?.errors||[]),...errors].length?'<div role="alert" tabindex="-1" class="po-decision-errors">'+[...(result?.errors||[]),...errors].map(key=>'<p>'+html(t(key))+'</p>').join("")+'</div>':'')+
         (counts?'<dl class="po-backup-counts">'+[["positions",counts.total],["documented",counts.documented],["draftCount",counts.drafts],["historicalCount",counts.history]].map(([key,value])=>'<div><dt>'+html(t(key))+'</dt><dd>'+value+'</dd></div>').join("")+'</dl><p>'+html(t("restoreExplanation"))+'</p><div class="table-wrap po-table-wrap"><table><thead><tr><th>'+html(t("order"))+'</th><th>'+html(t("material"))+'</th><th>'+html(t("source_status"))+'</th></tr></thead><tbody>'+(result.rows||[]).map(row=>'<tr data-po-restore-state="'+html(row.state)+'"><td>'+html(row.order+' / '+row.position)+'</td><td>'+html(row.material)+'<small>'+html(row.plant)+'</small></td><td>'+html(t(row.state))+(row.state==='identical'?' · '+html(t(row.source_state)):'')+'</td></tr>').join("")+'</tbody></table></div>':'')+
         (result?.status==='conflict'?'<p role="alert">'+html(t("restoreConflict"))+'</p>':'')+
         (result?.status==='ready'?'<label class="po-confirm"><input type="checkbox" data-po-restore-confirm>'+html(t("restoreConfirm"))+'</label><div class="po-buttons">'+button("restoreBackup","data-po-restore-apply disabled","upload-file")+'</div>':'');
